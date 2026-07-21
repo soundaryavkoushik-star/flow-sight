@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light mode */
+    --background: 218 43% 5%;
+    --foreground: 222 52% 93%;
+    --card: 222 38% 9%;
+    --card-foreground: 222 52% 93%;
+    --primary: 229 100% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 225 42% 13%;
+    --secondary-foreground: 226 38% 85%;
+    --muted: 222 41% 13%;
+    --muted-foreground: 220 20% 45%;
+    --accent: 162 76% 48%;
+    --accent-foreground: 218 43% 5%;
+    --destructive: 352 100% 65%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 100% / 0.07;
+    --input: 222 41% 13%;
+    --ring: 229 100% 67%;
+    --radius: 0.875rem;
+
+    /* Flowsight semantic tokens — light */
+    --fs-surface: 0 0% 100%;
+    --fs-surface-raised: 0 0% 98%;
+    --fs-surface-overlay: 220 14% 96%;
+    --fs-ink: 224 71% 4%;
+    --fs-ink-muted: 220 9% 46%;
+    --fs-ink-faint: 220 9% 70%;
+    --fs-border: 220 13% 91%;
+    --fs-green: 142 71% 45%;
+    --fs-green-bg: 142 71% 95%;
+    --fs-red: 0 84% 60%;
+    --fs-red-bg: 0 84% 97%;
+    --fs-amber: 38 92% 50%;
+    --fs-amber-bg: 38 92% 96%;
+  }
+
+  .dark {
+    /* Dark mode — Flowsight's default visual direction */
+    --background: 218 43% 5%;
+    --foreground: 222 52% 93%;
+    --card: 222 38% 9%;
+    --card-foreground: 222 52% 93%;
+    --primary: 229 100% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 225 42% 13%;
+    --secondary-foreground: 226 38% 85%;
+    --muted: 222 41% 13%;
+    --muted-foreground: 220 20% 45%;
+    --accent: 162 76% 48%;
+    --accent-foreground: 218 43% 5%;
+    --destructive: 352 100% 65%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 100% / 0.07;
+    --input: 222 41% 13%;
+    --ring: 229 100% 67%;
+
+    /* Flowsight semantic tokens — dark */
+    --fs-surface: 224 39% 8%;
+    --fs-surface-raised: 217 33% 12%;
+    --fs-surface-overlay: 217 33% 16%;
+    --fs-ink: 210 40% 98%;
+    --fs-ink-muted: 215 20% 55%;
+    --fs-ink-faint: 215 20% 35%;
+    --fs-border: 217 33% 16%;
+    --fs-green: 142 71% 45%;
+    --fs-green-bg: 142 71% 8%;
+    --fs-red: 0 62% 55%;
+    --fs-red-bg: 0 62% 8%;
+    --fs-amber: 38 92% 50%;
+    --fs-amber-bg: 38 92% 8%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}

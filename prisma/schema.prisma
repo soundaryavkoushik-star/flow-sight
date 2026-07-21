@@ -1,0 +1,171 @@
+// FlowSight — Phase 1 schema
+// Auth is handled by Supabase — no User model here.
+// userId is the Supabase auth.users.id (UUID string) on every model.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// User preferences — one row per user
+model UserProfile {
+  userId          String   @id // Supabase auth.users.id
+  preferredCurrency String @default("USD")
+  safetyBufferCents Int     @default(0) // minimum balance the user wants to stay above
+  alertSafetyBuffer Boolean @default(true)
+  alertKnownBill Boolean @default(true)
+  alertEstimateReview Boolean @default(true)
+  alertStaleBalance Boolean @default(true)
+  alertLeadDays Int @default(3)
+  dashboardEmphasis String @default("status") // "status" | "calendar" | "decision"
+  dashboardDensity String @default("comfortable") // "comfortable" | "compact"
+  showSpendingHistory Boolean @default(false)
+  lastForecastViewedAt DateTime?
+  lastSafeToSpendCents Int?
+  lastLowestBalanceCents Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Accounts — checking, savings, loans, investments, etc.
+model Account {
+  id           String        @id @default(cuid())
+  userId       String
+  name         String
+  type         String        // "checking" | "savings" | "credit_card" | "loan" | "investment" | "property" | "other"
+  currency     String        @default("USD")
+  isLiability  Boolean       @default(false)
+  // Anchor: known balance at a specific date, so transaction-sum math is accurate
+  anchorBalanceCents Int?
+  anchorDate   DateTime?
+  source       String        @default("manual") // "manual" | "csv" | "plaid"
+  // Plaid fields — populated only for connected accounts
+  plaidAccountId String?     @unique
+  lastSyncedAt DateTime?
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+  balanceObservations ActualBalanceObservation[]
+
+  @@index([userId])
+}
+
+model ForecastSnapshot {
+  id                    String   @id @default(cuid())
+  userId                String
+  inputFingerprint      String
+  forecastStartDate     DateTime
+  forecastEndDate       DateTime
+  startingBalanceCents  Int
+  safetyBufferCents     Int
+  safeToSpendCents      Int
+  lowestBalanceCents    Int
+  lowestBalanceDate     DateTime
+  confirmedEventCount   Int
+  estimatedEventCount   Int
+  projectedDays         Json
+  includedEvents        Json
+  createdAt             DateTime @default(now())
+
+  @@unique([userId, inputFingerprint])
+  @@index([userId, createdAt])
+}
+
+model ActualBalanceObservation {
+  id           String   @id @default(cuid())
+  userId       String
+  accountId    String
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  balanceCents Int
+  observedAt   DateTime
+  createdAt    DateTime @default(now())
+
+  @@unique([accountId, observedAt])
+  @@index([userId, observedAt])
+}
+
+// Transactions — signed: negative = expense, positive = income
+model Transaction {
+  id          String    @id @default(cuid())
+  userId      String
+  accountId   String?
+  account     Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  date        DateTime
+  description String
+  amountCents Int
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  source      String?   // CSV filename or "plaid"
+  aiSuggested Boolean   @default(false)
+  plaidTransactionId String? @unique
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, date])
+}
+
+// Categories — user-defined
+model Category {
+  id           String         @id @default(cuid())
+  userId       String
+  name         String
+  color        String         @default("#6b7280")
+  transactions Transaction[]
+  rules        CategoryRule[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+// Keyword rules for auto-categorization
+model CategoryRule {
+  id         String   @id @default(cuid())
+  userId     String
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  keyword    String
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Recurring series — detected bills and income patterns
+// Phase 3 will populate this from transaction history
+model RecurringSeries {
+  id            String    @id @default(cuid())
+  userId        String
+  normalizedKey String    // normalized merchant/description used to group
+  name          String    // human-readable display name
+  type          String    // "bill" | "income"
+  amountCents   Int       // typical amount (negative for bills)
+  currency      String    @default("USD")
+  frequency     String    // "monthly" | "weekly" | "biweekly" | "annual" | "irregular"
+  dayOfMonth    Int?      // for monthly series
+  nextExpected  DateTime? // next predicted occurrence
+  dateConfidence String   @default("estimated") // "confirmed" | "estimated"
+  status        String    @default("detected") // "detected" | "confirmed" | "dismissed"
+  isManual      Boolean   @default(false) // user manually added vs auto-detected
+  accountId     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  exceptions    RecurringException[]
+
+  @@unique([userId, normalizedKey])
+  @@index([userId])
+}
+
+model RecurringException {
+  id                String   @id @default(cuid())
+  userId            String
+  recurringSeriesId String
+  recurringSeries   RecurringSeries @relation(fields: [recurringSeriesId], references: [id], onDelete: Cascade)
+  originalDate      DateTime
+  action            String   // "skip" | "move"
+  movedDate         DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([recurringSeriesId, originalDate])
+  @@index([userId])
+}
