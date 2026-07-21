@@ -32,6 +32,12 @@ export interface RecurringConfirmationInput {
   frequency: "weekly" | "biweekly" | "monthly" | "annual"
   nextExpected: string
   type: "income" | "bill"
+  anchorDayOfMonth?: number
+  minAmountCents: number
+  maxAmountCents: number
+  occurrenceCount: number
+  evidenceStartDate: string
+  evidenceEndDate: string
 }
 
 function parseDate(value: string) {
@@ -213,14 +219,16 @@ export async function confirmRecurringSuggestions(items: RecurringConfirmationIn
 
   for (const item of items) {
     const date = parseDate(item.nextExpected)
-    if (!date || !item.name.trim() || !Number.isSafeInteger(item.amountCents) || item.amountCents === 0) return { ok: false as const, message: "Review the selected recurring items and try again." }
+    const evidenceStartDate = parseDate(item.evidenceStartDate)
+    const evidenceEndDate = parseDate(item.evidenceEndDate)
+    if (!date || !evidenceStartDate || !evidenceEndDate || !item.name.trim() || !Number.isSafeInteger(item.amountCents) || item.amountCents === 0 || !Number.isSafeInteger(item.minAmountCents) || !Number.isSafeInteger(item.maxAmountCents) || !Number.isSafeInteger(item.occurrenceCount) || item.occurrenceCount < 3) return { ok: false as const, message: "Review the selected recurring items and try again." }
     const account = await prisma.account.findFirst({ where: { id: item.accountId, userId: user.id } })
     if (!account) return { ok: false as const, message: "We couldn’t find the account for those suggestions." }
     const normalizedKey = `csv:${item.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-")}`
     await prisma.recurringSeries.upsert({
       where: { userId_normalizedKey: { userId: user.id, normalizedKey } },
-      update: { name: item.name.trim(), amountCents: item.amountCents, frequency: item.frequency, nextExpected: date, dateConfidence: "estimated", status: "confirmed", accountId: item.accountId },
-      create: { userId: user.id, normalizedKey, name: item.name.trim(), type: item.type, amountCents: item.amountCents, frequency: item.frequency, nextExpected: date, dateConfidence: "estimated", status: "confirmed", accountId: item.accountId },
+      update: { name: item.name.trim(), amountCents: item.amountCents, frequency: item.frequency, nextExpected: date, anchorDayOfMonth: item.anchorDayOfMonth, minAmountCents: item.minAmountCents, maxAmountCents: item.maxAmountCents, occurrenceCount: item.occurrenceCount, evidenceStartDate, evidenceEndDate, dateConfidence: "estimated", status: "confirmed", accountId: item.accountId },
+      create: { userId: user.id, normalizedKey, name: item.name.trim(), type: item.type, amountCents: item.amountCents, frequency: item.frequency, nextExpected: date, anchorDayOfMonth: item.anchorDayOfMonth, minAmountCents: item.minAmountCents, maxAmountCents: item.maxAmountCents, occurrenceCount: item.occurrenceCount, evidenceStartDate, evidenceEndDate, dateConfidence: "estimated", status: "confirmed", accountId: item.accountId },
     })
   }
 

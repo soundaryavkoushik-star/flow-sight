@@ -13,7 +13,12 @@ export function runScenario(input: ForecastInput, hypotheticalEvents: FinancialE
     scenario,
     lowestBalanceDeltaCents: scenario.lowestBalanceCents - baseline.lowestBalanceCents,
     safeToSpendDeltaCents: scenario.safeToSpendCents - baseline.safeToSpendCents,
-    riskChanged: baseline.risks.length !== scenario.risks.length ||
-      baseline.risks.some((risk, index) => scenario.risks[index]?.type !== risk.type),
+    riskChanged: riskSetChanged(baseline.risks, scenario.risks),
   }
+}
+
+export function riskSetChanged(baseline: Array<{ type: string; date: string }>, scenario: Array<{ type: string; date: string }>) {
+  const left = new Set(baseline.map((risk) => `${risk.type}:${risk.date}`))
+  const right = new Set(scenario.map((risk) => `${risk.type}:${risk.date}`))
+  return left.size !== right.size || [...left].some((risk) => !right.has(risk))
 }

@@ -4,6 +4,7 @@ import { generateRecurringEvents } from "./recurring"
 import { simulateDailyBalances } from "./simulator"
 import type { ForecastInput, ForecastResult } from "./types"
 import { addDays, isInRange } from "./utils"
+import { suppressMatchedRecurringEvents } from "./reconcile"
 
 export function calculateForecast(input: ForecastInput): ForecastResult {
   const { startingBalanceCents, settings } = input
@@ -18,7 +19,7 @@ export function calculateForecast(input: ForecastInput): ForecastResult {
     endDate,
   )
 
-  const events = [...input.events, ...recurringEvents]
+  const events = [...input.events, ...suppressMatchedRecurringEvents(input.events, recurringEvents)]
     .filter((event) => isInRange(event.date, settings.startDate, endDate))
     .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
 

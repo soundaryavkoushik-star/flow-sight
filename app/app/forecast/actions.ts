@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/data/prisma"
 import { createHash } from "node:crypto"
+import { isValidTimeZone } from "@/lib/forecast/timezone"
 
 export interface ForecastEventUpdate {
   eventId: string
@@ -157,6 +158,7 @@ export async function updateSafetyBuffer(safetyBufferCents: number): Promise<Saf
 }
 
 export interface ForecastSnapshotInput {
+  timezone?: string
   startDate: string
   startingBalanceCents: number
   safetyBufferCents: number
@@ -187,11 +189,12 @@ export async function recordForecastVisit(input: ForecastSnapshotInput) {
   const confirmedEventCount = input.events.filter((event) => event.confidence === "confirmed").length
   const estimatedEventCount = input.events.length - confirmedEventCount
   const now = new Date()
+  const timezone = input.timezone && isValidTimeZone(input.timezone) ? input.timezone : undefined
   await prisma.$transaction([
     prisma.userProfile.upsert({
       where: { userId: user.id },
-      update: { lastForecastViewedAt: now, lastSafeToSpendCents: input.safeToSpendCents, lastLowestBalanceCents: input.lowestBalanceCents },
-      create: { userId: user.id, lastForecastViewedAt: now, lastSafeToSpendCents: input.safeToSpendCents, lastLowestBalanceCents: input.lowestBalanceCents },
+      update: { lastForecastViewedAt: now, lastSafeToSpendCents: input.safeToSpendCents, lastLowestBalanceCents: input.lowestBalanceCents, ...(timezone ? { timezone } : {}) },
+      create: { userId: user.id, lastForecastViewedAt: now, lastSafeToSpendCents: input.safeToSpendCents, lastLowestBalanceCents: input.lowestBalanceCents, ...(timezone ? { timezone } : {}) },
     }),
     prisma.forecastSnapshot.upsert({
       where: { userId_inputFingerprint: { userId: user.id, inputFingerprint } },

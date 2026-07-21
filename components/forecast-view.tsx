@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import type { DashboardForecast } from "@/lib/data/forecast"
 import { confirmForecastEstimate, deleteForecastTransaction, recordForecastVisit, skipForecastOccurrence, stopRecurringEvent, updateForecastEvent, updateSafetyBuffer, type ForecastEventUpdate } from "@/app/app/forecast/actions"
 import { runScenario } from "@/lib/forecast/scenarios"
+import { determineForecastCondition } from "@/lib/forecast/condition"
 
 /* ── DATA ── */
 
@@ -65,8 +66,11 @@ export function ForecastView({ name, data, view = "dashboard" }: {
   useEffect(() => {
     if (!data) return
     const events = data.forecast.days.flatMap((day) => day.events.map((event) => ({ id: event.id, date: event.date, name: event.name, amountCents: event.amountCents, confidence: event.confidence, source: event.source })))
-    void recordForecastVisit({ startDate: data.input.settings.startDate, startingBalanceCents: data.input.startingBalanceCents, safetyBufferCents: data.input.settings.safetyBufferCents, safeToSpendCents: data.forecast.safeToSpendCents, lowestBalanceCents: data.forecast.lowestBalanceCents, lowestBalanceDate: data.forecast.lowestBalanceDate, days: data.forecast.days.map((day) => ({ date: day.date, endingBalanceCents: day.endingBalanceCents })), events })
-  }, [data])
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    void recordForecastVisit({ timezone, startDate: data.input.settings.startDate, startingBalanceCents: data.input.startingBalanceCents, safetyBufferCents: data.input.settings.safetyBufferCents, safeToSpendCents: data.forecast.safeToSpendCents, lowestBalanceCents: data.forecast.lowestBalanceCents, lowestBalanceDate: data.forecast.lowestBalanceDate, days: data.forecast.days.map((day) => ({ date: day.date, endingBalanceCents: day.endingBalanceCents })), events }).then(() => {
+      if (timezone !== data.timezone) router.refresh()
+    })
+  }, [data, router])
 
   useEffect(() => {
     if (!selectedDate) return
@@ -156,11 +160,13 @@ export function ForecastView({ name, data, view = "dashboard" }: {
   ]
   const visibleAlerts = alerts.filter((_, i) => !dismissedAlerts.includes(i))
   const lowestDate = new Date(`${data.forecast.lowestBalanceDate}T00:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric" })
-  const hasRisk = data.forecast.risks.length > 0
-  const isWatch = !hasRisk && data.forecast.lowestBalanceCents <= data.safetyBufferCents + 20000
-  const resultTitle = hasRisk
+  const condition = determineForecastCondition(data.forecast, data.safetyBufferCents, data.freshness.status)
+  const hasRisk = condition === "tight"
+  const resultTitle = condition === "update_needed"
+    ? "Update your balance before relying on this forecast."
+    : condition === "tight"
     ? `Your balance may fall below your safety buffer on ${lowestDate}.`
-    : isWatch
+    : condition === "watch"
       ? `Your balance may feel tight around ${lowestDate}.`
       : "You’re on track for the next 30 days."
   const resultDetail = `Your lowest projected balance is ${money(data.forecast.lowestBalanceCents)} on ${lowestDate}.`
@@ -249,6 +255,7 @@ export function ForecastView({ name, data, view = "dashboard" }: {
       {/* Primary forecast result */}
       <section className={`rounded-2xl border p-5 ${hasRisk ? "border-yellow-500/30 bg-yellow-500/[0.07]" : "border-primary/25 bg-primary/[0.07]"}`}>
         <div className="max-w-3xl">
+          <span className="inline-flex rounded-full border border-current/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider mb-3">{condition === "update_needed" ? "Update needed" : condition === "tight" ? "Tight" : condition === "watch" ? "Watch" : "Clear"}</span>
           <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-mono mb-2">Your forecast result</p>
           <h3 className="text-xl font-semibold tracking-tight">{resultTitle}</h3>
           <p className="text-sm text-muted-foreground mt-2">{resultDetail}</p>
@@ -475,6 +482,7 @@ export function ForecastView({ name, data, view = "dashboard" }: {
               {bufferMessage && <p className="text-[11px] text-muted-foreground mt-2">{bufferMessage}</p>}
             </div>
             <div className="border-t border-border mt-5 pt-4 relative">
+              {showWorkOpen && <div className="mt-4"><p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-2">Today’s opening balance</p>{data.balanceRollForward.map((item) => <div key={item.accountName} className="rounded-lg border border-border p-2 mb-2 text-xs"><p className="font-medium mb-1">{item.accountName}</p><p className="text-muted-foreground">{money(item.anchorBalanceCents)} as of {new Date(`${item.anchorDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} {item.activityCents >= 0 ? "+" : "−"} {money(Math.abs(item.activityCents))} later activity = <span className="text-foreground font-mono">{money(item.openingBalanceCents)}</span></p></div>)}</div>}
               <button type="button" className="w-full flex items-center justify-between text-sm font-medium hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded" onClick={() => setShowWorkOpen((open) => !open)} aria-expanded={showWorkOpen} aria-controls="safe-to-spend-work"><span>Show your work</span><ChevronRight className={`h-4 w-4 transition-transform ${showWorkOpen ? "rotate-90" : ""}`} /></button>
               {showWorkOpen && <div id="safe-to-spend-work" className="mt-4 space-y-4"><p className="text-xs text-muted-foreground leading-relaxed">Safe to Spend uses the lowest balance in your 30-day forecast, then protects your safety buffer.</p><div className="rounded-xl bg-muted/50 p-3 space-y-2"><div className="flex justify-between text-xs"><span className="text-muted-foreground">Lowest projected balance</span><span className="font-mono">{money(data.forecast.lowestBalanceCents)}</span></div><div className="flex justify-between text-xs"><span className="text-muted-foreground">Protected safety buffer</span><span className="font-mono">−{money(effectiveBufferCents)}</span></div><div className="border-t border-border pt-2 flex justify-between text-xs font-semibold"><span>Safe to Spend</span><span className="font-mono text-primary">{money(previewSafeToSpendCents)}</span></div></div><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-2">Included events</p><div className="grid grid-cols-2 gap-2"><div className="rounded-lg border border-border p-2"><p className="text-lg font-bold font-mono">{confirmedEventCount}</p><p className="text-[10px] text-muted-foreground">Confirmed</p></div><div className="rounded-lg border border-border p-2"><p className="text-lg font-bold font-mono">{estimatedEventCount}</p><p className="text-[10px] text-muted-foreground">Estimated</p></div></div></div>{data.excludedEvents.length > 0 && <div><p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-2">Excluded or skipped</p>{data.excludedEvents.map((event) => <div key={`${event.name}-${event.date}`} className="flex justify-between gap-2 text-xs py-1"><span className="text-muted-foreground truncate">{event.name} · {new Date(`${event.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span><span className="font-mono">{money(Math.abs(event.amountCents))}</span></div>)}</div>}<div className={`rounded-lg p-3 text-xs ${data.freshness.status === "stale" ? "bg-yellow-500/10 text-yellow-300" : "bg-muted/50 text-muted-foreground"}`}><p className="font-medium text-foreground">Data freshness: {data.freshness.status === "fresh" ? "Fresh" : data.freshness.status === "aging" ? "Getting older" : "Update needed"}</p><p className="mt-1">Balance dated {new Date(`${data.currentBalanceDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}{balanceAgeDays > 0 ? ` · ${balanceAgeDays} days ago` : " · today"}.</p>{data.freshness.status === "stale" && <Link href="/app/accounts" className="inline-flex mt-2 text-foreground underline underline-offset-2">Update account balance</Link>}</div></div>}
             </div>
@@ -518,7 +526,7 @@ export function ForecastView({ name, data, view = "dashboard" }: {
             <div className="mt-3 grid grid-cols-2 gap-2">
               {[
                 { label: "Forecast events", value: String(data.forecast.days.flatMap((day) => day.events).length) },
-                { label: "Risk days", value: String(data.forecast.risks.length) },
+                { label: "Below-buffer days", value: String(data.forecast.risks.length) },
                 { label: "Lowest point", value: money(data.forecast.lowestBalanceCents) },
                 { label: "Through", value: endDate },
               ].map(({ label, value }) => (
@@ -563,7 +571,7 @@ export function ForecastView({ name, data, view = "dashboard" }: {
                   {selectedDay.events.map((event) => (
                     <button key={event.id} type="button" onClick={() => { setEditingEventId(event.id); setEventSaveError(null) }} className="w-full rounded-xl border border-border p-4 flex items-start gap-3 text-left hover:border-primary/30 hover:bg-primary/[0.04] transition-colors">
                       <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${event.amountCents >= 0 ? "bg-primary" : "bg-destructive"}`} />
-                      <div className="flex-1 min-w-0"><p className="font-medium truncate">{event.name}</p><p className="text-xs text-muted-foreground mt-1 capitalize">{event.confidence} · {event.recurring ? "Recurring" : event.source}</p></div>
+                      <div className="flex-1 min-w-0"><p className="font-medium truncate">{event.name}</p><p className="text-xs text-muted-foreground mt-1 capitalize">{event.confidence} · {event.recurring ? "Recurring" : event.source}</p>{event.confidence === "estimated" && event.estimateEvidence && <p className="text-[11px] text-muted-foreground mt-1">Based on {event.estimateEvidence.occurrenceCount} occurrences ranging {money(event.estimateEvidence.minAmountCents)}–{money(event.estimateEvidence.maxAmountCents)}.</p>}</div>
                       <div className="text-right"><span className={`font-semibold font-mono ${event.amountCents >= 0 ? "text-primary" : "text-destructive"}`}>{event.amountCents >= 0 ? "+" : "−"}{money(Math.abs(event.amountCents))}</span><p className="text-[10px] text-muted-foreground mt-1">Edit</p></div>
                     </button>
                   ))}

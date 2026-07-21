@@ -53,6 +53,17 @@ describe("recurring suggestions", () => {
     expect(suggestions[0].frequency).toBe("monthly")
     expect(suggestions[0].nextExpected).toBe("2026-07-01")
     expect(suggestions[0].type).toBe("bill")
+    expect(suggestions[0]).toMatchObject({ minAmountCents: -167_500, maxAmountCents: -165_000, occurrenceCount: 3, evidenceStartDate: "2026-04-03", evidenceEndDate: "2026-06-01" })
+  })
+
+  it("keeps the calendar day when projecting monthly suggestions", () => {
+    const suggestions = suggestRecurring([
+      { date: "2026-01-31", description: "Month End Bill", amountCents: -10_000 },
+      { date: "2026-02-28", description: "Month End Bill", amountCents: -11_000 },
+      { date: "2026-03-31", description: "Month End Bill", amountCents: -9_000 },
+    ], "account", "2026-04-01")
+    expect(suggestions[0].nextExpected).toBe("2026-04-30")
+    expect(suggestions[0].anchorDayOfMonth).toBe(31)
   })
 
   it("does not suggest irregular or two-occurrence activity", () => {

@@ -29,6 +29,14 @@ export function addMonthsClamped(dateKey: string, months: number): string {
   return toDateKey(target)
 }
 
+export function addMonthsAnchored(dateKey: string, months: number, anchorDay: number): string {
+  const date = parseDateKey(dateKey)
+  const target = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1))
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate()
+  target.setUTCDate(Math.min(anchorDay, lastDay))
+  return toDateKey(target)
+}
+
 export function isInRange(date: string, start: string, endInclusive: string): boolean {
   return date >= start && date <= endInclusive
 }

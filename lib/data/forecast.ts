@@ -4,8 +4,11 @@ import type { FinancialEvent, ForecastInput, ForecastResult, RecurringRule } fro
 import { buildSpendingHistory, type SpendingHistory } from "@/lib/analytics/spending"
 import { buildMonthlySpending } from "@/lib/analytics/categories"
 import { measureForecasts } from "@/lib/analytics/forecast-measurement"
+import { rollForwardAnchors } from "@/lib/forecast/anchors"
+import { financialDateKey } from "@/lib/forecast/timezone"
 
 export interface DashboardForecast {
+  timezone: string
   currentBalanceCents: number
   currentBalanceDate: string
   safetyBufferCents: number
@@ -30,6 +33,7 @@ export interface DashboardForecast {
   monthlySpending: ReturnType<typeof buildMonthlySpending>
   freshness: { balanceAgeDays: number; status: "fresh" | "aging" | "stale" }
   excludedEvents: Array<{ name: string; date: string; amountCents: number }>
+  balanceRollForward: Array<{ accountName: string; anchorBalanceCents: number; anchorDate: string; activityCents: number; openingBalanceCents: number }>
   trackRecord: ReturnType<typeof measureForecasts>
 }
 
@@ -44,17 +48,19 @@ function addUtcDays(date: Date, days: number) {
 }
 
 export async function loadDashboardForecast(userId: string, days = 30): Promise<DashboardForecast | null> {
-  const start = new Date()
-  start.setUTCHours(0, 0, 0, 0)
-  const end = addUtcDays(start, days)
-
-  const historyStart = addUtcDays(start, -55)
-  const monthStart = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1))
-  const [profile, accounts, transactions, snapshots, observations, recurring, historicalTransactions, monthlyTransactions] = await Promise.all([
+  const [profile, accounts] = await Promise.all([
     prisma.userProfile.findUnique({ where: { userId } }),
     prisma.account.findMany({ where: { userId, isLiability: false } }),
+  ])
+  const timezone = profile?.timezone ?? "UTC"
+  const start = new Date(`${financialDateKey(new Date(), timezone)}T00:00:00.000Z`)
+  const end = addUtcDays(start, days)
+  const historyStart = addUtcDays(start, -55)
+  const monthStart = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1))
+  const earliestAnchor = accounts.map((account) => account.anchorDate).filter((date): date is Date => Boolean(date)).sort((a, b) => a.getTime() - b.getTime())[0] ?? start
+  const [transactions, snapshots, observations, recurring, historicalTransactions, monthlyTransactions] = await Promise.all([
     prisma.transaction.findMany({
-      where: { userId, date: { gte: start, lt: end } },
+      where: { userId, date: { gt: earliestAnchor, lt: end } },
       orderBy: { date: "asc" },
     }),
     prisma.forecastSnapshot.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 100, select: { createdAt: true, forecastStartDate: true, forecastEndDate: true, projectedDays: true } }),
@@ -83,16 +89,14 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
   const anchoredAccounts = accounts.filter((account) => account.anchorBalanceCents !== null)
   if (anchoredAccounts.length === 0) return null
 
-  const currentBalanceCents = anchoredAccounts.reduce(
-    (total, account) => total + (account.anchorBalanceCents ?? 0),
-    0,
-  )
+  const balanceRollForward = rollForwardAnchors(anchoredAccounts, transactions, start)
+  const currentBalanceCents = balanceRollForward.totalCents
   const currentBalanceDate = anchoredAccounts
     .map((account) => account.anchorDate)
     .filter((date): date is Date => Boolean(date))
     .sort((a, b) => b.getTime() - a.getTime())[0] ?? start
 
-  const events: FinancialEvent[] = transactions.map((transaction) => ({
+  const events: FinancialEvent[] = transactions.filter((transaction) => transaction.date >= start).map((transaction) => ({
     id: transaction.id,
     date: dateKey(transaction.date),
     amountCents: transaction.amountCents,
@@ -109,8 +113,10 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     amountCents: item.amountCents,
     frequency: item.frequency as RecurringRule["frequency"],
     nextDate: dateKey(item.nextExpected!),
+    anchorDayOfMonth: item.anchorDayOfMonth ?? undefined,
     accountId: item.accountId ?? undefined,
     confidence: item.dateConfidence === "confirmed" ? "confirmed" : "estimated",
+    estimateEvidence: item.minAmountCents !== null && item.maxAmountCents !== null && item.occurrenceCount !== null ? { minAmountCents: item.minAmountCents, maxAmountCents: item.maxAmountCents, occurrenceCount: item.occurrenceCount, startDate: item.evidenceStartDate ? dateKey(item.evidenceStartDate) : undefined, endDate: item.evidenceEndDate ? dateKey(item.evidenceEndDate) : undefined } : undefined,
     exceptions: item.exceptions.map((exception) => ({ date: dateKey(exception.originalDate), movedDate: exception.movedDate ? dateKey(exception.movedDate) : undefined })),
   }))
 
@@ -130,6 +136,7 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     .map((exception) => ({ name: series.name, date: dateKey(exception.originalDate), amountCents: series.amountCents })))
 
   return {
+    timezone,
     currentBalanceCents,
     currentBalanceDate: dateKey(currentBalanceDate),
     safetyBufferCents: profile?.safetyBufferCents ?? 0,
@@ -154,6 +161,7 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     monthlySpending: buildMonthlySpending(monthlyTransactions.map((transaction) => ({ description: transaction.description, amountCents: transaction.amountCents, categoryName: transaction.category?.name }))),
     freshness: { balanceAgeDays, status: balanceAgeDays >= 7 ? "stale" : balanceAgeDays >= 3 ? "aging" : "fresh" },
     excludedEvents,
+    balanceRollForward: balanceRollForward.items.map((item) => ({ accountName: item.accountName, anchorBalanceCents: item.anchorBalanceCents, anchorDate: dateKey(item.anchorDate ?? start), activityCents: item.activityCents, openingBalanceCents: item.openingBalanceCents })),
     trackRecord: measureForecasts(snapshots, observations, anchoredAccounts.map((account) => account.id)),
   }
 }

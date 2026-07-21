@@ -33,7 +33,7 @@ export function RecurringReviewPanel({ suggestions }: { suggestions: Suggestion[
           {suggestions.map((item) => (
             <label key={item.id} className="flex items-start gap-3 rounded-xl border border-border p-4 cursor-pointer">
               <input type="checkbox" checked={selected.has(item.id)} onChange={(event) => setSelected((current) => { const next = new Set(current); if (event.target.checked) next.add(item.id); else next.delete(item.id); return next })} className="mt-1" />
-              <span className="flex-1"><span className="block text-sm font-medium">{item.name}</span><span className="block text-xs text-muted-foreground mt-1 capitalize">{item.frequency} · {item.type} · next estimated {new Date(`${item.nextExpected}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span></span>
+              <span className="flex-1"><span className="block text-sm font-medium">{item.name}</span><span className="block text-xs text-muted-foreground mt-1 capitalize">{item.frequency} · {item.type} · next estimated {new Date(`${item.nextExpected}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span><span className="block text-[11px] text-muted-foreground mt-1">Estimated from {item.occurrenceCount} occurrences ranging {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(item.minAmountCents / 100)}–{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(item.maxAmountCents / 100)}.</span></span>
               <span className="text-sm font-mono">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(item.amountCents / 100)}</span>
             </label>
           ))}

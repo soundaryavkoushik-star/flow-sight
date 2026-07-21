@@ -14,6 +14,12 @@ export interface RecurringSuggestion {
   frequency: "weekly" | "biweekly" | "monthly" | "annual"
   nextExpected: string
   type: "income" | "bill"
+  anchorDayOfMonth?: number
+  minAmountCents: number
+  maxAmountCents: number
+  occurrenceCount: number
+  evidenceStartDate: string
+  evidenceEndDate: string
 }
 
 export function parseCsvLine(line: string, delimiter: string) {
@@ -95,7 +101,8 @@ export function normalizeMerchant(description: string) {
     .trim()
 }
 
-export function suggestRecurring(rows: NormalizedCsvTransaction[], accountId: string, today = new Date()): RecurringSuggestion[] {
+export function suggestRecurring(rows: NormalizedCsvTransaction[], accountId: string, today: Date | string = new Date()): RecurringSuggestion[] {
+  const todayKey = typeof today === "string" ? today : today.toISOString().slice(0, 10)
   const groups = new Map<string, NormalizedCsvTransaction[]>()
   for (const row of rows) {
     const key = normalizeMerchant(row.description)
@@ -114,11 +121,30 @@ export function suggestRecurring(rows: NormalizedCsvTransaction[], accountId: st
     const amounts = sorted.map((item) => item.amountCents)
     if (amounts.some((amount) => Math.sign(amount) !== Math.sign(amounts[0]))) continue
     const amountCents = Math.round(amounts.reduce((sum, amount) => sum + amount, 0) / amounts.length)
-    const days = frequency === "weekly" ? 7 : frequency === "biweekly" ? 14 : frequency === "annual" ? 365 : 30
-    const next = new Date(`${sorted.at(-1)!.date}T00:00:00Z`)
-    do next.setUTCDate(next.getUTCDate() + days)
-    while (next < today)
-    suggestions.push({ id: key, accountId, name: sorted.at(-1)!.description, amountCents, frequency, nextExpected: next.toISOString().slice(0, 10), type: amountCents >= 0 ? "income" : "bill" })
+    const lastDate = sorted.at(-1)!.date
+    const dayCounts = new Map<number, number>()
+    for (const item of sorted) {
+      const day = Number(item.date.slice(8, 10))
+      dayCounts.set(day, (dayCounts.get(day) ?? 0) + 1)
+    }
+    const latestDay = Number(sorted.at(-1)!.date.slice(8, 10))
+    const anchorDayOfMonth = [...dayCounts].sort((left, right) => right[1] - left[1] || (left[0] === latestDay ? -1 : 1))[0][0]
+    let nextExpected = lastDate
+    do {
+      if (frequency === "weekly" || frequency === "biweekly") {
+        const next = new Date(`${nextExpected}T00:00:00Z`)
+        next.setUTCDate(next.getUTCDate() + (frequency === "weekly" ? 7 : 14))
+        nextExpected = next.toISOString().slice(0, 10)
+      } else {
+        const current = new Date(`${nextExpected}T00:00:00Z`)
+        const monthOffset = frequency === "annual" ? 12 : 1
+        const target = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + monthOffset, 1))
+        const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate()
+        target.setUTCDate(Math.min(anchorDayOfMonth, lastDay))
+        nextExpected = target.toISOString().slice(0, 10)
+      }
+    } while (nextExpected < todayKey)
+    suggestions.push({ id: key, accountId, name: sorted.at(-1)!.description, amountCents, frequency, nextExpected, type: amountCents >= 0 ? "income" : "bill", anchorDayOfMonth: frequency === "monthly" || frequency === "annual" ? anchorDayOfMonth : undefined, minAmountCents: Math.min(...amounts), maxAmountCents: Math.max(...amounts), occurrenceCount: sorted.length, evidenceStartDate: sorted[0].date, evidenceEndDate: sorted.at(-1)!.date })
   }
   return suggestions.slice(0, 20)
 }

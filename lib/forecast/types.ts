@@ -14,6 +14,7 @@ export interface FinancialEvent {
   accountId?: string
   recurring?: boolean
   confidence: ForecastConfidence
+  estimateEvidence?: { minAmountCents: number; maxAmountCents: number; occurrenceCount: number; startDate?: string; endDate?: string }
 }
 
 export interface RecurringRule {
@@ -22,6 +23,8 @@ export interface RecurringRule {
   amountCents: MoneyCents
   frequency: "weekly" | "biweekly" | "monthly" | "annual"
   nextDate: string
+  anchorDayOfMonth?: number
+  estimateEvidence?: { minAmountCents: number; maxAmountCents: number; occurrenceCount: number; startDate?: string; endDate?: string }
   accountId?: string
   confidence?: ForecastConfidence
   exceptions?: Array<{ date: string; movedDate?: string }>
