@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
-import { detectAmountColumns, findHeader, normalizeDate, normalizeMerchant, parseCsv, parseMoney, suggestRecurring } from "../../lib/csv/parse"
+import { applyAmountSignConvention, applyTransactionDirection, detectAmountColumns, detectDirectionColumn, findHeader, normalizeDate, normalizeMerchant, parseCsv, parseMoney, suggestRecurring } from "../../lib/csv/parse"
 
 const fixture = (name: string) => readFileSync(new URL(`../fixtures/${name}`, import.meta.url), "utf8")
 
@@ -23,12 +23,25 @@ describe("CSV parsing", () => {
   it("prefers a signed amount column and only selects split mode when appropriate", () => {
     expect(detectAmountColumns(["Date", "Description", "Amount"])).toEqual({ mode: "signed", signed: "2", debit: "", credit: "" })
     expect(detectAmountColumns(["Date", "Description", "Debit", "Credit"])).toEqual({ mode: "split", signed: "", debit: "2", credit: "3" })
+    expect(detectDirectionColumn(["Date", "Description", "Transaction Type", "Amount"])).toBe("2")
   })
 
   it("detects semicolon-delimited European exports", () => {
     const parsed = parseCsv(fixture("european-semicolon.csv"))
     expect(parsed.delimiter).toBe(";")
     expect(normalizeDate(parsed.rows[0][0], "dmy")).toBe("2026-06-01")
+  })
+
+  it("supports multiline quoted descriptions and escaped quotes", () => {
+    const parsed = parseCsv('Date,Description,Amount\r\n07/01/2026,"Coffee shop\r\nDowntown",-12.50\r\n07/02/2026,"Refund from ""Market""",25.00')
+    expect(parsed.rows).toEqual([
+      ["07/01/2026", "Coffee shop\nDowntown", "-12.50"],
+      ["07/02/2026", 'Refund from "Market"', "25.00"],
+    ])
+  })
+
+  it("still reports a genuinely unclosed quoted value", () => {
+    expect(() => parseCsv('Date,Description,Amount\n07/01/2026,"Coffee shop,-12.50')).toThrow("A quoted value in this CSV is not closed.")
   })
 
   it("normalizes supported dates and money formats", () => {
@@ -38,6 +51,11 @@ describe("CSV parsing", () => {
     expect(parseMoney("($1,234.56)")).toBe(-123_456)
     expect(parseMoney("123.45-")).toBe(-12_345)
     expect(parseMoney("-1650,00")).toBe(-165_000)
+    expect(applyAmountSignConvention(1_996, "positive")).toBe(-1_996)
+    expect(applyAmountSignConvention(-1_996, "negative")).toBe(-1_996)
+    expect(applyTransactionDirection(1_996, "Purchase")).toBe(-1_996)
+    expect(applyTransactionDirection(1_996, "Deposit")).toBe(1_996)
+    expect(applyTransactionDirection(1_996, "Unknown")).toBeNull()
   })
 })
 

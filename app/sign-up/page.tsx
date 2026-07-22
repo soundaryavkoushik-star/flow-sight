@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { TrendingUp, Eye, EyeOff, ArrowRight, CheckCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
@@ -13,6 +14,7 @@ const passwordRules = [
 ]
 
 export default function SignUpPage() {
+  const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -36,7 +38,7 @@ export default function SignUpPage() {
     setLoading(true)
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -46,6 +48,16 @@ export default function SignUpPage() {
     })
     setLoading(false)
     if (error) { setError(error.message); return }
+
+    // When email confirmation is disabled for the MVP, Supabase creates a
+    // session immediately and the user can begin onboarding without a gate.
+    if (data.session) {
+      router.replace("/app/onboarding")
+      router.refresh()
+      return
+    }
+
+    // Keep a graceful fallback for environments where confirmation remains on.
     setSuccess(true)
   }
 
@@ -71,13 +83,13 @@ export default function SignUpPage() {
             <CardTitle>Check your email</CardTitle>
             <CardDescription>
               We sent a confirmation link to <strong>{email}</strong>.
-              Open it to confirm your account and continue setting up your forecast.
+              Open it to confirm your account. Once confirmed, you can continue setting up your forecast.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="rounded-xl bg-muted/50 p-4 text-left mb-5">
               <p className="text-sm font-medium mb-1">You can explore while you wait</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">See the public forecast preview and how FlowSight works. Confirm your email before adding or saving real financial details.</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">Return to the landing page to preview how FlowSight works.</p>
             </div>
             {resendMessage && <p className="text-xs text-muted-foreground mb-3">{resendMessage}</p>}
             <div className="flex flex-col gap-2 text-sm">

@@ -38,6 +38,11 @@
     --fs-red-bg: 0 84% 97%;
     --fs-amber: 38 92% 50%;
     --fs-amber-bg: 38 92% 96%;
+    --fs-brand: 18 61% 56%;
+    --fs-heading: 220 59% 14%;
+    --fs-body: 215 28% 27%;
+    --fs-update: 220 9% 46%;
+    --fs-dark-section: 218 54% 10%;
   }
 
   .dark {
@@ -87,5 +92,67 @@
 
   .tabular-nums {
     font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  .fs-landing :is(button, a, input, summary) {
+    transition: all 150ms ease-out;
+  }
+
+  .fs-landing :is(button, a, input, summary):focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(212, 117, 74, 0.2);
+  }
+
+  .fs-landing .fs-brand-action {
+    background: #d4754a;
+    color: #0f1d3a;
+    box-shadow: 0 1px 2px rgba(15, 29, 58, 0.08);
+  }
+
+  .fs-landing .fs-brand-action:hover {
+    background: #bf6943;
+    box-shadow: 0 2px 8px rgba(15, 29, 58, 0.06);
+    transform: translateY(-1px);
+  }
+
+  .fs-landing .fs-brand-action:active {
+    background: #b4633f;
+    transform: scale(0.98);
+  }
+
+  .fs-landing .fs-interactive:hover {
+    border-color: #d0d4dc;
+    box-shadow: 0 2px 8px rgba(15, 29, 58, 0.06);
+  }
+
+  .fs-landing h1,
+  .fs-landing h2 {
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .fs-landing p {
+    line-height: 1.7;
+  }
+
+  .fs-landing .tabular-nums {
+    font-weight: 500;
+  }
+
+  .fs-landing .fs-dark-section h2 {
+    color: #ffffff;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fs-landing :is(button, a, input, summary) {
+      transition-duration: 0.01ms;
+    }
+
+    .fs-landing .fs-brand-action:hover,
+    .fs-landing .fs-brand-action:active {
+      transform: none;
+    }
   }
 }

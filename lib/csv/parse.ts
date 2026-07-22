@@ -23,32 +23,51 @@ export interface RecurringSuggestion {
 }
 
 export function parseCsvLine(line: string, delimiter: string) {
-  const values: string[] = []
+  const rows = parseCsvRecords(line, delimiter)
+  return rows[0] ?? [""]
+}
+
+function parseCsvRecords(text: string, delimiter: string) {
+  const rows: string[][] = []
+  let values: string[] = []
   let value = ""
   let quoted = false
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index]
-    if (char === '"' && quoted && line[index + 1] === '"') { value += '"'; index += 1 }
+  const finishValue = () => { values.push(value.trim()); value = "" }
+  const finishRow = () => {
+    finishValue()
+    if (values.some((item) => item.length > 0)) rows.push(values)
+    values = []
+  }
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index]
+    if (char === '"' && quoted && text[index + 1] === '"') { value += '"'; index += 1 }
     else if (char === '"') quoted = !quoted
-    else if (char === delimiter && !quoted) { values.push(value.trim()); value = "" }
+    else if (char === delimiter && !quoted) finishValue()
+    else if ((char === "\n" || char === "\r") && !quoted) {
+      if (char === "\r" && text[index + 1] === "\n") index += 1
+      finishRow()
+    }
+    else if (char === "\r" && quoted && text[index + 1] === "\n") { value += "\n"; index += 1 }
     else value += char
   }
   if (quoted) throw new Error("A quoted value in this CSV is not closed.")
-  values.push(value.trim())
-  return values
+  if (value.length > 0 || values.length > 0) finishRow()
+  return rows
 }
 
 export function parseCsv(text: string) {
-  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim())
-  if (lines.length < 2) throw new Error("This CSV doesn’t contain any transaction rows.")
+  const clean = text.replace(/^\uFEFF/, "")
   const candidates = [",", ";", "\t"]
   const detected = candidates
-    .map((delimiter) => ({ delimiter, count: parseCsvLine(lines[0], delimiter).length }))
+    .map((delimiter) => ({ delimiter, count: parseCsvRecords(clean, delimiter)[0]?.length ?? 0 }))
     .sort((a, b) => b.count - a.count)[0]
   if (detected.count < 2) throw new Error("We couldn’t identify the CSV delimiter or header columns.")
-  const headers = parseCsvLine(lines[0], detected.delimiter)
+  const records = parseCsvRecords(clean, detected.delimiter)
+  if (records.length < 2) throw new Error("This CSV doesn’t contain any transaction rows.")
+  const [headers, ...rows] = records
   if (new Set(headers.map((header) => header.toLowerCase())).size !== headers.length) throw new Error("This CSV has duplicate column names. Rename them before importing.")
-  return { headers, rows: lines.slice(1).map((line) => parseCsvLine(line, detected.delimiter)), delimiter: detected.delimiter }
+  return { headers, rows, delimiter: detected.delimiter }
 }
 
 export function findHeader(headers: string[], terms: string[]) {
@@ -61,6 +80,10 @@ export function detectAmountColumns(headers: string[]) {
   const debit = findHeader(headers, ["debit", "withdrawal", "money out"])
   const credit = findHeader(headers, ["credit", "deposit", "money in"])
   return { mode: signed ? "signed" as const : debit || credit ? "split" as const : "signed" as const, signed, debit, credit }
+}
+
+export function detectDirectionColumn(headers: string[]) {
+  return findHeader(headers, ["transaction type", "debit/credit", "credit/debit", "direction", "flow", "type"])
 }
 
 export function normalizeDate(value: string, order: CsvDateOrder = "mdy") {
@@ -90,6 +113,19 @@ export function parseMoney(value: string) {
   const parsed = Number(cleaned)
   if (!Number.isFinite(parsed)) return null
   return Math.round((negativeParentheses || trailingMinus ? -Math.abs(parsed) : parsed) * 100)
+}
+
+export function applyAmountSignConvention(amountCents: number | null, spendingSign: "negative" | "positive") {
+  if (amountCents === null) return null
+  return spendingSign === "positive" ? -amountCents : amountCents
+}
+
+export function applyTransactionDirection(amountCents: number | null, direction: string) {
+  if (amountCents === null) return null
+  const normalized = direction.trim().toLowerCase()
+  if (/\b(refund|credit|deposit|income|payroll|interest)\b/.test(normalized)) return Math.abs(amountCents)
+  if (/\b(purchase|debit|withdrawal|fee|payment|charge)\b/.test(normalized)) return -Math.abs(amountCents)
+  return null
 }
 
 export function normalizeMerchant(description: string) {
