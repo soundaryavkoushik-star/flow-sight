@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { calculateForecast, type ForecastInput } from "@/lib/forecast";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 import {
   Shield, TrendingUp, Bell, ArrowRight, Lock,
-  Code, Briefcase, AtSign, AlertTriangle, Wallet, BarChart3,
+  Code, Briefcase, AtSign, BarChart3,
   X, Menu, Sparkles, CheckCircle,
 } from "lucide-react";
 
@@ -53,9 +54,9 @@ const flowsightLandingTheme = {
   "--card-foreground": "220 59% 14%",
   "--primary": "18 61% 56%",
   "--primary-foreground": "220 59% 14%",
-  "--secondary": "228 37% 97%",
+  "--secondary": "42 42% 95%",
   "--secondary-foreground": "220 59% 14%",
-  "--muted": "228 37% 97%",
+  "--muted": "42 42% 95%",
   "--muted-foreground": "220 9% 46%",
   "--accent": "18 61% 56%",
   "--accent-foreground": "220 59% 14%",
@@ -63,27 +64,30 @@ const flowsightLandingTheme = {
   "--border": "220 18% 90%",
   "--input": "220 18% 90%",
   "--ring": "18 61% 56%",
-  backgroundImage: "linear-gradient(145deg, #ffffff 0%, #ffffff 52%, #f5f6fa 100%)",
+  backgroundImage: "linear-gradient(145deg, #ffffff 0%, #ffffff 52%, #f8f5ee 100%)",
   backgroundAttachment: "fixed",
 } as React.CSSProperties;
 
-const heroChartData = [
-  { day: "Jul 21", projected: 5500 },
-  { day: "Jul 23", projected: 5240 },
-  { day: "Jul 25", projected: 4980 },
-  { day: "Jul 27", projected: 4760 },
-  { day: "Jul 29", projected: 4410 },
-  { day: "Aug 1", projected: 2070 },
-  { day: "Aug 3", projected: 1180 },
-  { day: "Aug 5", projected: 3580 },
-  { day: "Aug 8", projected: 3300 },
-  { day: "Aug 11", projected: 2950 },
-  { day: "Aug 14", projected: 2640 },
-  { day: "Aug 17", projected: 2410 },
-  { day: "Aug 19", projected: 2240 },
-];
+const demoForecastInput: ForecastInput = {
+  startingBalanceCents: 550_000,
+  settings: { startDate: "2026-07-21", days: 30, safetyBufferCents: 50_000 },
+  events: [
+    ["groceries", "2026-07-23", -26_000, "Groceries"], ["utilities", "2026-07-25", -26_000, "Utilities"],
+    ["loan", "2026-07-27", -22_000, "Loan payment"], ["weekly", "2026-07-29", -35_000, "Weekly spending"],
+    ["rent", "2026-08-01", -165_000, "Rent"], ["card", "2026-08-01", -69_000, "Credit card"],
+    ["insurance", "2026-08-03", -18_000, "Insurance"], ["car", "2026-08-03", -41_000, "Car payment"],
+    ["annual", "2026-08-03", -106_000, "Annual bills"], ["paycheck", "2026-08-05", 240_000, "Paycheck"],
+    ["spend-1", "2026-08-08", -28_000, "Everyday spending"], ["spend-2", "2026-08-11", -35_000, "Everyday spending"],
+    ["spend-3", "2026-08-14", -31_000, "Everyday spending"], ["spend-4", "2026-08-17", -23_000, "Everyday spending"],
+    ["spend-5", "2026-08-19", -17_000, "Everyday spending"],
+  ].map(([id, date, amountCents, name]) => ({ id: String(id), date: String(date), amountCents: Number(amountCents), name: String(name), type: Number(amountCents) >= 0 ? "income" as const : "expense" as const, source: "manual" as const, confidence: "confirmed" as const })),
+};
 
-const ahaChartData = heroChartData.map((point) => point.day === "Aug 3" ? { ...point, projected: 420 } : point);
+const demoForecast = calculateForecast(demoForecastInput);
+const shortDate = (date: string) => {
+  const [, month, day] = date.split("-");
+  return `${month === "07" ? "Jul" : "Aug"} ${Number(day)}`;
+};
 
 const faqs = [
   { question: "Is FlowSight a budgeting app?", answer: "No. FlowSight starts with your balance and known upcoming activity to show how the next 30 days may unfold. You do not need to maintain category budgets." },
@@ -109,18 +113,18 @@ const heroMoments = [
 ];
 
 const generateScenarioData = (amount: number) => [
-  { day: "Dec 1", balance: 4240, projected: null },
-  { day: "Dec 3", balance: 3720, projected: null },
-  { day: "Dec 5", balance: 6790, projected: null },
-  { day: "Dec 8", balance: 6320, projected: null },
-  { day: "Dec 11", balance: 5940, projected: null },
-  { day: "Dec 15", balance: 5500, baseline: 5500, projected: 5500 },
-  { day: "Dec 17", balance: null, baseline: 5240, projected: 5240 - amount },
-  { day: "Dec 19", balance: null, baseline: 4980, projected: 4980 - amount },
-  { day: "Dec 20", balance: null, baseline: 8180, projected: 8180 - amount },
-  { day: "Dec 23", balance: null, baseline: 7800, projected: 7800 - amount },
-  { day: "Dec 26", balance: null, baseline: 7440, projected: 7440 - amount },
-  { day: "Dec 31", balance: null, baseline: 6900, projected: 6900 - amount },
+  { day: "Jul 21", balance: 4240, projected: null },
+  { day: "Jul 23", balance: 3720, projected: null },
+  { day: "Jul 25", balance: 6790, projected: null },
+  { day: "Jul 27", balance: 6320, projected: null },
+  { day: "Jul 29", balance: 5940, projected: null },
+  { day: "Jul 31", balance: 5500, baseline: 5500, projected: 5500 },
+  { day: "Aug 2", balance: null, baseline: 5240, projected: 5240 - amount },
+  { day: "Aug 4", balance: null, baseline: 4980, projected: 4980 - amount },
+  { day: "Aug 7", balance: null, baseline: 3340, projected: 3340 - amount },
+  { day: "Aug 11", balance: null, baseline: 8180, projected: 8180 - amount },
+  { day: "Aug 15", balance: null, baseline: 7440, projected: 7440 - amount },
+  { day: "Aug 20", balance: null, baseline: 6900, projected: 6900 - amount },
 ];
 
 const trustItems = [
@@ -139,6 +143,64 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   );
 };
 
+function ForecastStoryChart() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const width = 600;
+  const height = 230;
+  const top = 18;
+  const bottom = 26;
+  const points = demoForecast.days.map((day, index) => ({
+    x: (index / (demoForecast.days.length - 1)) * width,
+    y: top + (1 - day.endingBalanceCents / 600_000) * (height - top - bottom),
+    date: shortDate(day.date),
+    balance: day.endingBalanceCents / 100,
+  }));
+  const lowIndex = demoForecast.days.findIndex((day) => day.date === demoForecast.lowestBalanceDate);
+  const lowPoint = points[lowIndex];
+  const beforeLowPath = points.slice(0, lowIndex + 1).map((point, index) => `${index ? "L" : "M"}${point.x},${point.y}`).join(" ");
+  const recoveryPath = points.slice(lowIndex).map((point, index) => `${index ? "L" : "M"}${point.x},${point.y}`).join(" ");
+  const areaPath = `${points.map((point, index) => `${index ? "L" : "M"}${point.x},${point.y}`).join(" ")} L${width},${height - bottom} L0,${height - bottom} Z`;
+  const bufferY = top + (1 - 500 / 6000) * (height - top - bottom);
+  const hovered = hoveredIndex === null ? null : points[hoveredIndex];
+  const events = [{ label: "Rent", date: "Aug 1", amount: "−$1,650" }, { label: "Insurance", date: "Aug 3", amount: "−$180" }, { label: "Car payment", date: "Aug 3", amount: "−$410" }];
+
+  useEffect(() => {
+    const node = rootRef.current;
+    if (!node) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const frame = window.requestAnimationFrame(() => setVisible(true));
+      return () => window.cancelAnimationFrame(frame);
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      setVisible(true);
+      observer.disconnect();
+    }, { threshold: 0.35 });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return <div ref={rootRef}>
+    <div className="relative flex items-center justify-between mb-5"><div><p className="text-xs text-muted-foreground">Projected balance</p><p className="font-medium">Today → August 20</p></div><span className={`rounded-full bg-[#CA8A04]/10 px-3 py-1.5 text-xs font-medium text-[#CA8A04] transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: visible ? "1300ms" : "0ms" }}>Watch · Aug 3</span></div>
+    <div className="relative h-[250px]" aria-label="Projected balance from July 21 to August 20, with a low of $420 on August 3">
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible" role="img">
+        <defs><linearGradient id="storyArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#D4754A" stopOpacity=".20" /><stop offset="100%" stopColor="#D4754A" stopOpacity=".01" /></linearGradient></defs>
+        <path d={areaPath} fill="url(#storyArea)" className={`transition-opacity duration-700 ${visible ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: visible ? "1500ms" : "0ms" }} />
+        <line x1="0" y1={top} x2="0" y2={height - bottom} stroke="#6B7280" strokeDasharray="4 4" opacity=".55" /><text x="7" y="14" fill="#6B7280" fontSize="10">Today</text>
+        <line x1="0" y1={bufferY} x2={width} y2={bufferY} stroke="#CA8A04" strokeDasharray="6 5" opacity=".8" /><text x="6" y={bufferY - 7} fill="#CA8A04" fontSize="10">$500 safety buffer</text>
+        <path d={beforeLowPath} fill="none" stroke="#D4754A" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" pathLength="1" strokeDasharray="1" strokeDashoffset={visible ? 0 : 1} className="transition-[stroke-dashoffset] ease-out" style={{ transitionDuration: "1400ms" }} />
+        <path d={recoveryPath} fill="none" stroke="#D4754A" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" pathLength="1" strokeDasharray="1" strokeDashoffset={visible ? 0 : 1} className="transition-[stroke-dashoffset] ease-out" style={{ transitionDuration: "600ms", transitionDelay: visible ? "1800ms" : "0ms" }} />
+        <circle cx={lowPoint.x} cy={lowPoint.y} r="6" fill="#CA8A04" stroke="white" strokeWidth="3" className={visible ? "fs-low-pulse" : "opacity-0"} />
+        {points.map((point, index) => <circle key={point.date} cx={point.x} cy={point.y} r="10" fill="transparent" className="cursor-crosshair" onMouseEnter={() => setHoveredIndex(index)} onMouseLeave={() => setHoveredIndex(null)} tabIndex={0} onFocus={() => setHoveredIndex(index)} onBlur={() => setHoveredIndex(null)} aria-label={`${point.date}: $${point.balance.toLocaleString()} projected balance`} />)}
+      </svg>
+      {hovered && <div className="pointer-events-none absolute z-10 rounded-xl border border-[#E2E5EB] bg-white px-3 py-2 text-xs shadow-lg" style={{ left: `${Math.min(88, Math.max(4, hovered.x / width * 100))}%`, top: `${Math.max(2, hovered.y / height * 100 - 18)}%`, transform: "translateX(-50%)" }}><p className="text-[#6B7280]">{hovered.date}</p><p className="font-medium text-[#0F1D3A] mt-0.5" style={mono}>${hovered.balance.toLocaleString()}</p>{hoveredIndex === lowIndex && <p className="mt-1 text-[#CA8A04]">Rent, insurance, car payment and other known bills</p>}</div>}
+    </div>
+    <div className="relative grid sm:grid-cols-3 gap-2 mt-3">{events.map((event, index) => <div key={event.label} className={`rounded-xl border border-[#E2E5EB] border-l-[3px] border-l-primary bg-white p-3 transition-all duration-300 ${visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"}`} style={{ transitionDelay: `${2400 + index * 150}ms` }}><div className="flex justify-between gap-2 text-xs"><span className="font-medium">{event.label}</span><span style={mono}>{event.amount}</span></div><p className="text-[10px] text-muted-foreground mt-1">{event.date} · confirmed</p></div>)}</div>
+  </div>;
+}
+
 const processSteps = [
   { n: "01", title: "Bring in your numbers", desc: "Import a CSV from your bank, or enter the essentials yourself. No bank connection required." },
   { n: "02", title: "Check what we found", desc: "Review your transactions and confirm the paychecks, bills, and subscriptions that happen regularly." },
@@ -146,41 +208,9 @@ const processSteps = [
 ];
 
 function StepIllustration({ step }: { step: number }) {
-  if (step === 0) return (
-    <svg viewBox="0 0 560 310" className="w-full" aria-hidden="true">
-      <rect x="46" y="34" width="468" height="242" rx="24" fill="white" stroke="hsl(var(--border))" />
-      <circle cx="72" cy="58" r="5" fill="#D4754A" opacity=".55" /><circle cx="90" cy="58" r="5" fill="#2D8B5A" opacity=".55" />
-      <rect x="76" y="90" width="408" height="142" rx="18" fill="#F7F7F8" stroke="#DDDEE3" strokeDasharray="7 7" />
-      <path d="M280 126v54m0-54-18 18m18-18 18 18" stroke="#171714" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-      <rect x="236" y="179" width="88" height="10" rx="5" fill="#D4754A" opacity=".16" />
-      <text x="280" y="211" textAnchor="middle" fill="#4A6257" fontSize="13">Drop your CSV here</text>
-      <rect x="360" y="244" width="126" height="23" rx="11.5" fill="#E5FAF2" />
-      <text x="423" y="260" textAnchor="middle" fill="#0B7A52" fontSize="10" fontWeight="700">No bank login needed</text>
-    </svg>
-  );
-  if (step === 1) return (
-    <svg viewBox="0 0 560 310" className="w-full" aria-hidden="true">
-      <rect x="40" y="28" width="480" height="254" rx="24" fill="white" stroke="hsl(var(--border))" />
-      <rect x="65" y="52" width="430" height="40" rx="13" fill="#F5F5F8" />
-      <circle cx="86" cy="72" r="7" fill="#D4754A" /><text x="104" y="77" fill="#0F1D3A" fontSize="13" fontWeight="500">3 recurring patterns found</text>
-      {[["Rent", "Monthly", "Confirmed", "#D4754A"], ["Paycheck", "Every 2 weeks", "Confirmed", "#2D8B5A"], ["Electricity", "$84–$139", "Estimated", "#CA8A04"]].map((row, index) => {
-        const y = 116 + index * 49;
-        return <g key={row[0]}><circle cx="82" cy={y + 14} r="6" fill={row[3]} /><text x="101" y={y + 11} fill="#162820" fontSize="12" fontWeight="700">{row[0]}</text><text x="101" y={y + 27} fill="#6B7D74" fontSize="10">{row[1]}</text><rect x="387" y={y + 3} width="90" height="23" rx="11.5" fill={index === 2 ? "#FFF4DE" : "#EBF7F1"} /><text x="432" y={y + 18} textAnchor="middle" fill={index === 2 ? "#A85A00" : "#0B7A52"} fontSize="9" fontWeight="700">{row[2]}</text><line x1="65" y1={y + 41} x2="495" y2={y + 41} stroke="#E3EFE9" /></g>;
-      })}
-    </svg>
-  );
-  return (
-    <svg viewBox="0 0 560 310" className="w-full" aria-hidden="true">
-      <rect x="36" y="26" width="488" height="258" rx="24" fill="white" stroke="hsl(var(--border))" />
-      <rect x="62" y="50" width="138" height="58" rx="15" fill="#F3F4F6" /><text x="79" y="72" fill="#686A73" fontSize="10">Safe to spend</text><text x="79" y="95" fill="#4051BF" fontSize="23" fontWeight="700">$680</text>
-      <rect x="212" y="50" width="138" height="58" rx="15" fill="#F2FBF7" /><text x="229" y="72" fill="#63786E" fontSize="10">Lowest balance</text><text x="229" y="95" fill="#0B7A52" fontSize="23" fontWeight="700">$420</text>
-      <rect x="366" y="59" width="130" height="32" rx="16" fill="#FFF4DE" /><text x="431" y="79" textAnchor="middle" fill="#9A5700" fontSize="10" fontWeight="700">Watch · Aug 3</text>
-      <path d="M70 220 C125 185 157 208 201 168 S284 210 329 144 S407 176 486 112" fill="none" stroke="#171714" strokeWidth="5" strokeLinecap="round" />
-      <path d="M70 220 C125 185 157 208 201 168 S284 210 329 144 S407 176 486 112 L486 244 L70 244Z" fill="#D4754A" opacity=".07" />
-      <line x1="70" y1="232" x2="486" y2="232" stroke="#F59E0B" strokeDasharray="6 6" /><text x="75" y="226" fill="#A85A00" fontSize="9">Safety buffer</text>
-      <circle cx="329" cy="144" r="7" fill="white" stroke="#32D6A0" strokeWidth="4" />
-    </svg>
-  );
+  if (step === 0) return <div className="min-h-[286px] rounded-2xl border border-[#E2E5EB] bg-white p-5 flex flex-col"><div className="flex items-center justify-between mb-5"><div><p className="text-[10px] uppercase tracking-[0.15em] text-primary">Connection-free import</p><h4 className="font-medium text-[#0F1D3A] mt-1">Import a CSV</h4></div><span className="rounded-full bg-[#2D8B5A]/10 px-2.5 py-1 text-[10px] text-[#2D8B5A]">No bank login</span></div><div className="grid grid-cols-2 gap-3 mb-3"><div className="rounded-xl border border-[#E2E5EB] px-3 py-2"><p className="text-[10px] text-[#6B7280]">Account name</p><p className="text-xs text-[#0F1D3A] mt-1">Everyday checking</p></div><div className="rounded-xl border border-[#E2E5EB] px-3 py-2"><p className="text-[10px] text-[#6B7280]">Account type</p><p className="text-xs text-[#0F1D3A] mt-1">Checking</p></div></div><div className="flex-1 rounded-xl border border-dashed border-primary/40 bg-primary/[0.04] flex flex-col items-center justify-center text-center px-5"><ArrowRight className="-rotate-90 text-primary mb-2" size={20} /><p className="text-sm font-medium text-[#0F1D3A]">Choose a transaction file</p><p className="text-[11px] text-[#6B7280] mt-1">You’ll review everything before it is saved.</p></div></div>;
+  if (step === 1) return <div className="min-h-[286px] rounded-2xl border border-[#E2E5EB] bg-white p-5"><div className="flex items-center justify-between mb-4"><div><p className="text-[10px] uppercase tracking-[0.15em] text-primary">Review patterns</p><h4 className="font-medium text-[#0F1D3A] mt-1">3 recurring suggestions</h4></div><span className="text-[10px] text-[#6B7280]">Review each one</span></div><div className="divide-y divide-[#E2E5EB]">{[["Rent", "Monthly · $1,650", "Confirmed", "#2D8B5A"], ["Paycheck", "Every 2 weeks · $2,400", "Confirmed", "#2D8B5A"], ["Electricity", "6 occurrences · $84–$139", "Estimated", "#CA8A04"]].map(([name, detail, status, color]) => <div key={name} className="flex items-center gap-3 py-4"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} /><div className="min-w-0 flex-1"><p className="text-sm font-medium text-[#0F1D3A]">{name}</p><p className="text-[11px] text-[#6B7280] mt-0.5">{detail}</p></div><span className="rounded-full px-2.5 py-1 text-[10px]" style={{ color, backgroundColor: `${color}14` }}>{status}</span></div>)}</div></div>;
+  return <div className="min-h-[286px] rounded-2xl border border-[#E2E5EB] bg-white p-5"><div className="grid grid-cols-3 gap-2 mb-5"><div className="rounded-xl bg-[#F8F5EE] p-3"><p className="text-[10px] text-[#6B7280]">Safe to spend</p><p className="text-lg font-medium text-[#0F1D3A] mt-1" style={mono}>$680</p></div><div className="rounded-xl bg-[#F8F5EE] p-3"><p className="text-[10px] text-[#6B7280]">Projected low</p><p className="text-lg font-medium text-[#CA8A04] mt-1" style={mono}>$420</p></div><div className="rounded-xl bg-[#CA8A04]/10 p-3"><p className="text-[10px] text-[#6B7280]">Condition</p><p className="text-xs font-medium text-[#CA8A04] mt-2">Watch · Aug 3</p></div></div><div className="rounded-xl border border-[#E2E5EB] p-4"><div className="flex justify-between text-[10px] text-[#6B7280] mb-4"><span>30-day forecast</span><span>Jul 21 → Aug 20</span></div><div className="h-24 flex items-end gap-1.5">{[72, 67, 62, 56, 50, 35, 16, 43, 39, 34, 30, 27].map((height, index) => <span key={index} className={`flex-1 rounded-t ${index === 6 ? "bg-[#CA8A04]" : "bg-primary/70"}`} style={{ height: `${height}%` }} />)}</div><div className="border-t border-dashed border-[#CA8A04] mt-1 pt-2 text-[10px] text-[#CA8A04]">$500 safety buffer</div></div></div>;
 }
 
 export default function Landing() {
@@ -206,8 +236,7 @@ export default function Landing() {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const stepsTimer = window.setInterval(() => setActiveStep((current) => (current + 1) % processSteps.length), 3200);
-    const heroTimer = window.setInterval(() => setHeroMoment((current) => (current + 1) % heroMoments.length), 2400);
-    return () => { window.clearInterval(stepsTimer); window.clearInterval(heroTimer); };
+    return () => window.clearInterval(stepsTimer);
   }, []);
 
   useEffect(() => {
@@ -230,8 +259,10 @@ export default function Landing() {
   }, []);
 
   const scenarioData = generateScenarioData(scenarios[scenario].amount);
-  const endBalance = 6900 - scenarios[scenario].amount;
-  const safeToSpend = Math.max(0, 2840 - scenarios[scenario].amount);
+  const projectedBalances = scenarioData.flatMap((point) => typeof point.projected === "number" ? [point.projected] : []);
+  const endBalance = projectedBalances.at(-1) ?? 0;
+  const lowestProjectedBalance = Math.min(...projectedBalances);
+  const safeToSpend = Math.max(0, lowestProjectedBalance - 500);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -294,7 +325,7 @@ export default function Landing() {
             </div>
             <div className="flex flex-col gap-2.5">
               {["No bank connection required", "Your numbers, clearly explained", "No budgets to maintain"].map((t, index) => (
-                <div key={t} className="flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-500" style={{ animationDelay: `${250 + index * 180}ms`, animationFillMode: "both" }}>
+                <div key={t} className="flex items-center gap-2.5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500" style={{ animationDelay: `${250 + index * 180}ms`, animationFillMode: "both" }}>
                   <CheckCircle size={14} className="text-accent shrink-0" />
                   <span className="text-sm text-muted-foreground">{t}</span>
                 </div>
@@ -329,8 +360,8 @@ export default function Landing() {
               </div>
               <div className="px-5 py-5 grid sm:grid-cols-[0.92fr_1.08fr] gap-4">
                 <div className="rounded-2xl bg-primary/[0.06] border border-primary/10 p-4 flex flex-col justify-between min-h-[145px] overflow-hidden">
-                  <div key={heroMoment} className="animate-in fade-in slide-in-from-bottom-3 duration-500"><p className="text-[10px] uppercase tracking-widest text-muted-foreground" style={mono}>{heroMoments[heroMoment].label}</p><p className={`text-[38px] font-medium leading-none mt-3 ${heroMoments[heroMoment].tone}`} style={mono}><CountUp value={heroMoments[heroMoment].value} prefix={heroMoments[heroMoment].prefix} suffix={heroMoments[heroMoment].suffix} /></p></div>
-                  <p key={`note-${heroMoment}`} className="text-[11px] text-muted-foreground animate-in fade-in duration-500">{heroMoments[heroMoment].note}</p>
+                  <div key={heroMoment} className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-300"><p className="text-[10px] uppercase tracking-widest text-muted-foreground" style={mono}>{heroMoments[heroMoment].label}</p><p className={`text-[38px] font-medium leading-none mt-3 ${heroMoments[heroMoment].tone}`} style={mono}><CountUp value={heroMoments[heroMoment].value} prefix={heroMoments[heroMoment].prefix} suffix={heroMoments[heroMoment].suffix} /></p></div>
+                  <div><p key={`note-${heroMoment}`} className="text-[11px] text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">{heroMoments[heroMoment].note}</p><div className="flex gap-1.5 mt-3" role="tablist" aria-label="Forecast highlights">{heroMoments.map((moment, index) => <button key={moment.label} type="button" role="tab" aria-selected={heroMoment === index} aria-label={`Show ${moment.label}`} onClick={() => setHeroMoment(index)} className={`h-1.5 rounded-full ${heroMoment === index ? "w-7 bg-primary" : "w-3 bg-[#D0D4DC] hover:bg-[#6B7280]"}`} />)}</div></div>
                 </div>
                 <div className="space-y-2">
                   {[{ label: "Rent", timing: "in 11 days", amount: "−$1,650", tone: "bg-primary" }, { label: "Paycheck", timing: "in 16 days", amount: "+$2,400", tone: "bg-[#2D8B5A]" }, { label: "Tight day", timing: "Aug 3", amount: "$420", tone: "bg-[#CA8A04]" }].map((item, index) => <div key={item.label} className={`group flex items-center gap-3 rounded-xl border px-3 py-2.5 bg-background transition-all duration-500 ${heroMoment === index ? "translate-x-1 border-primary/35 shadow-md opacity-100" : "border-border opacity-55"}`}><span className={`h-2 w-2 rounded-full ${item.tone}`} /><div className="min-w-0 flex-1"><p className="text-xs font-medium">{item.label}</p><p className="text-[10px] text-muted-foreground">{item.timing}</p></div><span className="text-xs font-medium" style={mono}>{item.amount}</span></div>)}
@@ -362,29 +393,13 @@ export default function Landing() {
           </div>
           <div className="relative rounded-[28px] border border-border bg-card p-5 sm:p-7 shadow-[0_28px_80px_rgba(28,28,34,0.10)] overflow-hidden">
             <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
-            <div className="relative flex items-center justify-between mb-5"><div><p className="text-xs text-muted-foreground">Projected balance</p><p className="font-semibold">Today → August 20</p></div><span className="rounded-full bg-[#CA8A04]/10 px-3 py-1.5 text-xs font-semibold text-[#CA8A04]">Watch · Aug 3</span></div>
-            <div className="relative h-[230px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={ahaChartData} margin={{ top: 12, right: 12, left: -18, bottom: 0 }}>
-                  <defs><linearGradient id="ahaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#D4754A" stopOpacity={0.22} /><stop offset="100%" stopColor="#D4754A" stopOpacity={0.01} /></linearGradient></defs>
-                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: "#72727a" }} tickLine={false} axisLine={false} interval={3} />
-                  <YAxis hide domain={[0, 6000]} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine y={500} stroke="#CA8A04" strokeDasharray="6 5" label={{ value: "$500 buffer", fill: "#CA8A04", fontSize: 10, position: "insideBottomLeft" }} />
-                  <ReferenceLine x="Aug 3" stroke="#CA8A04" strokeDasharray="3 3" />
-                  <Area type="monotone" dataKey="projected" stroke="#D4754A" strokeWidth={3} fill="url(#ahaFill)" dot={{ r: 2, fill: "#D4754A" }} activeDot={{ r: 6, fill: "#CA8A04", stroke: "white", strokeWidth: 3 }} isAnimationActive animationDuration={1100} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="relative grid sm:grid-cols-3 gap-2 mt-3">
-              {[{ label: "Rent", date: "Aug 1", amount: "−$1,650" }, { label: "Insurance", date: "Aug 3", amount: "−$180" }, { label: "Car payment", date: "Aug 3", amount: "−$410" }].map((event, index) => <div key={event.label} className="rounded-xl border border-border bg-background/75 p-3 transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-md animate-in fade-in slide-in-from-bottom-2" style={{ animationDelay: `${350 + index * 150}ms`, animationFillMode: "both" }}><div className="flex justify-between gap-2 text-xs"><span className="font-medium">{event.label}</span><span className="font-mono">{event.amount}</span></div><p className="text-[10px] text-muted-foreground mt-1">{event.date} · confirmed</p></div>)}
-            </div>
+            <div className="relative"><ForecastStoryChart /></div>
           </div>
         </div>
       </section>
 
       {/* PROBLEM */}
-      <section data-reveal className="py-20 px-5 bg-[#F5F6FA] border-y border-[#E2E5EB]">
+      <section data-reveal className="py-20 px-5 bg-[#F8F5EE] border-y border-[#E2E5EB]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-[42px] lg:text-[52px] font-medium tracking-tight leading-[1.08] mb-4" style={display}>
@@ -393,11 +408,11 @@ export default function Landing() {
           </div>
           <div className="max-w-3xl mx-auto">
             <div className="mx-auto mb-5 flex w-fit rounded-full border border-[#E2E5EB] bg-white p-1 shadow-sm" role="tablist" aria-label="Compare finance apps"><button role="tab" aria-selected={comparisonFocus === "past"} onClick={() => setComparisonFocus("past")} className={`rounded-full px-5 py-2 text-sm ${comparisonFocus === "past" ? "bg-[#0F1D3A] text-white shadow" : "text-[#6B7280] hover:text-[#0F1D3A]"}`}>Looking back</button><button role="tab" aria-selected={comparisonFocus === "future"} onClick={() => setComparisonFocus("future")} className={`rounded-full px-5 py-2 text-sm ${comparisonFocus === "future" ? "bg-primary text-primary-foreground shadow" : "text-[#6B7280] hover:text-[#0F1D3A]"}`}>Looking ahead</button></div>
-            <div key={comparisonFocus} className="relative overflow-hidden rounded-3xl border border-[#E2E5EB] bg-white p-8 sm:p-10 shadow-[0_2px_8px_rgba(15,29,58,0.06)] animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <div className={`absolute -right-14 -top-14 h-44 w-44 rounded-full blur-3xl ${comparisonFocus === "future" ? "bg-primary/10" : "bg-[#F5F6FA]"}`} />
-              <div className="relative flex items-center gap-3 mb-6"><div className={`h-10 w-10 rounded-xl flex items-center justify-center ${comparisonFocus === "future" ? "bg-primary text-primary-foreground" : "bg-[#F5F6FA] text-[#6B7280]"}`}>{comparisonFocus === "future" ? <Sparkles size={17} /> : <BarChart3 size={17} />}</div><div><p className="text-xs text-[#6B7280]">{comparisonFocus === "future" ? "FlowSight" : "Traditional finance apps"}</p><h3 className="font-medium text-lg text-[#0F1D3A]">{comparisonFocus === "future" ? "Looking ahead" : "Looking back"}</h3></div></div>
+            <div key={comparisonFocus} className="relative overflow-hidden rounded-3xl border border-[#E2E5EB] bg-white p-8 sm:p-10 shadow-[0_2px_8px_rgba(15,29,58,0.06)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
+              <div className={`absolute -right-14 -top-14 h-44 w-44 rounded-full blur-3xl ${comparisonFocus === "future" ? "bg-primary/10" : "bg-[#F8F5EE]"}`} />
+              <div className="relative flex items-center gap-3 mb-6"><div className={`h-10 w-10 rounded-xl flex items-center justify-center ${comparisonFocus === "future" ? "bg-primary text-primary-foreground" : "bg-[#F8F5EE] text-[#6B7280]"}`}>{comparisonFocus === "future" ? <Sparkles size={17} /> : <BarChart3 size={17} />}</div><div><p className="text-xs text-[#6B7280]">{comparisonFocus === "future" ? "FlowSight" : "Traditional finance apps"}</p><h3 className="font-medium text-lg text-[#0F1D3A]">{comparisonFocus === "future" ? "Looking ahead" : "Looking back"}</h3></div></div>
               <p className="relative text-[#374151] leading-relaxed mb-7">{comparisonFocus === "future" ? "FlowSight shows what the next few weeks may hold—and what to do if money gets tight." : "Most tools organize what already happened. Useful for review, but they can't tell you if Friday will be tight."}</p>
-              <div className="relative grid sm:grid-cols-3 gap-3">{(comparisonFocus === "future" ? ["Warns you before the tight day", "Labels confirmed and estimated events", '“$820 safe to spend until the 18th”'] : ["Reports money already spent", "Categories instead of timing", '“$200 spent on dining last month”']).map((item) => <div key={item} className={`rounded-xl border p-3 text-sm ${comparisonFocus === "future" ? "border-primary/30 bg-primary/[0.08] text-[#0F1D3A] font-medium" : "border-[#E2E5EB] bg-[#F5F6FA] text-[#6B7280] line-through decoration-[#6B7280]/40"}`}>{item}</div>)}</div>
+              <div className="relative grid sm:grid-cols-3 gap-3">{(comparisonFocus === "future" ? ["Warns you before the tight day", "Labels confirmed and estimated events", '“$820 safe to spend until the 18th”'] : ["Reports money already spent", "Categories instead of timing", '“$200 spent on dining last month”']).map((item) => <div key={item} className={`rounded-xl border p-3 text-sm ${comparisonFocus === "future" ? "border-primary/30 bg-primary/[0.08] text-[#0F1D3A] font-medium" : "border-[#E2E5EB] bg-[#F8F5EE] text-[#6B7280] line-through decoration-[#6B7280]/40"}`}>{item}</div>)}</div>
             </div>
           </div>
         </div>
@@ -420,75 +435,6 @@ export default function Landing() {
               const selected = incomeType === id;
               return <button key={id} role="tab" aria-selected={selected} onClick={() => setIncomeType(id)} className={`text-left rounded-2xl border p-6 transition-all duration-300 ${selected ? "border-primary/40 bg-card -translate-y-1 shadow-[0_20px_55px_rgba(28,28,34,0.10)]" : "border-border bg-card/55 hover:border-primary/20"}`}><div className="flex items-start justify-between gap-3 mb-4"><div><h3 className="font-semibold text-lg mb-1">{title}</h3><p className="text-xs text-muted-foreground">{note}</p></div>{selected && <span className="text-[10px] font-medium text-primary bg-primary/10 rounded-full px-2.5 py-1">See example</span>}</div><IncomePattern kind={id} /><div className={`grid transition-all duration-300 ${selected ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}><p className="overflow-hidden text-sm leading-relaxed text-foreground border-t border-border pt-4">{example}</p></div></button>;
             })}
-          </div>
-        </div>
-      </section>
-
-      {/* FEATURES */}
-      <section className="hidden" aria-hidden="true">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-accent text-xs font-medium uppercase tracking-[0.15em] mb-3" style={mono}>Features</p>
-            <h2 className="text-[40px] font-medium tracking-tight mb-3" style={display}>Your financial sixth sense</h2>
-            <p className="text-muted-foreground max-w-sm mx-auto">Three tools that give you clarity and confidence over your money.</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-5">
-            <div className="bg-card border border-border rounded-2xl p-6 hover:border-primary/30 transition-colors duration-200">
-              <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center mb-5"><BarChart3 size={17} className="text-primary" /></div>
-              <h3 className="font-semibold text-foreground mb-2">Cash Flow Forecasting</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-3">See your balance unfold day by day, based on the income, bills, and transactions you know are coming.</p>
-              <p className="text-xs text-foreground bg-primary/[0.06] rounded-lg px-3 py-2 mb-5">“Rent and insurance bring the projected low to $1,180 on August 3—two days before payday.”</p>
-              <div className="bg-muted/50 rounded-xl p-3 h-[100px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={heroChartData} margin={{ top: 2, right: 2, left: -32, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="lFeature" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#171714" stopOpacity={0.14} />
-                        <stop offset="95%" stopColor="#171714" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <Area type="monotone" dataKey="projected" stroke="#5263D6" strokeWidth={2} fill="url(#lFeature)" dot={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            <div className="bg-card border border-border rounded-2xl p-6 hover:border-accent/30 transition-colors duration-200">
-              <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center mb-5"><Wallet size={17} className="text-accent" /></div>
-              <h3 className="font-semibold text-foreground mb-2">Safe to Spend</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-3">One practical number for today—after upcoming bills and your safety buffer are taken into account.</p>
-              <p className="text-xs text-foreground bg-primary/[0.06] rounded-lg px-3 py-2 mb-5">“You have $680 safe to spend while keeping your $500 buffer protected.”</p>
-              <div className="bg-muted/50 rounded-xl px-4 py-3.5 space-y-2.5">
-                {[{ label: "Lowest projected balance", value: "$1,180", color: "text-foreground" }, { label: "Protected safety buffer", value: "–$500", color: "text-amber-700" }].map(({ label, value, color }) => (
-                  <div key={label} className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">{label}</span>
-                    <span className={`text-xs font-medium ${color}`} style={mono}>{value}</span>
-                  </div>
-                ))}
-                <div className="h-px bg-border" />
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">Safe to spend</span>
-                  <span className="text-sm font-bold text-emerald-700" style={mono}>$680</span>
-                </div>
-              </div>
-            </div>
-            <div className="bg-card border border-border rounded-2xl p-6 hover:border-yellow-500/30 transition-colors duration-200">
-              <div className="w-10 h-10 rounded-xl bg-yellow-500/15 flex items-center justify-center mb-5"><Bell size={17} className="text-yellow-400" /></div>
-              <h3 className="font-semibold text-foreground mb-2">A heads-up when it matters</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-3">FlowSight watches for known bills and income that could put pressure on your balance—and lets you know before the tight day arrives.</p>
-              <p className="text-xs text-foreground bg-amber-500/[0.08] rounded-lg px-3 py-2 mb-5">“Rent arrives five days before your next paycheck. August 3 may feel tight.”</p>
-              <div className="space-y-2">
-                {[
-                  { msg: "Balance may reach $1,180 on Aug 3", color: "text-yellow-400", bg: "bg-yellow-500/10" },
-                  { msg: "Rent arrives five days before your next paycheck", color: "text-blue-400", bg: "bg-blue-500/10" },
-                  { msg: "Insurance is estimated for Aug 3", color: "text-orange-400", bg: "bg-orange-500/10" },
-                ].map(({ msg, color, bg }) => (
-                  <div key={msg} className={`${bg} rounded-lg px-2.5 py-2 flex items-start gap-2`}>
-                    <AlertTriangle size={10} className={`${color} shrink-0 mt-0.5`} />
-                    <p className="text-xs text-muted-foreground">{msg}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -534,7 +480,7 @@ export default function Landing() {
                   <XAxis dataKey="day" tick={{ fontSize: 9, fill: "#5c6b8a", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} interval={2} />
                   <YAxis tick={{ fontSize: 9, fill: "#5c6b8a", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
                   <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine x="Dec 15" stroke="#5c6b8a" strokeDasharray="3 2" strokeWidth={1} />
+                  <ReferenceLine x="Jul 31" stroke="#5c6b8a" strokeDasharray="3 2" strokeWidth={1} />
                   <Area type="monotone" dataKey="balance" stroke="#171714" strokeWidth={2} fill="url(#lScenActual)" dot={false} connectNulls={false} />
                   <Area type="monotone" dataKey="baseline" stroke="#9CA3AF" strokeWidth={2} strokeDasharray="5 5" fill="transparent" dot={false} connectNulls={false} animationDuration={350} animationEasing="ease-out" />
                   <Area type="monotone" dataKey="projected" stroke="#D4754A" strokeWidth={3} fill="url(#lScenProj)" dot={false} connectNulls={false} animationDuration={350} animationEasing="ease-out" />
@@ -558,7 +504,7 @@ export default function Landing() {
       </section>
 
       {/* HOW IT WORKS */}
-      <section data-reveal className="py-20 px-5 mx-3 sm:mx-5 rounded-[32px] border border-border/60 bg-[#F5F6FA]" id="how-it-works">
+      <section data-reveal className="py-20 px-5 mx-3 sm:mx-5 rounded-[32px] border border-border/60 bg-[#F8F5EE]" id="how-it-works">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <p className="text-accent text-xs font-medium uppercase tracking-[0.15em] mb-3" style={mono}>Process</p>
@@ -567,8 +513,8 @@ export default function Landing() {
           </div>
           <div className="grid md:grid-cols-[0.82fr_1.18fr] gap-8 items-center">
             <div className="space-y-2" role="tablist" aria-label="How FlowSight works">{processSteps.map((step, index) => <button key={step.n} role="tab" aria-selected={activeStep === index} onClick={() => setActiveStep(index)} className={`w-full rounded-2xl p-4 text-left transition-all duration-500 ${activeStep === index ? "bg-primary/[0.08] text-foreground" : "text-muted-foreground hover:bg-muted/50"}`}><div className="flex items-start gap-3"><span className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${activeStep === index ? "bg-primary text-primary-foreground" : "bg-muted"}`} style={mono}>{index + 1}</span><div><h3 className="font-semibold text-lg">{step.title}</h3><div className={`grid transition-all duration-500 ${activeStep === index ? "grid-rows-[1fr] opacity-100 mt-2" : "grid-rows-[0fr] opacity-0"}`}><p className="overflow-hidden text-sm leading-relaxed text-muted-foreground">{step.desc}</p></div></div></div></button>)}</div>
-            <div key={activeStep} className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-white via-white to-slate-50 p-4 shadow-[0_28px_70px_rgba(28,28,34,0.11)] animate-in fade-in slide-in-from-right-3 duration-500"><div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-primary/12 blur-3xl" /><div className="relative"><StepIllustration step={activeStep} /></div></div>
-            <div className="md:col-start-1 flex gap-2 px-4">{processSteps.map((step, index) => <button key={step.n} aria-label={`Show step ${index + 1}`} onClick={() => setActiveStep(index)} className="h-1 flex-1 rounded-full bg-muted overflow-hidden"><span className={`block h-full bg-primary transition-[width] ease-linear duration-[3000ms] ${activeStep === index ? "w-full" : "w-0"}`} /></button>)}</div>
+            <div key={activeStep} className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-white via-white to-slate-50 p-4 shadow-[0_28px_70px_rgba(28,28,34,0.11)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-3 motion-safe:duration-500"><div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-primary/12 blur-3xl" /><div className="relative"><StepIllustration step={activeStep} /></div></div>
+            <div className="md:col-start-1 flex gap-2 px-4">{processSteps.map((step, index) => <button key={step.n} aria-label={`Show step ${index + 1}`} onClick={() => setActiveStep(index)} className="h-1 flex-1 rounded-full bg-muted overflow-hidden"><span className={`block h-full bg-primary transition-[width] ease-linear ${activeStep === index ? "w-full" : "w-0"}`} style={{ transitionDuration: "3000ms" }} /></button>)}</div>
           </div>
         </div>
       </section>
@@ -617,7 +563,7 @@ export default function Landing() {
       </section>
 
       {/* FAQ */}
-      <section data-reveal className="py-20 px-5 border-y border-border/60 bg-[#F5F6FA]" id="faq">
+      <section data-reveal className="py-20 px-5 border-y border-border/60 bg-[#F8F5EE]" id="faq">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-primary text-xs font-medium uppercase tracking-[0.15em] mb-3" style={mono}>Common questions</p>

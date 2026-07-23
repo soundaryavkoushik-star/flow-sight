@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
-import { applyAmountSignConvention, applyTransactionDirection, detectAmountColumns, detectDirectionColumn, findHeader, normalizeDate, normalizeMerchant, parseCsv, parseMoney, suggestRecurring } from "../../lib/csv/parse"
+import { applyAmountSignConvention, applyTransactionDirection, detectAmountColumns, detectDirectionColumn, findHeader, normalizeDate, normalizeMerchant, parseCsv, parseMoney, recurringEvidenceConfidence, suggestRecurring } from "../../lib/csv/parse"
 
 const fixture = (name: string) => readFileSync(new URL(`../fixtures/${name}`, import.meta.url), "utf8")
 
@@ -60,6 +60,22 @@ describe("CSV parsing", () => {
 })
 
 describe("recurring suggestions", () => {
+  it("confirms stable evidence and keeps materially variable amounts estimated", () => {
+    expect(recurringEvidenceConfidence(-175_000, -175_000)).toBe("confirmed")
+    expect(recurringEvidenceConfidence(195_000, 195_000)).toBe("confirmed")
+    expect(recurringEvidenceConfidence(-1_799, -1_790)).toBe("confirmed")
+    expect(recurringEvidenceConfidence(-14_830, -8_200)).toBe("estimated")
+  })
+
+  it("does not promote refunds, gifts, or transfers into recurring income", () => {
+    const suggestions = suggestRecurring([
+      { date: "2026-01-15", description: "IRS Tax Refund", amountCents: 90_000 },
+      { date: "2026-02-15", description: "IRS Tax Refund", amountCents: 90_000 },
+      { date: "2026-03-15", description: "IRS Tax Refund", amountCents: 90_000 },
+    ], "account", "2026-03-20")
+    expect(suggestions).toEqual([])
+  })
+
   it("normalizes statement identifiers and requires three stable occurrences", () => {
     expect(normalizeMerchant("ACH DEBIT CITY APARTMENTS RENT 483920")).toBe("city apartments rent")
     const suggestions = suggestRecurring([

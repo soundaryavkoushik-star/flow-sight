@@ -7,7 +7,7 @@ This is the locked visual foundation for the FlowSight web experience. The syste
 | Role | Color | Use |
 | --- | --- | --- |
 | Ground | `#FFFFFF` | Primary page surface |
-| Tinted surface | `#F5F6FA` | Alternating sections and quiet containers |
+| Tinted surface | `#F8F5EE` | Alternating sections and quiet containers |
 | Border | `#E2E5EB` | Resting dividers and controls |
 | Hover border | `#D0D4DC` | Interactive hover state |
 | Brand | `#D4754A` | Primary actions, active controls, editorial labels |
@@ -86,7 +86,7 @@ The navigation **Join Beta**, hero **Join the Beta**, form submit, and final CTA
 
 ## Surface rhythm
 
-Alternate white and `#F5F6FA` to divide the scroll into readable chapters. Use full-bleed dark navy only for moments that benefit from increased seriousness or contrast. Rounded containers may sit on the tinted surface, but should use the same border and shadow rules as interactive cards.
+Alternate white and warm `#F8F5EE` to divide the scroll into readable chapters. Use full-bleed dark navy only for moments that benefit from increased seriousness or contrast. Rounded containers may sit on the tinted surface, but should use the same border and shadow rules as interactive cards.
 
 ## Product integrity
 

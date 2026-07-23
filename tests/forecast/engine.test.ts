@@ -177,6 +177,6 @@ describe("forecast integrity", () => {
       ],
     })
     expect(forecast.explanations[0].eventIds).toEqual(["rent", "insurance"])
-    expect(forecast.explanations[0].headline).toContain("2026-07-23")
+    expect(forecast.explanations[0].headline).toContain("July 23")
   })
 })

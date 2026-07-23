@@ -15,6 +15,9 @@ model UserProfile {
   userId          String   @id // Supabase auth.users.id
   preferredCurrency String @default("USD")
   timezone        String   @default("UTC") // IANA timezone used to determine the user's financial "today"
+  incomePattern   String   @default("regular") // "regular" | "variable" | "mixed"
+  incomePatternSource String @default("onboarding") // "onboarding" | "csv_confirmed" | "user_updated"
+  incomePatternUpdatedAt DateTime @default(now())
   safetyBufferCents Int     @default(0) // minimum balance the user wants to stay above
   alertSafetyBuffer Boolean @default(true)
   alertKnownBill Boolean @default(true)
@@ -145,6 +148,9 @@ model RecurringSeries {
   dayOfMonth    Int?      // for monthly series
   anchorDayOfMonth Int?   // original calendar day retained across short months
   nextExpected  DateTime? // next predicted occurrence
+  earliestExpected DateTime?
+  latestExpected DateTime?
+  incomeConfidence String?
   minAmountCents Int?
   maxAmountCents Int?
   occurrenceCount Int?
@@ -156,10 +162,15 @@ model RecurringSeries {
   accountId     String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  reconciliationId String?
+  replacedAt DateTime?
+  replacedByImport String?
+  replacementNote String?
   exceptions    RecurringException[]
 
   @@unique([userId, normalizedKey])
   @@index([userId])
+  @@index([userId, reconciliationId])
 }
 
 model RecurringException {

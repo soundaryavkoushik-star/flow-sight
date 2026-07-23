@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/data/prisma"
+import { calculateForecast, type FinancialEvent, type RecurringRule } from "@/lib/forecast"
+import { determineForecastCondition, type ForecastCondition } from "@/lib/forecast/condition"
+import { financialDateKey, isValidTimeZone } from "@/lib/forecast/timezone"
 
 type Frequency = "weekly" | "biweekly" | "monthly" | "annual"
 
@@ -11,6 +14,10 @@ export interface OnboardingRecurringItem {
   amountCents: number
   frequency: Frequency
   nextDate: string | null
+  kind?: "regular" | "variable"
+  earliestDate?: string | null
+  latestDate?: string | null
+  confidence?: "certain" | "likely" | "possible"
 }
 
 export interface OnboardingPayload {
@@ -18,10 +25,21 @@ export interface OnboardingPayload {
   safetyBufferCents: number
   income: OnboardingRecurringItem[]
   bills: OnboardingRecurringItem[]
+  incomePattern: "regular" | "variable" | "mixed"
+  timezone: string
+}
+
+export interface OnboardingForecastSummary {
+  safeToSpendCents: number
+  lowestBalanceCents: number
+  lowestBalanceDate: string
+  condition: ForecastCondition
+  confirmedEventCount: number
+  estimatedEventCount: number
 }
 
 export type SaveOnboardingResult =
-  | { ok: true }
+  | { ok: true; forecast: OnboardingForecastSummary }
   | { ok: false; message: string }
 
 function isMoney(value: number) {
@@ -51,12 +69,14 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
 
   if (!user) return { ok: false, message: "Your session expired. Please sign in again." }
 
-  const today = new Date()
-  today.setUTCHours(0, 0, 0, 0)
+  const timezone = isValidTimeZone(payload.timezone) ? payload.timezone : "UTC"
+  const todayKey = financialDateKey(new Date(), timezone)
+  const today = new Date(`${todayKey}T00:00:00.000Z`)
   const items = [...payload.income, ...payload.bills]
   if (!isMoney(payload.balanceCents) || !isMoney(payload.safetyBufferCents)) {
     return { ok: false, message: "Balance and safety buffer must be valid amounts." }
   }
+  if (!["regular", "variable", "mixed"].includes(payload.incomePattern)) return { ok: false, message: "Choose how money usually comes in." }
   if (items.some((item) => {
     const date = parseDate(item.nextDate)
     return !item.name.trim() || !isMoney(item.amountCents) || item.amountCents === 0 || !isFrequency(item.frequency) || (item.nextDate !== null && (!date || date < today))
@@ -68,8 +88,8 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
     await prisma.$transaction(async (tx) => {
       await tx.userProfile.upsert({
         where: { userId: user.id },
-        update: { safetyBufferCents: payload.safetyBufferCents },
-        create: { userId: user.id, safetyBufferCents: payload.safetyBufferCents },
+        update: { safetyBufferCents: payload.safetyBufferCents, incomePattern: payload.incomePattern, incomePatternSource: "onboarding", incomePatternUpdatedAt: new Date(), timezone },
+        create: { userId: user.id, safetyBufferCents: payload.safetyBufferCents, incomePattern: payload.incomePattern, incomePatternSource: "onboarding", incomePatternUpdatedAt: new Date(), timezone },
       })
 
       const existingAccount = await tx.account.findFirst({
@@ -105,9 +125,12 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
             name: item.name.trim(),
             type: "income",
             amountCents: item.amountCents,
-            frequency: item.frequency,
+            frequency: item.kind === "variable" ? "irregular" : item.frequency,
             nextExpected: parseDate(item.nextDate) ?? estimatedIncomeDate(today, item.frequency),
-            dateConfidence: item.nextDate ? "confirmed" : "estimated",
+            earliestExpected: parseDate(item.earliestDate ?? null),
+            latestExpected: parseDate(item.latestDate ?? null),
+            incomeConfidence: item.kind === "variable" ? item.confidence ?? "likely" : null,
+            dateConfidence: item.kind === "variable" ? (item.confidence === "certain" ? "confirmed" : "estimated") : item.nextDate ? "confirmed" : "estimated",
             status: "confirmed",
             isManual: true,
             accountId: account.id,
@@ -131,10 +154,28 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
       })
     })
 
+    const forecastEvents: FinancialEvent[] = payload.income.filter((item) => item.kind === "variable").map((item, index) => ({ id: `onboarding:variable:${index}`, name: item.name.trim(), date: item.nextDate ?? todayKey, amountCents: item.amountCents, type: "income", source: "manual", confidence: item.confidence === "certain" ? "confirmed" : "estimated" }))
+    const recurringRules: RecurringRule[] = [
+      ...payload.income.filter((item) => item.kind !== "variable").map((item, index) => ({ id: `onboarding:income:${index}`, name: item.name.trim(), amountCents: item.amountCents, frequency: item.frequency, nextDate: item.nextDate ?? todayKey, confidence: item.nextDate ? "confirmed" as const : "estimated" as const })),
+      ...payload.bills.map((item, index) => ({ id: `onboarding:bill:${index}`, name: item.name.trim(), amountCents: -item.amountCents, frequency: item.frequency, nextDate: item.nextDate ?? todayKey, confidence: item.nextDate ? "confirmed" as const : "estimated" as const })),
+    ]
+    const forecast = calculateForecast({ startingBalanceCents: payload.balanceCents, events: forecastEvents, recurringRules, settings: { startDate: todayKey, days: 30, safetyBufferCents: payload.safetyBufferCents } })
+    const included = forecast.days.flatMap((day) => day.events)
     revalidatePath("/app/dashboard")
-    return { ok: true }
+    return { ok: true, forecast: { safeToSpendCents: forecast.safeToSpendCents, lowestBalanceCents: forecast.lowestBalanceCents, lowestBalanceDate: forecast.lowestBalanceDate, condition: determineForecastCondition(forecast, payload.safetyBufferCents, "fresh"), confirmedEventCount: included.filter((event) => event.confidence === "confirmed").length, estimatedEventCount: included.filter((event) => event.confidence === "estimated").length } }
   } catch (error) {
     console.error("Failed to save onboarding", error)
     return { ok: false, message: "We couldn't save your forecast setup. Please try again." }
   }
+}
+
+export async function saveIncomePattern(pattern: "regular" | "variable" | "mixed", timezone: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false as const, message: "Your session expired. Please sign in again." }
+  if (!["regular", "variable", "mixed"].includes(pattern)) return { ok: false as const, message: "Choose how money usually comes in." }
+  const safeTimezone = isValidTimeZone(timezone) ? timezone : "UTC"
+  await prisma.userProfile.upsert({ where: { userId: user.id }, update: { incomePattern: pattern, incomePatternSource: "csv_confirmed", incomePatternUpdatedAt: new Date(), timezone: safeTimezone }, create: { userId: user.id, incomePattern: pattern, incomePatternSource: "csv_confirmed", incomePatternUpdatedAt: new Date(), timezone: safeTimezone } })
+  revalidatePath("/app/dashboard")
+  return { ok: true as const }
 }

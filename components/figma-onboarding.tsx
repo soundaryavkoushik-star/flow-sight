@@ -4,29 +4,23 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   TrendingUp, ArrowRight, Building2, PenLine, DollarSign,
-  Plus, Trash2, CheckCircle, Sparkles, Shield, ChevronRight,
-  RefreshCw, Wallet, Upload,
+  Plus, Trash2, CheckCircle, Sparkles, Shield,
+  Wallet, Upload,
 } from "lucide-react";
-import { saveOnboarding } from "@/app/app/onboarding/actions";
+import { saveOnboarding, type OnboardingForecastSummary } from "@/app/app/onboarding/actions";
 
 const display: React.CSSProperties = { fontFamily: "'Bricolage Grotesque', sans-serif" };
 const mono: React.CSSProperties = { fontFamily: "'DM Mono', monospace" };
 
 // ── TYPES ────────────────────────────────────────────────────────────────────
 
-interface IncomeItem { id: number; name: string; amount: string; frequency: string; nextDate: string | null }
+type IncomePatternValue = "regular" | "variable" | "mixed";
+interface IncomeItem { id: number; name: string; amount: string; frequency: string; nextDate: string | null; kind: "regular" | "variable"; earliestDate?: string | null; latestDate?: string | null; confidence?: "certain" | "likely" | "possible" }
 interface BillItem   { id: number; name: string; amount: string; frequency: string; nextDate: string | null }
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 9; // 0-indexed 0..8
-const FORECAST_TASKS = [
-  "Calculating monthly cash flow",
-  "Checking upcoming income and bills",
-  "Projecting 30-day balance",
-  "Computing safe-to-spend",
-  "Checking your safety buffer",
-];
+const TOTAL_STEPS = 8;
 
 function ProgressBar({ step }: { step: number }) {
   const pct = Math.round((step / (TOTAL_STEPS - 1)) * 100);
@@ -132,7 +126,7 @@ function Welcome({ onNext }: { onNext: () => void }) {
       </div>
 
       <div>
-        <h1 className="text-[38px] font-extrabold tracking-tight leading-[1.1] mb-3" style={display}>
+        <h1 className="text-[38px] font-medium tracking-tight leading-[1.1] mb-3" style={display}>
           Know what&apos;s coming<br />
           <span className="text-accent">before it arrives.</span>
         </h1>
@@ -174,8 +168,8 @@ function ChooseSource({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs text-muted-foreground uppercase tracking-[0.15em] mb-2" style={mono}>Step 1 of 6</p>
-        <h2 className="text-[30px] font-extrabold tracking-tight mb-2" style={display}>
+        <p className="text-xs text-muted-foreground uppercase tracking-[0.15em] mb-2" style={mono}>Step 1 of 7</p>
+        <h2 className="text-[30px] font-medium tracking-tight mb-2" style={display}>
           How do you want to get started?
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -257,7 +251,17 @@ function ChooseSource({
   );
 }
 
-// 2 — Current balance
+// 2 — Income pattern
+function IncomePattern({ value, onChange, onNext }: { value: IncomePatternValue | null; onChange: (value: IncomePatternValue) => void; onNext: () => void }) {
+  const options: Array<{ value: IncomePatternValue; label: string }> = [
+    { value: "regular", label: "Regular paycheck" },
+    { value: "variable", label: "Variable or irregular income" },
+    { value: "mixed", label: "A mix of both" },
+  ];
+  return <div className="space-y-6"><div><p className="text-xs text-muted-foreground uppercase tracking-[0.15em] mb-2" style={mono}>Step 2 of 7</p><h2 className="text-[30px] font-medium tracking-tight" style={display}>How does money usually come in?</h2></div><div className="space-y-2.5">{options.map((option) => <button type="button" key={option.value} onClick={() => onChange(option.value)} className={`w-full rounded-2xl border px-5 py-4 text-left text-sm font-medium transition-all ${value === option.value ? "border-primary bg-primary/[0.08]" : "border-border hover:border-primary/30"}`}>{option.label}</button>)}</div><PrimaryButton onClick={onNext} disabled={!value}>Continue <ArrowRight size={15} /></PrimaryButton></div>;
+}
+
+// 3 — Current balance
 function CurrentBalance({
   value, onChange, onNext,
 }: {
@@ -278,8 +282,8 @@ function CurrentBalance({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs text-muted-foreground uppercase tracking-[0.15em] mb-2" style={mono}>Step 2 of 6</p>
-        <h2 className="text-[30px] font-extrabold tracking-tight mb-2" style={display}>
+        <p className="text-xs text-muted-foreground uppercase tracking-[0.15em] mb-2" style={mono}>Step 3 of 7</p>
+        <h2 className="text-[30px] font-medium tracking-tight mb-2" style={display}>
           What&apos;s your current balance?
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -333,9 +337,10 @@ function CurrentBalance({
 
 // 3 — Recurring income
 function RecurringIncome({
-  items, onAdd, onRemove, onNext,
+  items, pattern, onAdd, onRemove, onNext,
 }: {
   items: IncomeItem[];
+  pattern: IncomePatternValue;
   onAdd: (item: IncomeItem) => void;
   onRemove: (id: number) => void;
   onNext: () => void;
@@ -344,11 +349,16 @@ function RecurringIncome({
   const [amount, setAmount] = useState("");
   const [freq, setFreq] = useState("Monthly");
   const [nextDate, setNextDate] = useState("");
+  const [kind, setKind] = useState<"regular" | "variable">(pattern === "variable" ? "variable" : "regular");
+  const [showRange, setShowRange] = useState(false);
+  const [earliestDate, setEarliestDate] = useState("");
+  const [latestDate, setLatestDate] = useState("");
+  const [confidence, setConfidence] = useState<"certain" | "likely" | "possible">("likely");
   const [adding, setAdding] = useState(items.length === 0);
 
   const handleAdd = () => {
     if (!name || !amount) return;
-    onAdd({ id: Date.now(), name, amount, frequency: freq, nextDate: nextDate || null });
+    onAdd({ id: Date.now(), name, amount, frequency: freq, nextDate: nextDate || null, kind, earliestDate: kind === "variable" ? earliestDate || null : null, latestDate: kind === "variable" ? latestDate || null : null, confidence: kind === "variable" ? confidence : undefined });
     setName("");
     setAmount("");
     setNextDate("");
@@ -358,14 +368,16 @@ function RecurringIncome({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs text-muted-foreground uppercase tracking-[0.15em] mb-2" style={mono}>Step 3 of 6</p>
-        <h2 className="text-[30px] font-extrabold tracking-tight mb-2" style={display}>
+        <p className="text-xs text-muted-foreground uppercase tracking-[0.15em] mb-2" style={mono}>Step 4 of 7</p>
+        <h2 className="text-[30px] font-medium tracking-tight mb-2" style={display}>
           When does money come in?
         </h2>
         <p className="text-sm text-muted-foreground">
           Add your salary, freelance income, or any regular deposits.
         </p>
       </div>
+
+      {pattern === "mixed" && <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted p-1"><button type="button" onClick={() => setKind("regular")} className={`rounded-lg px-3 py-2 text-xs font-medium ${kind === "regular" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>Regular paycheck</button><button type="button" onClick={() => setKind("variable")} className={`rounded-lg px-3 py-2 text-xs font-medium ${kind === "variable" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>Variable income</button></div>}
 
       {/* Added items */}
       {items.length > 0 && (
@@ -411,7 +423,7 @@ function RecurringIncome({
                 className="w-full bg-muted border border-border rounded-xl pl-7 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-colors [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
-            <select
+            {kind === "regular" && <select
               value={freq}
               onChange={(e) => setFreq(e.target.value)}
               className="bg-muted border border-border rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/40 transition-colors"
@@ -419,10 +431,10 @@ function RecurringIncome({
               {["Weekly", "Bi-weekly", "Monthly", "Annual"].map((f) => (
                 <option key={f} value={f}>{f}</option>
               ))}
-            </select>
+            </select>}
           </div>
           <div>
-            <label className="text-xs text-muted-foreground block mb-1.5" htmlFor="income-next-date">Next deposit date <span className="text-muted-foreground/60">(optional)</span></label>
+            <label className="text-xs text-muted-foreground block mb-1.5" htmlFor="income-next-date">{kind === "variable" ? "Expected date" : "Next deposit date"} <span className="text-muted-foreground/60">(optional)</span></label>
             <input
               id="income-next-date"
               type="date"
@@ -431,8 +443,9 @@ function RecurringIncome({
               onChange={(e) => setNextDate(e.target.value)}
               className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/40 transition-colors"
             />
-            <p className="text-[11px] text-muted-foreground mt-1.5">Not sure? Leave this blank and we’ll mark the timing as estimated.</p>
+            <p className="text-[11px] text-muted-foreground mt-1.5">{kind === "variable" ? "FlowSight uses the expected date for the Phase 1 forecast." : "Not sure? Leave this blank and we’ll mark the timing as estimated."}</p>
           </div>
+          {kind === "variable" && <><div><label className="text-xs text-muted-foreground block mb-1.5" htmlFor="income-confidence">How confident are you?</label><select id="income-confidence" value={confidence} onChange={(event) => setConfidence(event.target.value as typeof confidence)} className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"><option value="certain">Certain</option><option value="likely">Likely</option><option value="possible">Possible</option></select></div><button type="button" onClick={() => setShowRange((open) => !open)} className="text-xs text-primary hover:underline">{showRange ? "Hide date range" : "Add date range"}</button>{showRange && <div className="rounded-xl bg-muted/60 p-3 space-y-3"><p className="text-[11px] text-muted-foreground">FlowSight uses the expected date for now. The range helps improve your forecast over time.</p><div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-muted-foreground block mb-1">Earliest likely date</label><input type="date" value={earliestDate} onChange={(event) => setEarliestDate(event.target.value)} className="w-full bg-white border border-border rounded-lg px-2 py-2 text-xs" /></div><div><label className="text-[10px] text-muted-foreground block mb-1">Latest likely date</label><input type="date" value={latestDate} onChange={(event) => setLatestDate(event.target.value)} className="w-full bg-white border border-border rounded-lg px-2 py-2 text-xs" /></div></div></div>}</>}
           <div className="flex gap-2">
             <button
               onClick={handleAdd}
@@ -498,8 +511,8 @@ function RecurringBills({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs text-muted-foreground uppercase tracking-[0.15em] mb-2" style={mono}>Step 4 of 6</p>
-        <h2 className="text-[30px] font-extrabold tracking-tight mb-2" style={display}>
+        <p className="text-xs text-muted-foreground uppercase tracking-[0.15em] mb-2" style={mono}>Step 5 of 7</p>
+        <h2 className="text-[30px] font-medium tracking-tight mb-2" style={display}>
           What goes out regularly?
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -534,7 +547,7 @@ function RecurringBills({
                 <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
                 <p className="text-xs text-muted-foreground">{item.frequency} · {item.nextDate ? `Next ${new Date(`${item.nextDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Date estimated"}</p>
               </div>
-              <span className="text-sm font-semibold text-red-400 shrink-0" style={mono}>
+              <span className="text-sm font-semibold text-destructive shrink-0" style={mono}>
                 –${parseFloat(item.amount).toLocaleString()}
               </span>
               <button onClick={() => onRemove(item.id)} className="text-muted-foreground/50 hover:text-destructive transition-colors shrink-0">
@@ -644,8 +657,8 @@ function SafetyBuffer({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs text-muted-foreground uppercase tracking-[0.15em] mb-2" style={mono}>Step 5 of 6</p>
-        <h2 className="text-[30px] font-extrabold tracking-tight mb-2" style={display}>
+        <p className="text-xs text-muted-foreground uppercase tracking-[0.15em] mb-2" style={mono}>Step 6 of 7</p>
+        <h2 className="text-[30px] font-medium tracking-tight mb-2" style={display}>
           Set your safety buffer.
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
@@ -695,89 +708,15 @@ function SafetyBuffer({
   );
 }
 
-// 6 — Building forecast (animated)
-function BuildingForecast({ onDone }: { onDone: () => void }) {
-  const [completedTasks, setCompletedTasks] = useState<number[]>([]);
-
-  useEffect(() => {
-    FORECAST_TASKS.forEach((_, i) => {
-      setTimeout(() => {
-        setCompletedTasks((prev) => [...prev, i]);
-      }, 400 + i * 380);
-    });
-    const doneTimer = setTimeout(onDone, 400 + FORECAST_TASKS.length * 380 + 600);
-    return () => clearTimeout(doneTimer);
-  }, [onDone]);
-
-  const progress = Math.round((completedTasks.length / FORECAST_TASKS.length) * 100);
-
-  return (
-    <div className="space-y-8 text-center">
-      <div className="flex justify-center">
-        <div className="relative w-20 h-20">
-          <div className="absolute inset-0 bg-primary/15 rounded-full blur-xl animate-pulse" />
-          <div className="relative w-20 h-20 rounded-full bg-card border border-border flex items-center justify-center">
-            <RefreshCw size={28} className="text-primary animate-spin" style={{ animationDuration: "2s" }} />
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-[28px] font-extrabold tracking-tight mb-2" style={display}>
-          Building your forecast…
-        </h2>
-        <p className="text-sm text-muted-foreground">This takes just a moment.</p>
-      </div>
-
-      {/* Progress bar */}
-      <div>
-        <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2">
-          <div
-            className="h-full bg-primary rounded-full transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <p className="text-xs text-muted-foreground text-right" style={mono}>{progress}%</p>
-      </div>
-
-      {/* Tasks */}
-      <div className="space-y-2.5 text-left">
-        {FORECAST_TASKS.map((task, i) => {
-          const done = completedTasks.includes(i);
-          const active = !done && completedTasks.length === i;
-          return (
-            <div key={task} className={`flex items-center gap-3 transition-opacity duration-300 ${i > completedTasks.length ? "opacity-30" : "opacity-100"}`}>
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${done ? "bg-accent/20" : active ? "bg-primary/20" : "bg-muted"}`}>
-                {done
-                  ? <CheckCircle size={12} className="text-accent" />
-                  : active
-                  ? <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  : <span className="w-2 h-2 rounded-full bg-muted-foreground/30" />}
-              </div>
-              <span className={`text-sm transition-colors ${done ? "text-muted-foreground" : active ? "text-foreground" : "text-muted-foreground/50"}`}>
-                {task}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // 7 — Forecast ready
 function ForecastReady({
-  balance, income, bills, buffer, onDashboard, onTour,
+  forecast, onDashboard,
 }: {
-  balance: number;
-  income: number;
-  bills: number;
-  buffer: number;
+  forecast: OnboardingForecastSummary;
   onDashboard: () => void;
-  onTour: () => void;
 }) {
-  const safeToSpend = Math.max(0, balance - bills - buffer);
-  const projected30 = balance + income - bills;
+  const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
+  const conditionLabel = forecast.condition === "update_needed" ? "Update Needed" : forecast.condition[0].toUpperCase() + forecast.condition.slice(1);
 
   return (
     <div className="space-y-7">
@@ -788,7 +727,7 @@ function ForecastReady({
             <Sparkles size={26} className="text-accent" />
           </div>
         </div>
-        <h2 className="text-[32px] font-extrabold tracking-tight mb-2" style={display}>
+        <h2 className="text-[32px] font-medium tracking-tight mb-2" style={display}>
           Your forecast is ready.
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -799,10 +738,9 @@ function ForecastReady({
       {/* Key stats */}
       <div className="bg-card border border-border rounded-2xl divide-y divide-border">
         {[
-          { label: "Current balance", value: `$${balance.toLocaleString()}`, color: "text-foreground", note: "as entered" },
-          { label: "Safe to spend", value: `$${safeToSpend.toLocaleString()}`, color: "text-accent", note: "after committed outflows" },
-          { label: "30-day projection", value: `$${projected30.toLocaleString()}`, color: projected30 > balance ? "text-accent" : "text-yellow-400", note: "estimated end-of-month" },
-          { label: "Safety buffer", value: `$${buffer.toLocaleString()}`, color: "text-primary", note: "alert threshold" },
+          { label: "Safe to spend", value: money(forecast.safeToSpendCents), color: "text-[hsl(var(--fs-green))]", note: "from your 30-day forecast" },
+          { label: "Lowest projected balance", value: money(forecast.lowestBalanceCents), color: "text-foreground", note: new Date(`${forecast.lowestBalanceDate}T00:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric" }) },
+          { label: "Condition", value: conditionLabel, color: forecast.condition === "clear" ? "text-[hsl(var(--fs-green))]" : forecast.condition === "watch" ? "text-[hsl(var(--fs-amber))]" : forecast.condition === "tight" ? "text-destructive" : "text-muted-foreground", note: "based on your buffer and upcoming activity" },
         ].map(({ label, value, color, note }) => (
           <div key={label} className="px-5 py-3.5 flex items-center justify-between">
             <div>
@@ -817,91 +755,15 @@ function ForecastReady({
       <div className="flex items-center gap-2.5 bg-accent/8 border border-accent/20 rounded-xl px-4 py-3">
         <CheckCircle size={14} className="text-accent shrink-0" />
         <p className="text-xs text-muted-foreground leading-relaxed">
-          This forecast uses the balance, income, bills, and safety buffer you confirmed.
+          Based on {forecast.confirmedEventCount} confirmed events and {forecast.estimatedEventCount} estimates.
         </p>
       </div>
 
-      <div className="space-y-2.5">
+      <p className="text-xs text-muted-foreground text-center">Your forecast updates as you add transactions or refresh your balance.</p>
+      <div>
         <PrimaryButton onClick={onDashboard}>
           Go to my dashboard <ArrowRight size={15} />
         </PrimaryButton>
-        <button
-          onClick={onTour}
-          className="w-full border border-border rounded-xl py-3 text-sm text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-all flex items-center justify-center gap-2"
-        >
-          <ChevronRight size={14} /> Take a quick product tour first
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// 8 — Optional product tour (3-slide mini walkthrough)
-const tourSlides = [
-  {
-    icon: TrendingUp,
-    color: "text-primary",
-    bg: "bg-primary/15",
-    title: "Cash Flow Forecast",
-    body: "Your dashboard shows a rolling 30-day projection of your balance — updated continuously as your spending evolves.",
-  },
-  {
-    icon: Wallet,
-    color: "text-accent",
-    bg: "bg-accent/15",
-    title: "Safe to Spend",
-    body: "Always know how much you can spend today without risking upcoming bills or dipping below your safety buffer.",
-  },
-  {
-    icon: Sparkles,
-    color: "text-yellow-400",
-    bg: "bg-yellow-500/15",
-    title: "Smart Alerts",
-    body: "FlowSight warns you days in advance — before a balance dip, an unusual charge, or a large upcoming payment.",
-  },
-];
-
-function ProductTour({ onDone }: { onDone: () => void }) {
-  const [slide, setSlide] = useState(0);
-  const { icon: Icon, color, bg, title, body } = tourSlides[slide];
-
-  return (
-    <div className="space-y-8 text-center">
-      <div className="flex justify-center">
-        <div className={`w-16 h-16 rounded-2xl ${bg} flex items-center justify-center`}>
-          <Icon size={28} className={color} />
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-[28px] font-extrabold tracking-tight mb-3" style={display}>{title}</h2>
-        <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">{body}</p>
-      </div>
-
-      {/* Dots */}
-      <div className="flex items-center justify-center gap-2">
-        {tourSlides.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setSlide(i)}
-            className={`rounded-full transition-all duration-200 ${i === slide ? "w-5 h-2 bg-primary" : "w-2 h-2 bg-border hover:bg-muted-foreground"}`}
-          />
-        ))}
-      </div>
-
-      <div className="space-y-2.5">
-        {slide < tourSlides.length - 1 ? (
-          <PrimaryButton onClick={() => setSlide((s) => s + 1)}>
-            Next <ArrowRight size={15} />
-          </PrimaryButton>
-        ) : (
-          <PrimaryButton onClick={onDone}>
-            Open my dashboard <ArrowRight size={15} />
-          </PrimaryButton>
-        )}
-        <button onClick={onDone} className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-1">
-          Skip tour
-        </button>
       </div>
     </div>
   );
@@ -915,19 +777,22 @@ export default function Onboarding() {
   const [step, setStep] = useState(0);
 
   const [source, setSource] = useState<"csv" | "manual" | null>(null);
+  const [incomePattern, setIncomePattern] = useState<IncomePatternValue | null>(null);
   const [balance, setBalance] = useState("");
   const [income, setIncome] = useState<IncomeItem[]>([]);
   const [bills, setBills] = useState<BillItem[]>([]);
   const [buffer, setBuffer] = useState(1000);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [forecastSummary, setForecastSummary] = useState<OnboardingForecastSummary | null>(null);
+  const timezoneRef = useRef("UTC");
+
+  useEffect(() => { timezoneRef.current = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; }, []);
 
   const next = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
   const balanceNum = parseFloat(balance) || 0;
-  const totalIncome = income.reduce((s, i) => s + parseFloat(i.amount || "0"), 0);
-  const totalBills = bills.reduce((s, b) => s + parseFloat(b.amount || "0"), 0);
 
   const normalizeFrequency = (value: string) => {
     const normalized = value.toLowerCase().replace("-", "");
@@ -948,6 +813,10 @@ export default function Onboarding() {
         amountCents: Math.round(parseFloat(item.amount) * 100),
         frequency: normalizeFrequency(item.frequency),
         nextDate: item.nextDate,
+        kind: item.kind,
+        earliestDate: item.earliestDate,
+        latestDate: item.latestDate,
+        confidence: item.confidence,
       })),
       bills: bills.map((item) => ({
         name: item.name,
@@ -955,12 +824,15 @@ export default function Onboarding() {
         frequency: normalizeFrequency(item.frequency),
         nextDate: item.nextDate,
       })),
+      incomePattern: incomePattern ?? "regular",
+      timezone: timezoneRef.current,
     });
     setSaving(false);
     if (!result.ok) {
       setSaveError(result.message);
       return;
     }
+    setForecastSummary(result.forecast);
     next();
   };
 
@@ -968,16 +840,18 @@ export default function Onboarding() {
     switch (step) {
       case 0: return <Welcome onNext={next} />;
       case 1: return <ChooseSource value={source} onChange={setSource} onNext={source === "csv" ? () => navigate("/app/transactions?import=1") : next} />;
-      case 2: return <CurrentBalance value={balance} onChange={setBalance} onNext={next} />;
-      case 3: return (
+      case 2: return <IncomePattern value={incomePattern} onChange={setIncomePattern} onNext={next} />;
+      case 3: return <CurrentBalance value={balance} onChange={setBalance} onNext={next} />;
+      case 4: return (
         <RecurringIncome
           items={income}
+          pattern={incomePattern ?? "regular"}
           onAdd={(item) => setIncome((p) => [...p, item])}
           onRemove={(id) => setIncome((p) => p.filter((i) => i.id !== id))}
           onNext={next}
         />
       );
-      case 4: return (
+      case 5: return (
         <RecurringBills
           items={bills}
           onAdd={(item) => setBills((p) => [...p, item])}
@@ -985,19 +859,13 @@ export default function Onboarding() {
           onNext={next}
         />
       );
-      case 5: return <SafetyBuffer value={buffer} onChange={setBuffer} onNext={persistAndContinue} saving={saving} error={saveError} />;
-      case 6: return <BuildingForecast onDone={next} />;
-      case 7: return (
+      case 6: return <SafetyBuffer value={buffer} onChange={setBuffer} onNext={persistAndContinue} saving={saving} error={saveError} />;
+      case 7: return forecastSummary ? (
         <ForecastReady
-          balance={balanceNum}
-          income={totalIncome}
-          bills={totalBills}
-          buffer={buffer}
+          forecast={forecastSummary}
           onDashboard={() => navigate("/app/dashboard")}
-          onTour={next}
         />
-      );
-      case 8: return <ProductTour onDone={() => navigate("/app/dashboard")} />;
+      ) : null;
       default: return null;
     }
   })();

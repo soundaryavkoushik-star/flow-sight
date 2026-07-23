@@ -11,7 +11,6 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
 import { createClient } from "@/lib/supabase/client"
 
 const NAV_ITEMS = [
@@ -88,7 +87,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                 "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
                 collapsed && "justify-center px-2",
                 active
-                  ? "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))] font-medium"
+                  ? "bg-primary/10 text-primary font-medium"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
               )}
             >
@@ -102,7 +101,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
       {/* Bottom */}
       <div className="border-t border-border p-2 space-y-1">
         <div className={cn("flex items-center", collapsed ? "justify-center" : "gap-2 px-2 py-1")}>
-          <div className="w-7 h-7 rounded-full bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))] text-xs font-semibold flex items-center justify-center shrink-0">
+          <div className="w-7 h-7 rounded-full bg-primary/15 text-primary text-xs font-semibold flex items-center justify-center shrink-0">
             {initials}
           </div>
           {!collapsed && (
@@ -112,7 +111,6 @@ export function AppSidebar({ user }: AppSidebarProps) {
           )}
         </div>
         <div className={cn("flex", collapsed ? "flex-col items-center gap-1" : "items-center gap-1 px-1")}>
-          <ThemeToggle />
           <Button
             variant="ghost"
             size="icon"

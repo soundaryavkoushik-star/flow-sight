@@ -109,7 +109,7 @@ export default function SignUpPage() {
       <div className="hidden lg:flex lg:w-[480px] xl:w-[560px] flex-col justify-between p-10 relative overflow-hidden shrink-0 bg-card border-r border-border">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-primary/[0.08] rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 left-1/4 w-56 h-56 bg-blue-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 left-1/4 w-56 h-56 bg-primary/10 rounded-full blur-3xl" />
         </div>
 
         <div className="relative flex items-center gap-2.5">
@@ -141,7 +141,7 @@ export default function SignUpPage() {
           <div className="bg-background/60 backdrop-blur-sm border border-border rounded-2xl p-5">
             <div className="flex items-center gap-1 mb-3">
               {[...Array(5)].map((_, i) => (
-                <svg key={i} width="14" height="14" fill="hsl(142, 71%, 45%)" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                <svg key={i} width="14" height="14" fill="#D4754A" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
               ))}
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed mb-3">
@@ -202,7 +202,7 @@ export default function SignUpPage() {
                 <div className="mt-3 space-y-1.5">
                   <div className="flex gap-1 mb-2">
                     {[0, 1, 2].map(i => (
-                      <div key={i} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${i < pwStrength ? (pwStrength === 1 ? "bg-destructive" : pwStrength === 2 ? "bg-yellow-400" : "bg-primary") : "bg-muted"}`} />
+                      <div key={i} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${i < pwStrength ? (pwStrength === 1 ? "bg-destructive" : pwStrength === 2 ? "bg-[hsl(var(--fs-amber))]" : "bg-[hsl(var(--fs-green))]") : "bg-muted"}`} />
                     ))}
                   </div>
                   {passwordRules.map(({ label, test }) => (

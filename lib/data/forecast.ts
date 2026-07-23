@@ -70,7 +70,7 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
         userId,
         status: "confirmed",
         nextExpected: { not: null, lt: end },
-        frequency: { in: ["weekly", "biweekly", "monthly", "annual"] },
+        frequency: { in: ["weekly", "biweekly", "monthly", "annual", "irregular"] },
       },
       orderBy: { nextExpected: "asc" },
       include: { exceptions: true },
@@ -96,18 +96,18 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     .filter((date): date is Date => Boolean(date))
     .sort((a, b) => b.getTime() - a.getTime())[0] ?? start
 
-  const events: FinancialEvent[] = transactions.filter((transaction) => transaction.date >= start).map((transaction) => ({
+  const events: FinancialEvent[] = [...transactions.filter((transaction) => transaction.date >= start).map((transaction) => ({
     id: transaction.id,
     date: dateKey(transaction.date),
     amountCents: transaction.amountCents,
-    type: transaction.amountCents >= 0 ? "income" : "expense",
-    source: transaction.source ? "csv" : "transaction",
+    type: transaction.amountCents >= 0 ? "income" as const : "expense" as const,
+    source: transaction.source ? "csv" as const : "transaction" as const,
     name: transaction.description,
     accountId: transaction.accountId ?? undefined,
-    confidence: "confirmed",
-  }))
+    confidence: "confirmed" as const,
+  })), ...recurring.filter((item) => item.frequency === "irregular" && item.nextExpected).map((item) => ({ id: item.id, date: dateKey(item.nextExpected!), amountCents: item.amountCents, type: "income" as const, source: "manual" as const, name: item.name, accountId: item.accountId ?? undefined, confidence: item.dateConfidence === "confirmed" ? "confirmed" as const : "estimated" as const }))]
 
-  const recurringRules: RecurringRule[] = recurring.map((item) => ({
+  const recurringRules: RecurringRule[] = recurring.filter((item) => item.frequency !== "irregular").map((item) => ({
     id: item.id,
     name: item.name,
     amountCents: item.amountCents,

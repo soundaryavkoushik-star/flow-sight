@@ -23,9 +23,24 @@ export function explainLowestPoint(days: ForecastDay[], lowestDate: string): For
     }]
   }
 
+  const nextIncomeExists = days
+    .slice(lowestIndex + 1)
+    .some((item) => item.events.some((event) => event.amountCents > 0))
+  const names = new Intl.ListFormat("en-US", { style: "long", type: "conjunction" })
+    .format(expenses.map((event) => event.name))
+  const date = new Date(`${lowestDate}T00:00:00`).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+  })
+  const amount = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(day.endingBalanceCents / 100)
+
   return [{
     date: lowestDate,
-    headline: `${expenses.map((event) => event.name).join(", ")} ${expenses.length === 1 ? "is" : "are"} the main spending before the low point on ${lowestDate}, when your balance may reach its forecast low.`,
+    headline: `${names} ${expenses.length === 1 ? "is" : "are"} expected${nextIncomeExists ? " before your next income" : ""}, bringing your projected balance to its 30-day low of ${amount} on ${date}.`,
     eventIds: expenses.map((event) => event.id),
   }]
 }

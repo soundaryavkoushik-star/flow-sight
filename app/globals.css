@@ -5,39 +5,39 @@
 @layer base {
   :root {
     /* Light mode */
-    --background: 218 43% 5%;
-    --foreground: 222 52% 93%;
-    --card: 222 38% 9%;
-    --card-foreground: 222 52% 93%;
-    --primary: 229 100% 67%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 225 42% 13%;
-    --secondary-foreground: 226 38% 85%;
-    --muted: 222 41% 13%;
-    --muted-foreground: 220 20% 45%;
-    --accent: 162 76% 48%;
-    --accent-foreground: 218 43% 5%;
-    --destructive: 352 100% 65%;
+    --background: 0 0% 100%;
+    --foreground: 220 59% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 59% 14%;
+    --primary: 18 61% 56%;
+    --primary-foreground: 220 59% 14%;
+    --secondary: 42 42% 95%;
+    --secondary-foreground: 220 59% 14%;
+    --muted: 42 42% 95%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 18 61% 56%;
+    --accent-foreground: 220 59% 14%;
+    --destructive: 350 45% 49%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 100% / 0.07;
-    --input: 222 41% 13%;
-    --ring: 229 100% 67%;
+    --border: 220 18% 90%;
+    --input: 220 18% 90%;
+    --ring: 18 61% 56%;
     --radius: 0.875rem;
 
     /* Flowsight semantic tokens — light */
     --fs-surface: 0 0% 100%;
-    --fs-surface-raised: 0 0% 98%;
-    --fs-surface-overlay: 220 14% 96%;
+    --fs-surface-raised: 42 42% 95%;
+    --fs-surface-overlay: 42 42% 95%;
     --fs-ink: 224 71% 4%;
     --fs-ink-muted: 220 9% 46%;
     --fs-ink-faint: 220 9% 70%;
     --fs-border: 220 13% 91%;
-    --fs-green: 142 71% 45%;
-    --fs-green-bg: 142 71% 95%;
-    --fs-red: 0 84% 60%;
-    --fs-red-bg: 0 84% 97%;
-    --fs-amber: 38 92% 50%;
-    --fs-amber-bg: 38 92% 96%;
+    --fs-green: 148 51% 36%;
+    --fs-green-bg: 148 51% 95%;
+    --fs-red: 350 45% 49%;
+    --fs-red-bg: 350 45% 96%;
+    --fs-amber: 40 96% 40%;
+    --fs-amber-bg: 40 96% 95%;
     --fs-brand: 18 61% 56%;
     --fs-heading: 220 59% 14%;
     --fs-body: 215 28% 27%;
@@ -51,19 +51,19 @@
     --foreground: 222 52% 93%;
     --card: 222 38% 9%;
     --card-foreground: 222 52% 93%;
-    --primary: 229 100% 67%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 18 61% 56%;
+    --primary-foreground: 220 59% 14%;
     --secondary: 225 42% 13%;
     --secondary-foreground: 226 38% 85%;
     --muted: 222 41% 13%;
     --muted-foreground: 220 20% 45%;
-    --accent: 162 76% 48%;
-    --accent-foreground: 218 43% 5%;
-    --destructive: 352 100% 65%;
+    --accent: 18 61% 56%;
+    --accent-foreground: 220 59% 14%;
+    --destructive: 350 45% 49%;
     --destructive-foreground: 0 0% 100%;
     --border: 0 0% 100% / 0.07;
     --input: 222 41% 13%;
-    --ring: 229 100% 67%;
+    --ring: 18 61% 56%;
 
     /* Flowsight semantic tokens — dark */
     --fs-surface: 224 39% 8%;
@@ -73,12 +73,12 @@
     --fs-ink-muted: 215 20% 55%;
     --fs-ink-faint: 215 20% 35%;
     --fs-border: 217 33% 16%;
-    --fs-green: 142 71% 45%;
-    --fs-green-bg: 142 71% 8%;
-    --fs-red: 0 62% 55%;
-    --fs-red-bg: 0 62% 8%;
-    --fs-amber: 38 92% 50%;
-    --fs-amber-bg: 38 92% 8%;
+    --fs-green: 148 51% 36%;
+    --fs-green-bg: 148 35% 12%;
+    --fs-red: 350 45% 49%;
+    --fs-red-bg: 350 35% 12%;
+    --fs-amber: 40 96% 40%;
+    --fs-amber-bg: 40 55% 12%;
   }
 
   * {
@@ -145,6 +145,19 @@
     color: #ffffff;
   }
 
+  .fs-landing .fs-low-pulse {
+    opacity: 1;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: fs-low-pulse 550ms ease-out 1.35s both;
+  }
+
+  @keyframes fs-low-pulse {
+    0% { opacity: 0; transform: scale(0.4); }
+    55% { opacity: 1; transform: scale(1.7); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .fs-landing :is(button, a, input, summary) {
       transition-duration: 0.01ms;
@@ -153,6 +166,10 @@
     .fs-landing .fs-brand-action:hover,
     .fs-landing .fs-brand-action:active {
       transform: none;
+    }
+
+    .fs-landing .fs-low-pulse {
+      animation: none;
     }
   }
 }

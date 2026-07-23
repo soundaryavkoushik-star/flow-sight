@@ -47,19 +47,19 @@ const spendingData = [
 ];
 
 const transactions = [
-  { id: 1, name: "Whole Foods Market", category: "Groceries", amount: -84.32, date: "Today, 9:14 AM", icon: ShoppingCart, color: "bg-green-500/15 text-green-400" },
-  { id: 2, name: "Spotify Premium", category: "Entertainment", amount: -11.00, date: "Today, 12:00 AM", icon: Wifi, color: "bg-green-500/15 text-green-400" },
+  { id: 1, name: "Whole Foods Market", category: "Groceries", amount: -84.32, date: "Today, 9:14 AM", icon: ShoppingCart, color: "bg-primary/10 text-primary" },
+  { id: 2, name: "Spotify Premium", category: "Entertainment", amount: -11.00, date: "Today, 12:00 AM", icon: Wifi, color: "bg-primary/10 text-primary" },
   { id: 3, name: "Chipotle", category: "Dining", amount: -14.75, date: "Yesterday, 7:32 PM", icon: Utensils, color: "bg-orange-500/15 text-orange-400" },
   { id: 4, name: "Stripe Inc.", category: "Income", amount: 5400.00, date: "Dec 13, 9:00 AM", icon: ArrowUpRight, color: "bg-accent/15 text-accent" },
-  { id: 5, name: "Shell Gas Station", category: "Transport", amount: -58.40, date: "Dec 12, 6:45 PM", icon: Car, color: "bg-blue-500/15 text-blue-400" },
-  { id: 6, name: "Amazon", category: "Shopping", amount: -127.99, date: "Dec 12, 2:10 PM", icon: ShoppingCart, color: "bg-yellow-500/15 text-yellow-400" },
-  { id: 7, name: "Rent — 1420 Oak St", category: "Housing", amount: -1650.00, date: "Dec 1, 12:00 AM", icon: Home, color: "bg-red-500/15 text-red-400" },
+  { id: 5, name: "Shell Gas Station", category: "Transport", amount: -58.40, date: "Dec 12, 6:45 PM", icon: Car, color: "bg-muted text-muted-foreground" },
+  { id: 6, name: "Amazon", category: "Shopping", amount: -127.99, date: "Dec 12, 2:10 PM", icon: ShoppingCart, color: "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]" },
+  { id: 7, name: "Rent — 1420 Oak St", category: "Housing", amount: -1650.00, date: "Dec 1, 12:00 AM", icon: Home, color: "bg-[hsl(var(--fs-red-bg))] text-destructive" },
 ];
 
 const upcoming = [
   { name: "Paycheck", amount: "+$5,400", days: "In 5 days", color: "text-accent", dot: "bg-accent", icon: ArrowUpRight },
-  { name: "Rent", amount: "–$1,650", days: "In 15 days", color: "text-red-400", dot: "bg-red-400", icon: Home },
-  { name: "Electric bill", amount: "~–$95", days: "In 18 days", color: "text-muted-foreground", dot: "bg-yellow-400", icon: Wifi },
+  { name: "Rent", amount: "–$1,650", days: "In 15 days", color: "text-destructive", dot: "bg-destructive", icon: Home },
+  { name: "Electric bill", amount: "~–$95", days: "In 18 days", color: "text-muted-foreground", dot: "bg-[hsl(var(--fs-amber))]", icon: Wifi },
   { name: "Netflix", amount: "–$17", days: "In 22 days", color: "text-muted-foreground", dot: "bg-muted-foreground", icon: Wifi },
 ];
 
@@ -252,13 +252,13 @@ export default function Dashboard() {
                     key={i}
                     className={`flex items-start gap-3 px-4 py-3 rounded-xl border text-sm ${
                       alert.type === "warn"
-                        ? "bg-yellow-500/8 border-yellow-500/20"
+                        ? "bg-[hsl(var(--fs-amber-bg))] border-[hsl(var(--fs-amber))]/20"
                         : alert.type === "ok"
                         ? "bg-accent/8 border-accent/20"
                         : "bg-primary/8 border-primary/20"
                     }`}
                   >
-                    <AlertTriangle size={14} className={`shrink-0 mt-0.5 ${alert.type === "warn" ? "text-yellow-400" : alert.type === "ok" ? "text-accent" : "text-primary"}`} />
+                    <AlertTriangle size={14} className={`shrink-0 mt-0.5 ${alert.type === "warn" ? "text-[hsl(var(--fs-amber))]" : alert.type === "ok" ? "text-[hsl(var(--fs-green))]" : "text-primary"}`} />
                     <p className="text-muted-foreground flex-1 leading-relaxed">{alert.msg}</p>
                     <button
                       onClick={() => setDismissedAlerts((p) => [...p, alerts.indexOf(alert)])}
@@ -329,7 +329,7 @@ export default function Dashboard() {
                       <span className="w-5 border-t border-dashed border-accent inline-block" />Projected
                     </span>
                     <span className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
-                      <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 inline-block" />Today
+                      <span className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--fs-amber))] inline-block" />Today
                     </span>
                   </div>
 
@@ -337,21 +337,21 @@ export default function Dashboard() {
                     <AreaChart data={forecastData} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
                       <defs>
                         <linearGradient id="dForecastActual" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#5573ff" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#5573ff" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#D4754A" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#D4754A" stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="dForecastProj" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#1dd8a0" stopOpacity={0.2} />
-                          <stop offset="95%" stopColor="#1dd8a0" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#D4754A" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#D4754A" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#5c6b8a", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} interval={2} />
-                      <YAxis tick={{ fontSize: 10, fill: "#5c6b8a", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,29,58,0.08)" vertical={false} />
+                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#6B7280", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} interval={2} />
+                      <YAxis tick={{ fontSize: 10, fill: "#6B7280", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
                       <Tooltip content={<CustomTooltip />} />
-                      <ReferenceLine x="Dec 15" stroke="#f59e0b" strokeDasharray="4 3" strokeWidth={1.5} />
-                      <Area type="monotone" dataKey="balance" stroke="#5573ff" strokeWidth={2} fill="url(#dForecastActual)" dot={false} connectNulls={false} />
-                      <Area type="monotone" dataKey="projected" stroke="#1dd8a0" strokeWidth={2} strokeDasharray="5 3" fill="url(#dForecastProj)" dot={false} connectNulls={false} />
+                      <ReferenceLine x="Dec 15" stroke="#CA8A04" strokeDasharray="4 3" strokeWidth={1.5} />
+                      <Area type="monotone" dataKey="balance" stroke="#6B7280" strokeWidth={2} fill="url(#dForecastActual)" dot={false} connectNulls={false} />
+                      <Area type="monotone" dataKey="projected" stroke="#D4754A" strokeWidth={2} strokeDasharray="5 3" fill="url(#dForecastProj)" dot={false} connectNulls={false} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -369,11 +369,11 @@ export default function Dashboard() {
                   </div>
                   <ResponsiveContainer width="100%" height={120}>
                     <BarChart data={spendingData} margin={{ top: 0, right: 0, left: -28, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                      <XAxis dataKey="week" tick={{ fontSize: 10, fill: "#5c6b8a", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: "#5c6b8a", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,29,58,0.08)" vertical={false} />
+                      <XAxis dataKey="week" tick={{ fontSize: 10, fill: "#6B7280", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: "#6B7280", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="amount" fill="#5573ff" fillOpacity={0.7} radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="amount" fill="#D4754A" fillOpacity={0.7} radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -422,7 +422,7 @@ export default function Dashboard() {
                   <div className="space-y-2">
                     {[
                       { label: "Balance", value: "$5,500", color: "text-foreground" },
-                      { label: "Rent (Dec 30)", value: "–$1,650", color: "text-red-400" },
+                      { label: "Rent (Dec 30)", value: "–$1,650", color: "text-destructive" },
                       { label: "Subscriptions", value: "–$89", color: "text-muted-foreground" },
                       { label: "Utilities (est.)", value: "–$95", color: "text-muted-foreground" },
                       { label: "Groceries (est.)", value: "–$320", color: "text-muted-foreground" },
@@ -462,11 +462,11 @@ export default function Dashboard() {
                   <h3 className="text-sm font-semibold text-foreground mb-4">Spending This Month</h3>
                   <div className="space-y-3">
                     {[
-                      { cat: "Housing", pct: 0, amount: "$0", color: "bg-red-400" },
-                      { cat: "Groceries", pct: 25, amount: "$320", color: "bg-green-400" },
+                      { cat: "Housing", pct: 0, amount: "$0", color: "bg-destructive" },
+                      { cat: "Groceries", pct: 25, amount: "$320", color: "bg-primary" },
                       { cat: "Dining", pct: 17, amount: "$218", color: "bg-orange-400" },
-                      { cat: "Transport", pct: 11, amount: "$141", color: "bg-blue-400" },
-                      { cat: "Shopping", pct: 18, amount: "$231", color: "bg-yellow-400" },
+                      { cat: "Transport", pct: 11, amount: "$141", color: "bg-muted-foreground" },
+                      { cat: "Shopping", pct: 18, amount: "$231", color: "bg-[hsl(var(--fs-amber))]" },
                       { cat: "Other", pct: 29, amount: "$376", color: "bg-primary/60" },
                     ].map(({ cat, pct, amount, color }) => (
                       <div key={cat}>

@@ -1,3 +1,5 @@
+import { isForecastIncomeCategory, suggestMoneyInCategory } from "../analytics/categories"
+
 export type CsvDateOrder = "mdy" | "dmy"
 
 export interface NormalizedCsvTransaction {
@@ -20,6 +22,20 @@ export interface RecurringSuggestion {
   occurrenceCount: number
   evidenceStartDate: string
   evidenceEndDate: string
+}
+
+export function recurringEvidenceConfidence(
+  minAmountCents: number,
+  maxAmountCents: number,
+): "confirmed" | "estimated" {
+  const spreadCents = Math.abs(maxAmountCents - minAmountCents)
+  const averageMagnitudeCents = Math.max(
+    1,
+    Math.round((Math.abs(minAmountCents) + Math.abs(maxAmountCents)) / 2),
+  )
+  const toleranceCents = Math.max(1, Math.round(averageMagnitudeCents * 0.01))
+
+  return spreadCents <= toleranceCents ? "confirmed" : "estimated"
 }
 
 export function parseCsvLine(line: string, delimiter: string) {
@@ -79,7 +95,7 @@ export function detectAmountColumns(headers: string[]) {
   const signed = findHeader(headers, ["amount"])
   const debit = findHeader(headers, ["debit", "withdrawal", "money out"])
   const credit = findHeader(headers, ["credit", "deposit", "money in"])
-  return { mode: signed ? "signed" as const : debit || credit ? "split" as const : "signed" as const, signed, debit, credit }
+  return { mode: signed !== "" ? "signed" as const : debit !== "" || credit !== "" ? "split" as const : "signed" as const, signed, debit, credit }
 }
 
 export function detectDirectionColumn(headers: string[]) {
@@ -141,6 +157,7 @@ export function suggestRecurring(rows: NormalizedCsvTransaction[], accountId: st
   const todayKey = typeof today === "string" ? today : today.toISOString().slice(0, 10)
   const groups = new Map<string, NormalizedCsvTransaction[]>()
   for (const row of rows) {
+    if (row.amountCents > 0 && !isForecastIncomeCategory(suggestMoneyInCategory(row.description))) continue
     const key = normalizeMerchant(row.description)
     if (!key) continue
     groups.set(key, [...(groups.get(key) ?? []), row])
