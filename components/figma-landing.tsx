@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
   Shield, TrendingUp, Bell, ArrowRight, Lock,
-  Code, Briefcase, AtSign, BarChart3,
+  Code, Briefcase, AtSign, BarChart3, Home, Zap,
   X, Menu, Sparkles, CheckCircle,
 } from "lucide-react";
 
@@ -15,6 +15,8 @@ const display: React.CSSProperties = { fontFamily: "'Bricolage Grotesque', sans-
 const mono: React.CSSProperties = { fontFamily: "'DM Mono', monospace" };
 const SCENARIO_MOTION_MS = 600;
 const SCENARIO_MARKER_MS = 140;
+const GRID_THINK_MS = 700;
+const GRID_RESOLVE_MS = 300;
 const AHA_MOTION = {
   cycleMs: 4800,
   morphMs: 760,
@@ -86,7 +88,7 @@ function IncomePattern({ kind, active }: { kind: "salary" | "freelance" | "mixed
     {[28, 88, 148, 208].map((x) => <line key={x} x1={x + 8} y1="88" x2={x + 8} y2="94" stroke="hsl(var(--muted-foreground))" opacity=".35" />)}
     {kind === "salary" && regularBars.map((x, index) => <g key={`${x}-${active}`} className={active ? "fs-income-arrival" : ""} style={{ animationDelay: `${index * 90}ms` }}><rect x={x} y="42" width="17" height="46" rx="5" fill="#2D8B5A" opacity={index === 3 ? 1 : .78} /><circle cx={x + 8.5} cy="35" r="2.5" fill="#2D8B5A" opacity=".45" /></g>)}
     {kind === "freelance" && variableBars.map((bar, index) => <g key={`${bar.x}-${active}`}><rect x={bar.x} y={bar.rangeY} width="18" height={88 - bar.rangeY} rx="5" fill="none" stroke="#D4754A" strokeWidth="1.5" strokeDasharray="4 3" opacity=".65" className={active ? "fs-income-range" : ""} style={{ animationDelay: `${index * 110}ms` }} /><rect x={bar.x + 3} y={bar.y} width="12" height={bar.h} rx="4" fill="#D4754A" opacity={index === 3 ? 1 : .76} className={active ? "fs-income-arrival" : ""} style={{ animationDelay: `${120 + index * 110}ms` }} /></g>)}
-    {kind === "mixed" && <>{[24, 88, 152, 216].map((x, index) => <rect key={`salary-${x}-${active}`} x={x} y="43" width="13" height="45" rx="4" fill="#2D8B5A" opacity=".82" className={active ? "fs-income-arrival" : ""} style={{ animationDelay: `${index * 100}ms` }} />)}{[{ x: 51, y: 61, h: 27 }, { x: 121, y: 29, h: 59 }, { x: 187, y: 52, h: 36 }].map((bar, index) => <g key={`variable-${bar.x}-${active}`}>{index === 1 && <rect x={bar.x - 3} y="17" width="19" height="71" rx="5" fill="none" stroke="#D4754A" strokeWidth="1.5" strokeDasharray="4 3" opacity=".65" className={active ? "fs-income-range" : ""} style={{ animationDelay: "180ms" }} />}<rect x={bar.x} y={bar.y} width="13" height={bar.h} rx="4" fill="#D4754A" className={active ? "fs-income-arrival" : ""} style={{ animationDelay: `${50 + index * 145}ms` }} /></g>)}</>}
+    {kind === "mixed" && <>{[24, 88, 152, 216].map((x, index) => <rect key={`salary-${x}-${active}`} x={x} y="43" width="13" height="45" rx="4" fill="#2D8B5A" opacity=".82" className={active ? "fs-income-arrival" : ""} style={{ animationDelay: `${index * 60}ms` }} />)}{[{ x: 51, y: 61, h: 27 }, { x: 121, y: 29, h: 59 }, { x: 187, y: 52, h: 36 }].map((bar, index) => <g key={`variable-${bar.x}-${active}`}>{index === 1 && <rect x={bar.x - 3} y="17" width="19" height="71" rx="5" fill="none" stroke="#D4754A" strokeWidth="1.5" strokeDasharray="4 3" opacity=".65" className={active ? "fs-income-range" : ""} style={{ animationDelay: "120ms" }} />}<rect x={bar.x} y={bar.y} width="13" height={bar.h} rx="4" fill="#D4754A" className={active ? "fs-income-arrival" : ""} style={{ animationDelay: `${40 + index * 60}ms` }} /></g>)}</>}
     <text x="12" y="107" fill="hsl(var(--muted-foreground))" fontSize="8">TODAY</text><text x="225" y="107" fill="hsl(var(--muted-foreground))" fontSize="8">30 DAYS</text>
   </svg></div>;
 }
@@ -422,10 +424,14 @@ export default function Landing() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scenario, setScenario] = useState(0);
-  const [showWork, setShowWork] = useState(false);
+  const [incomeDemo, setIncomeDemo] = useState<"salary" | "freelance" | "mixed">("salary");
   const [comparisonFocus, setComparisonFocus] = useState<"past" | "future">("past");
   const [productTab, setProductTab] = useState<"forecast" | "scenario" | "recurring" | "transfers">("forecast");
   const [heroReady, setHeroReady] = useState(false);
+  const [heroHighlight, setHeroHighlight] = useState(-1);
+  const [heroHighlightPaused, setHeroHighlightPaused] = useState(false);
+  const [featureGridVisible, setFeatureGridVisible] = useState(false);
+  const [featureGridResolved, setFeatureGridResolved] = useState(false);
   const [activeSection, setActiveSection] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [email, setEmail] = useState("");
@@ -435,11 +441,59 @@ export default function Landing() {
   const heroCopyRef = useRef<HTMLDivElement>(null);
   const heroMockupRef = useRef<HTMLDivElement>(null);
   const heroGlowRef = useRef<HTMLDivElement>(null);
+  const featureGridRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setHeroReady(true));
     return () => window.cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => {
+    if (!heroReady || heroHighlightPaused || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let interval = 0;
+    const entranceDelay = window.setTimeout(() => {
+      setHeroHighlight((current) => current < 0 ? 0 : current);
+      interval = window.setInterval(() => setHeroHighlight((current) => (current + 1) % 4), 2000);
+    }, heroHighlight < 0 ? 1100 : 0);
+    return () => {
+      window.clearTimeout(entranceDelay);
+      if (interval) window.clearInterval(interval);
+    };
+  }, [heroHighlightPaused, heroReady]);
+
+  useEffect(() => {
+    const node = featureGridRef.current;
+    if (!node) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion) {
+      setFeatureGridVisible(true);
+      setFeatureGridResolved(true);
+      return;
+    }
+    let resolveTimer = 0;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      setFeatureGridVisible(true);
+      resolveTimer = window.setTimeout(() => setFeatureGridResolved(true), GRID_THINK_MS);
+      observer.disconnect();
+    }, { threshold: 0.18 });
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      if (resolveTimer) window.clearTimeout(resolveTimer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!featureGridVisible || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const incomeOrder = ["salary", "freelance", "mixed"] as const;
+    const scenarioTimer = window.setInterval(() => setScenario((current) => (current + 1) % scenarios.length), 3200);
+    const incomeTimer = window.setInterval(() => setIncomeDemo((current) => incomeOrder[(incomeOrder.indexOf(current) + 1) % incomeOrder.length]), 3200);
+    return () => {
+      window.clearInterval(scenarioTimer);
+      window.clearInterval(incomeTimer);
+    };
+  }, [featureGridVisible]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -597,7 +651,15 @@ export default function Landing() {
           <div ref={heroMockupRef} className="relative will-change-transform">
           <div className={`relative transition-all duration-700 delay-300 motion-reduce:transition-none ${heroReady ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}`}>
             <div ref={heroGlowRef} className="absolute -inset-8 bg-primary/12 rounded-3xl blur-3xl pointer-events-none will-change-[opacity]" />
-            <div className="relative bg-card border border-border rounded-[20px] overflow-hidden shadow-[0_32px_80px_rgba(28,28,34,0.12)]">
+            <div
+              className="relative bg-card border border-border rounded-[20px] overflow-hidden shadow-[0_32px_80px_rgba(28,28,34,0.12)]"
+              onMouseEnter={() => setHeroHighlightPaused(true)}
+              onMouseLeave={() => setHeroHighlightPaused(false)}
+              onFocusCapture={() => setHeroHighlightPaused(true)}
+              onBlurCapture={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHeroHighlightPaused(false);
+              }}
+            >
               <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border">
                 <span className="w-3 h-3 rounded-full bg-red-500/60" />
                 <span className="w-3 h-3 rounded-full bg-yellow-500/60" />
@@ -620,12 +682,12 @@ export default function Landing() {
                 </div>
               </div>
               <div className="px-5 py-5 grid sm:grid-cols-[0.92fr_1.08fr] gap-4">
-                <div className="rounded-2xl bg-primary/[0.06] border border-primary/10 p-4 flex flex-col justify-between min-h-[145px] overflow-hidden">
+                <div className={`rounded-2xl border p-4 flex flex-col justify-between min-h-[145px] overflow-hidden transition-[background-color,border-color,box-shadow] duration-[350ms] ease-out ${heroHighlight === 0 ? "border-primary/20 bg-primary/[0.07] shadow-[0_0_24px_rgba(201,107,67,0.08)]" : "border-primary/10 bg-primary/[0.04]"}`}>
                   <div><p className="text-[10px] uppercase tracking-widest text-muted-foreground" style={mono}>Safe to spend</p><p className="text-[38px] font-medium leading-none mt-3 text-foreground" style={mono}>$680</p></div>
                   <p className="text-[11px] text-muted-foreground">after upcoming bills and your buffer</p>
                 </div>
                 <div className="space-y-2">
-                  {[{ label: "Rent", timing: "in 11 days", amount: "−$1,650", tone: "bg-primary" }, { label: "Paycheck", timing: "in 16 days", amount: "+$2,400", tone: "bg-[#2D8B5A]" }, { label: "Electricity", timing: "Aug 18 · estimated", amount: "~−$117", tone: "bg-[#CA8A04]" }].map((item) => <div key={item.label} className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2.5"><span className={`h-2 w-2 rounded-full ${item.tone}`} /><div className="min-w-0 flex-1"><p className="text-xs font-medium">{item.label}</p><p className="text-[10px] text-muted-foreground">{item.timing}</p></div><span className="text-xs font-medium" style={mono}>{item.amount}</span></div>)}
+                  {[{ label: "Rent", timing: "in 11 days", amount: "−$1,650", tone: "bg-primary", highlight: 1 }, { label: "Paycheck", timing: "in 16 days", amount: "+$2,400", tone: "bg-[#2D8B5A]", highlight: 2 }, { label: "Electricity", timing: "Aug 18 · estimated", amount: "~−$117", tone: "bg-[#CA8A04]", highlight: -1 }].map((item) => <div key={item.label} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-[background-color,border-color,box-shadow] duration-[350ms] ease-out ${heroHighlight === item.highlight ? "border-primary/20 bg-primary/[0.05] shadow-[0_0_20px_rgba(201,107,67,0.07)]" : "border-border bg-background"}`}><span className={`h-2 w-2 rounded-full ${item.tone}`} /><div className="min-w-0 flex-1"><p className="text-xs font-medium">{item.label}</p><p className="text-[10px] text-muted-foreground">{item.timing}</p></div><span className="text-xs font-medium" style={mono}>{item.amount}</span></div>)}
                 </div>
               </div>
               <div className="px-5 pb-4 pt-1 flex items-center justify-between text-xs gap-3">
@@ -633,7 +695,7 @@ export default function Landing() {
                   <Bell size={10} className="text-muted-foreground shrink-0" />
                   <span className="text-muted-foreground truncate">Rent due in <span className="text-foreground font-medium">15 days</span> — $1,650</span>
                 </div>
-                <div className="text-right shrink-0">
+                <div className={`text-right shrink-0 rounded-lg border px-2.5 py-1.5 transition-[background-color,border-color,box-shadow] duration-[350ms] ease-out ${heroHighlight === 3 ? "border-primary/20 bg-primary/[0.05] shadow-[0_0_20px_rgba(201,107,67,0.07)]" : "border-transparent bg-transparent"}`}>
                   <p className="text-[10px] text-muted-foreground mb-0.5">Outlook</p>
                   <p className="font-semibold text-[#2D8B5A]">Clear through Aug 1</p>
                 </div>
@@ -651,6 +713,7 @@ export default function Landing() {
       </section>
 
       {/* PRODUCT DESTINATIONS */}
+      {false && (
       <section data-reveal className="bg-white px-5 py-24" id="features">
         <div className="mx-auto max-w-6xl">
           <div className="mb-10 max-w-2xl">
@@ -680,18 +743,55 @@ export default function Landing() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ENGINE QUALITIES */}
-      <section data-reveal className="px-5 py-24">
+      <section ref={featureGridRef} data-reveal className="px-5 py-24" id="features">
         <div className="mx-auto max-w-6xl">
-          <div className="mb-12 text-center"><p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>Quietly working underneath</p><h2 className="text-[40px] font-medium tracking-tight lg:text-[48px]" style={display}>Know what&apos;s coming, automatically.</h2></div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div tabIndex={0} className="group rounded-3xl border border-border bg-white p-6 transition-[transform,border-color,box-shadow,background-color] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:bg-[#FFFDFC] hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"><h3 className="text-xl font-medium transition-colors group-hover:text-primary group-focus-visible:text-primary" style={display}>Confirmed vs. estimated, always labeled.</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Known activity stays distinct from what FlowSight is still estimating.</p><div className="mt-8 flex flex-wrap gap-3 transition-transform duration-300 ease-out group-hover:-translate-y-1 group-focus-visible:-translate-y-1"><span className="rounded-full bg-[hsl(var(--fs-green-bg))] px-3 py-2 text-xs font-medium text-[hsl(var(--fs-green))] transition-shadow group-hover:shadow-sm">Confirmed · Payroll +$1,950</span><span className="rounded-full border border-dashed border-[hsl(var(--fs-amber))]/50 bg-[hsl(var(--fs-amber-bg))] px-3 py-2 text-xs font-medium text-[hsl(var(--fs-amber))] transition-shadow group-hover:shadow-sm">Estimated · Electricity ~−$117</span></div></div>
-            <div tabIndex={0} className="group rounded-3xl border border-border bg-white p-6 transition-[transform,border-color,box-shadow,background-color] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:bg-[#FFFDFC] hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"><h3 className="text-xl font-medium transition-colors group-hover:text-primary group-focus-visible:text-primary" style={display}>Built for how income actually arrives.</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Regular paychecks and variable invoices can coexist without pretending they are equally certain.</p><div className="mt-5 transition-[transform,filter] duration-300 ease-out group-hover:-translate-y-1 group-hover:drop-shadow-[0_10px_18px_rgba(45,122,85,0.10)] group-focus-visible:-translate-y-1"><IncomePattern kind="mixed" active /></div></div>
-            <div tabIndex={0} className="group rounded-3xl border border-border bg-white p-6 transition-[transform,border-color,box-shadow,background-color] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:bg-[#FFFDFC] hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"><h3 className="text-xl font-medium transition-colors group-hover:text-primary group-focus-visible:text-primary" style={display}>Recurring, detected automatically.</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Stable patterns can be confirmed; variable bills keep their evidence.</p><div className="mt-6 rounded-2xl border border-dashed border-[hsl(var(--fs-amber))]/40 bg-[hsl(var(--fs-amber-bg))]/50 p-4 transition-[transform,border-color,box-shadow] duration-300 group-hover:-translate-y-1 group-hover:border-[hsl(var(--fs-amber))]/65 group-hover:shadow-sm group-focus-visible:-translate-y-1"><div className="flex justify-between gap-4"><div><p className="text-sm font-medium">National Grid Electric</p><p className="mt-1 text-xs text-muted-foreground">Estimated from 7 occurrences · $82.15–$142.30</p></div><span className="text-sm" style={mono}>~−$116.82</span></div></div></div>
-            <div tabIndex={0} className="group overflow-hidden rounded-3xl border border-[#0C1628] bg-[#0C1628] p-6 text-white transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/60 hover:shadow-[0_22px_60px_rgba(12,22,40,0.24)] focus-visible:-translate-y-1 focus-visible:border-primary/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15"><h3 className="text-xl font-medium transition-colors group-hover:text-[#F1B498] group-focus-visible:text-[#F1B498]" style={display}>Safe to Spend, explained.</h3><p className="mt-2 text-sm leading-relaxed text-white/55">The headline number stays connected to the balance, commitments, and buffer beneath it.</p><button onClick={() => setShowWork((open) => !open)} aria-expanded={showWork} className="mt-6 flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left transition-[transform,background-color,border-color] duration-300 group-hover:-translate-y-1 group-hover:border-white/20 group-hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"><div><p className="text-xs text-white/50">Safe to spend</p><p className="mt-1 text-2xl text-[#65B98A]" style={mono}>$680</p></div><span className="text-xs font-medium">{showWork ? "Hide work" : "Show your work"} {showWork ? "−" : "+"}</span></button><div className={`grid transition-all duration-300 ${showWork ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}><div className="overflow-hidden"><div className="space-y-2 px-2 pt-4 text-xs">{[["Opening balance", "$4,260"], ["Lowest projected balance", "$1,180"], ["Safety buffer", "−$500"]].map(([label, value]) => <div key={label} className="flex justify-between"><span className="text-white/50">{label}</span><span style={mono}>{value}</span></div>)}</div></div></div></div>
+          <div className="mx-auto mb-14 max-w-3xl text-center">
+            <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>The rhythm behind your money</p>
+            <h2 className="text-[40px] font-medium leading-[1.08] tracking-tight lg:text-[48px]" style={display}>Your money doesn&apos;t stand still.<br />Neither should your forecast.</h2>
+            <p className="mx-auto mt-5 max-w-2xl text-[16px] leading-relaxed text-muted-foreground">FlowSight follows what repeats, what may change, and when cash actually moves—keeping the next 30 days grounded in your real financial rhythm.</p>
           </div>
-          <button type="button" onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })} className="mx-auto mt-8 block text-sm font-medium text-primary hover:text-[hsl(var(--fs-primary-hover))]">Explore product views ↑</button>
+          <div className="grid gap-4 md:grid-cols-2">
+            <article tabIndex={0} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#E7DDD1] bg-[#F8F1E8] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
+              <h3 className="text-[23px] font-medium leading-tight" style={display}>Recurring, and honest about it.</h3>
+              <p className="mt-3 min-h-[48px] text-[15px] leading-relaxed text-muted-foreground">Stable patterns get confirmed. Variable ones keep their evidence instead of pretending to be certain.</p>
+              <div className="mt-6 flex-1 rounded-2xl border border-[#E7DDD1] bg-white p-4">
+                <div className="divide-y divide-border">
+                  {[{ name: "Rent", detail: "Monthly", amount: "−$1,650/mo", Icon: Home }, { name: "Payroll", detail: "Every 2 weeks", amount: "+$1,950", Icon: Briefcase }].map((item) => <div key={item.name} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-4"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]"><item.Icon size={15} /></span><div><p className="text-sm font-medium">{item.name}</p><p className="mt-0.5 text-[11px] text-muted-foreground">{item.detail}</p></div><div className="text-right"><span className="rounded-full bg-[hsl(var(--fs-green-bg))] px-2 py-1 text-[10px] font-medium text-[hsl(var(--fs-green))]">Confirmed</span><p className="mt-2 text-xs" style={mono}>{item.amount}</p></div></div>)}
+                  <div className="grid grid-cols-[auto_1fr_auto] items-start gap-3 py-4"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]"><Zap size={15} /></span><div><p className="text-sm font-medium">National Grid Electric</p><p className={`mt-1 text-[11px] text-muted-foreground transition-opacity duration-200 ${featureGridResolved ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: featureGridResolved ? "200ms" : "0ms" }}>7 occurrences · $82.15–$142.30</p></div><div className="min-w-[118px] text-right"><span className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-medium transition-all ease-out ${featureGridResolved ? "translate-x-0 bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))] opacity-100" : "translate-x-1 bg-muted text-muted-foreground opacity-80"}`} style={{ transitionDuration: `${GRID_RESOLVE_MS}ms` }}>{featureGridResolved ? "Estimated" : <><span className="mr-1.5 h-1.5 w-1.5 animate-pulse rounded-full bg-current" />Checking pattern…</>}</span><p className="mt-2 text-xs" style={mono}>~−$117</p></div></div>
+                </div>
+              </div>
+            </article>
+
+            <article tabIndex={0} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#E7DDD1] bg-[#F8F1E8] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
+              <h3 className="text-[23px] font-medium leading-tight" style={display}>Test a decision before you make it.</h3>
+              <p className="mt-3 min-h-[48px] text-[15px] leading-relaxed text-muted-foreground">See exactly how a purchase changes your next 30 days. Nothing changes until you choose to keep it.</p>
+              <div className="mt-6 flex-1 rounded-2xl border border-[#E7DDD1] bg-white p-4">
+                <div className="mb-3 grid grid-cols-2 gap-2" aria-label="Scenario demo">{scenarios.map((item, index) => <div key={item.label} aria-current={scenario === index ? "true" : undefined} className={`rounded-lg border px-2.5 py-2 text-left text-[10px] transition-[background-color,border-color,color] duration-300 ${scenario === index ? "border-primary/40 bg-primary/[0.08] text-foreground" : "border-border text-muted-foreground"}`}>{item.label.replace(/\s*\([^)]*\)$/, "")}</div>)}</div>
+                <div className="flex items-center justify-between"><p className="text-xs font-medium">30-day forecast</p><span className={`rounded-full px-2 py-1 text-[9px] ${scenarioCondition.className}`}>{scenarioCondition.label}</span></div>
+                <ResponsiveContainer width="100%" height={160}><AreaChart data={scenarioData} margin={{ top: 12, right: 6, left: -24, bottom: 0 }}><XAxis dataKey="day" tick={{ fontSize: 8, fill: "#73766F" }} tickLine={false} axisLine={false} interval={3} /><YAxis tick={{ fontSize: 8, fill: "#73766F" }} tickLine={false} axisLine={false} tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} /><ReferenceLine y={500} stroke="#B7791F" strokeDasharray="5 4" /><Area type="monotone" dataKey="baseline" stroke="#9CA3AF" strokeDasharray="5 5" fill="transparent" dot={false} /><Area type="monotone" dataKey="projected" stroke="#C96B43" strokeWidth={2.5} fill="#C96B4314" dot={false} animationDuration={SCENARIO_MOTION_MS} /></AreaChart></ResponsiveContainer>
+                <div className="grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">{[{ label: "Today", value: 5500 }, { label: "End", value: endBalance }, { label: "Safe", value: safeToSpend }].map((item) => <div key={item.label}><p className="text-[9px] text-muted-foreground">{item.label}</p><p className="mt-1 text-xs font-medium" style={mono}>${item.value.toLocaleString()}</p></div>)}</div>
+              </div>
+            </article>
+
+            <article tabIndex={0} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#E7DDD1] bg-[#F8F1E8] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
+              <h3 className="text-[23px] font-medium leading-tight" style={display}>Built for how income actually arrives.</h3>
+              <p className="mt-3 min-h-[48px] text-[15px] leading-relaxed text-muted-foreground">Regular paychecks and variable invoices can coexist without pretending they&apos;re equally certain.</p>
+              <div className="mt-6 flex flex-1 items-center rounded-2xl border border-[#E7DDD1] bg-white p-5"><div className="w-full"><div key={incomeDemo} className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"><IncomePattern kind={incomeDemo} active={featureGridVisible} /></div><div className="mt-2 grid grid-cols-3 gap-2 text-[10px]" aria-label="Income pattern demo">{([{ id: "salary", label: "Regular", note: "Known timing" }, { id: "freelance", label: "Variable", note: "Estimated" }, { id: "mixed", label: "A mix", note: "Both together" }] as const).map((item) => <div key={item.id} aria-current={incomeDemo === item.id ? "true" : undefined} className={`rounded-xl border p-2.5 transition-[background-color,border-color,color] duration-300 ${incomeDemo === item.id ? item.id === "salary" ? "border-[hsl(var(--fs-green))]/30 bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]" : "border-[hsl(var(--fs-amber))]/35 bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]" : "border-border text-muted-foreground"}`}><p className="font-medium">{item.label}</p><p className="mt-1 opacity-75">{item.note}</p></div>)}</div></div></div>
+            </article>
+
+            <article tabIndex={0} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#E7DDD1] bg-[#F8F1E8] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
+              <h3 className="text-[23px] font-medium leading-tight" style={display}>Moves money without counting it twice.</h3>
+              <p className="mt-3 min-h-[48px] text-[15px] leading-relaxed text-muted-foreground">A card payment isn&apos;t a second expense—it&apos;s the same purchase, arriving at your account on a different day.</p>
+              <div className="mt-6 flex flex-1 flex-col rounded-2xl border border-[#E7DDD1] bg-white p-5">
+                <div className="flex justify-end"><span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-medium transition-all ease-out ${featureGridResolved ? "translate-x-0 bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))] opacity-100" : "translate-x-1 bg-muted text-muted-foreground opacity-80"}`} style={{ transitionDuration: `${GRID_RESOLVE_MS}ms` }}>{featureGridResolved ? "Strong match" : <><span className="mr-1.5 h-1.5 w-1.5 animate-pulse rounded-full bg-current" />Comparing accounts…</>}</span></div>
+                <div className="mt-4 grid flex-1 gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center"><div className="rounded-xl border border-border p-4"><p className="text-[10px] text-muted-foreground">Everyday · Jul 12</p><p className="mt-2 text-xs font-medium">Payment to Card ••4821</p><p className="mt-3 text-sm" style={mono}>−$1,200</p></div><div className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary ${featureGridResolved ? "fs-transfer-linking" : ""}`}>↔</div><div className="rounded-xl border border-border p-4"><p className="text-[10px] text-muted-foreground">Card ••4821 · Jul 13</p><p className="mt-2 text-xs font-medium">Payment received</p><p className="mt-3 text-sm text-muted-foreground" style={mono}>+$1,200</p></div></div>
+                <p className={`mt-4 text-center text-[11px] text-muted-foreground transition-opacity duration-200 ${featureGridResolved ? "opacity-100" : "opacity-0"}`}>Linked as a transfer · excluded from income and spending</p>
+              </div>
+            </article>
+          </div>
         </div>
       </section>
 
