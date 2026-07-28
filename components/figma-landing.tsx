@@ -592,16 +592,16 @@ export default function Landing() {
       {/* AHA FORECAST */}
       <section data-reveal className="relative overflow-hidden py-20 px-5 border-y border-border/60 bg-white" id="features">
         <ForecastThread variant="aha" />
-        <div className="relative z-10 max-w-6xl mx-auto grid lg:grid-cols-[0.78fr_1.22fr] gap-14 items-center">
+        <div className="relative z-10 max-w-6xl mx-auto grid lg:grid-cols-[1.22fr_0.78fr] gap-14 items-center">
+          <div className="relative rounded-[30px] border border-border bg-card p-5 sm:p-8 shadow-[0_28px_80px_rgba(28,28,34,0.10)] overflow-hidden">
+            <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
+            <div className="relative"><ForecastStoryChart /></div>
+          </div>
           <div>
             <p className="text-primary text-xs font-medium uppercase tracking-[0.15em] mb-3" style={mono}>Five days of warning</p>
             <h2 className="text-[40px] lg:text-[48px] font-medium tracking-tight leading-[1.06] mb-5" style={display}>$420 on August 3.<br /><span className="text-[#CA8A04]">Payday is five days away.</span></h2>
             <p className="text-[18px] text-foreground leading-relaxed mb-3">Rent, insurance, and your car payment all land in the same week.</p>
             <p className="text-muted-foreground leading-relaxed">FlowSight shows you the squeeze while there is still time to respond.</p>
-          </div>
-          <div className="relative rounded-[28px] border border-border bg-card p-5 sm:p-7 shadow-[0_28px_80px_rgba(28,28,34,0.10)] overflow-hidden">
-            <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
-            <div className="relative"><ForecastStoryChart /></div>
           </div>
         </div>
       </section>
@@ -648,7 +648,15 @@ export default function Landing() {
               { id: "mixed" as const, title: "A mix of both", note: "Confirmed + estimated", example: "Your salary covers known bills. The Acme invoice would keep you above your $500 buffer." },
             ]).map(({ id, title, note, example }) => {
               const selected = incomeType === id;
-              return <button key={id} role="tab" aria-selected={selected} onClick={() => setIncomeType(id)} className={`text-left rounded-2xl border p-6 transition-all duration-300 ${selected ? "border-primary/40 bg-card -translate-y-1 shadow-[0_20px_55px_rgba(28,28,34,0.10)]" : "border-border bg-card/55 hover:border-primary/20"}`}><div className="flex items-start justify-between gap-3 mb-4"><div><h3 className="font-semibold text-lg mb-1">{title}</h3><p className="text-xs text-muted-foreground">{note}</p></div>{selected && <span className="text-[10px] font-medium text-primary bg-primary/10 rounded-full px-2.5 py-1">See example</span>}</div><IncomePattern kind={id} active={selected} /><div className={`grid transition-all duration-300 ${selected ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}><p className="overflow-hidden text-sm leading-relaxed text-foreground border-t border-border pt-4">{example}</p></div></button>;
+              return <button
+                key={id}
+                role="tab"
+                aria-selected={selected}
+                onMouseEnter={() => setIncomeType(id)}
+                onFocus={() => setIncomeType(id)}
+                onClick={() => setIncomeType(id)}
+                className={`text-left rounded-2xl border p-6 transition-all duration-300 ${selected ? "border-primary/40 bg-card -translate-y-1 shadow-[0_20px_55px_rgba(28,28,34,0.10)]" : "border-border bg-card/55 hover:border-primary/20"}`}
+              ><div className="flex items-start justify-between gap-3 mb-4"><div><h3 className="font-semibold text-lg mb-1">{title}</h3><p className="text-xs text-muted-foreground">{note}</p></div>{selected && <span className="text-[10px] font-medium text-primary bg-primary/10 rounded-full px-2.5 py-1">Example</span>}</div><IncomePattern kind={id} active={selected} /><div className={`grid transition-all duration-300 ${selected ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}><p className="overflow-hidden text-sm leading-relaxed text-foreground border-t border-border pt-4">{example}</p></div></button>;
             })}
           </div>
         </div>
@@ -731,10 +739,10 @@ export default function Landing() {
             <h2 className="text-[40px] font-medium tracking-tight mb-3" style={display}>How it works</h2>
             <p className="text-muted-foreground max-w-sm mx-auto">Bring in your numbers, check what we found, and see what’s ahead.</p>
           </div>
-          <div className="grid md:grid-cols-[0.82fr_1.18fr] gap-8 items-center">
-            <div className="space-y-2" role="tablist" aria-label="How FlowSight works">{processSteps.map((step, index) => <button key={step.n} role="tab" aria-selected={activeStep === index} onClick={() => setActiveStep(index)} className={`w-full rounded-2xl p-4 text-left transition-all duration-500 ${activeStep === index ? "bg-primary/[0.08] text-foreground" : "text-muted-foreground hover:bg-muted/50"}`}><div className="flex items-start gap-3"><span className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${activeStep === index ? "bg-primary text-primary-foreground" : "bg-muted"}`} style={mono}>{index + 1}</span><div><h3 className="font-semibold text-lg">{step.title}</h3><div className={`grid transition-all duration-500 ${activeStep === index ? "grid-rows-[1fr] opacity-100 mt-2" : "grid-rows-[0fr] opacity-0"}`}><p className="overflow-hidden text-sm leading-relaxed text-muted-foreground">{step.desc}</p></div></div></div></button>)}</div>
-            <div key={activeStep} className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-white via-white to-slate-50 p-4 shadow-[0_28px_70px_rgba(28,28,34,0.11)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-3 motion-safe:duration-500"><div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-primary/12 blur-3xl" /><div className="relative"><StepIllustration step={activeStep} /></div></div>
-            <div className="md:col-start-1 flex gap-2 px-4">{processSteps.map((step, index) => <button key={step.n} aria-label={`Show step ${index + 1}`} onClick={() => setActiveStep(index)} className="h-1 flex-1 rounded-full bg-muted overflow-hidden"><span className={`block h-full bg-primary transition-[width] ease-linear ${activeStep === index ? "w-full" : "w-0"}`} style={{ transitionDuration: "3000ms" }} /></button>)}</div>
+          <div className="grid md:grid-cols-[1.18fr_0.82fr] gap-8 items-center">
+            <div className="space-y-2 md:order-2" role="tablist" aria-label="How FlowSight works">{processSteps.map((step, index) => <button key={step.n} role="tab" aria-selected={activeStep === index} onClick={() => setActiveStep(index)} className={`w-full rounded-2xl p-4 text-left transition-all duration-500 ${activeStep === index ? "bg-primary/[0.08] text-foreground" : "text-muted-foreground hover:bg-muted/50"}`}><div className="flex items-start gap-3"><span className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${activeStep === index ? "bg-primary text-primary-foreground" : "bg-muted"}`} style={mono}>{index + 1}</span><div><h3 className="font-semibold text-lg">{step.title}</h3><div className={`grid transition-all duration-500 ${activeStep === index ? "grid-rows-[1fr] opacity-100 mt-2" : "grid-rows-[0fr] opacity-0"}`}><p className="overflow-hidden text-sm leading-relaxed text-muted-foreground">{step.desc}</p></div></div></div></button>)}</div>
+            <div key={activeStep} className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-white via-white to-slate-50 p-4 shadow-[0_28px_70px_rgba(28,28,34,0.11)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-3 motion-safe:duration-500 md:order-1"><div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-primary/12 blur-3xl" /><div className="relative"><StepIllustration step={activeStep} /></div></div>
+            <div className="flex gap-2 px-4 md:order-3 md:col-start-2">{processSteps.map((step, index) => <button key={step.n} aria-label={`Show step ${index + 1}`} onClick={() => setActiveStep(index)} className="h-1 flex-1 rounded-full bg-muted overflow-hidden"><span className={`block h-full bg-primary transition-[width] ease-linear ${activeStep === index ? "w-full" : "w-0"}`} style={{ transitionDuration: "3000ms" }} /></button>)}</div>
           </div>
         </div>
       </section>
@@ -742,12 +750,12 @@ export default function Landing() {
       {/* SHOW YOUR WORK */}
       <section data-reveal className="py-20 px-5 bg-white">
         <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-14 items-center">
-          <div>
+          <div className="lg:order-2">
             <p className="text-primary text-xs font-medium uppercase tracking-[0.15em] mb-3" style={mono}>Show Your Work</p>
             <h2 className="text-[40px] lg:text-[48px] font-medium tracking-tight leading-[1.06] mb-5" style={display}>Every number shows its work.</h2>
             <p className="text-muted-foreground text-[17px] leading-relaxed">Open any important amount to see how FlowSight calculated it—which events are confirmed, which are estimated, and what assumptions went in. No black boxes or unexplained numbers.</p>
           </div>
-          <div className="rounded-[26px] border border-white/10 bg-[#0C1628] text-white shadow-[0_28px_80px_rgba(12,22,40,0.22)] overflow-hidden">
+          <div className="rounded-[26px] border border-white/10 bg-[#0C1628] text-white shadow-[0_28px_80px_rgba(12,22,40,0.22)] overflow-hidden lg:order-1">
             <div className="px-6 pt-5 flex items-center justify-between text-[10px] text-white/40" style={mono}><span>FLOWSIGHT · EVERYDAY</span><span>UPDATED 2 DAYS AGO</span></div>
             <button onClick={() => setShowWork((open) => !open)} aria-expanded={showWork} className="w-full p-6 flex items-center justify-between text-left hover:bg-white/[0.04]"><div><p className="text-xs text-white/50 mb-1">Safe to spend</p><p className="text-3xl font-medium text-[#65B98A]" style={mono}>$680</p></div><span className="inline-flex items-center gap-2 text-sm font-medium text-white">{showWork ? "Hide calculation" : "Show calculation"}<span className={`text-xl text-primary transition-transform duration-300 ${showWork ? "rotate-45" : ""}`}>+</span></span></button>
             <div aria-hidden={!showWork} className={`grid transition-all duration-500 ease-out ${showWork ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
