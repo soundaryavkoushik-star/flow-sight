@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { calculateForecast, type ForecastInput } from "@/lib/forecast";
 import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceDot,
 } from "recharts";
 import {
   Shield, TrendingUp, Bell, ArrowRight, Lock,
@@ -14,35 +14,73 @@ import {
 
 const display: React.CSSProperties = { fontFamily: "'Bricolage Grotesque', sans-serif" };
 const mono: React.CSSProperties = { fontFamily: "'DM Mono', monospace" };
+const SCENARIO_MOTION_MS = 600;
+const SCENARIO_MARKER_MS = 140;
 
-function CountUp({ value, prefix = "", suffix = "" }: { value: number; prefix?: string; suffix?: string }) {
+function CountUp({ value, prefix = "", suffix = "", duration = 900, delay = 0, active = true }: { value: number; prefix?: string; suffix?: string; duration?: number; delay?: number; active?: boolean }) {
   const [displayValue, setDisplayValue] = useState(0);
+  const currentValue = useRef(0);
   useEffect(() => {
+    if (!active) return;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const startedAt = performance.now();
-    const duration = reducedMotion ? 0 : 900;
+    const from = currentValue.current;
+    const animationDuration = reducedMotion ? 0 : duration;
     let frame = 0;
+    let startedAt = 0;
     const tick = (now: number) => {
-      const progress = duration === 0 ? 1 : Math.min(1, (now - startedAt) / duration);
+      if (startedAt === 0) startedAt = now;
+      const progress = animationDuration === 0 ? 1 : Math.min(1, (now - startedAt) / animationDuration);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayValue(Math.round(value * eased));
+      const next = Math.round(from + (value - from) * eased);
+      currentValue.current = next;
+      setDisplayValue(next);
       if (progress < 1) frame = requestAnimationFrame(tick);
     };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [value]);
+    const timer = window.setTimeout(() => { frame = requestAnimationFrame(tick); }, reducedMotion ? 0 : delay);
+    return () => { window.clearTimeout(timer); cancelAnimationFrame(frame); };
+  }, [active, delay, duration, value]);
   return <span className="tabular-nums" aria-label={`${prefix}${value.toLocaleString()}${suffix}`}>{prefix}{displayValue.toLocaleString()}{suffix}</span>;
 }
 
-function IncomePattern({ kind }: { kind: "salary" | "freelance" | "mixed" }) {
+function Magnetic({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  return <span
+    ref={ref}
+    className={`inline-flex rounded-xl transition-[transform,filter] duration-200 ease-out hover:drop-shadow-[0_8px_14px_rgba(212,117,74,0.20)] ${className}`}
+    onMouseMove={(event) => {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !window.matchMedia("(pointer: fine)").matches) return;
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 8;
+      const y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 8;
+      event.currentTarget.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    }}
+    onMouseLeave={(event) => { event.currentTarget.style.transform = "translate3d(0, 0, 0)"; }}
+  >{children}</span>;
+}
+
+function moveCursorGlow(event: React.PointerEvent<HTMLElement>) {
+  if (!window.matchMedia("(pointer: fine)").matches) return;
+  const glow = event.currentTarget.querySelector<HTMLElement>("[data-cursor-glow]");
+  if (!glow) return;
+  const bounds = event.currentTarget.getBoundingClientRect();
+  glow.style.opacity = "1";
+  glow.style.transform = `translate3d(${event.clientX - bounds.left - 240}px, ${event.clientY - bounds.top - 240}px, 0)`;
+}
+
+function hideCursorGlow(event: React.PointerEvent<HTMLElement>) {
+  const glow = event.currentTarget.querySelector<HTMLElement>("[data-cursor-glow]");
+  if (glow) glow.style.opacity = "0";
+}
+
+function IncomePattern({ kind, active }: { kind: "salary" | "freelance" | "mixed"; active: boolean }) {
   const regularBars = [28, 88, 148, 208];
   const variableBars = [{ x: 20, y: 57, h: 29, rangeY: 45 }, { x: 75, y: 30, h: 56, rangeY: 17 }, { x: 150, y: 49, h: 37, rangeY: 36 }, { x: 218, y: 22, h: 64, rangeY: 10 }];
   return <div className="rounded-2xl border border-border/70 bg-gradient-to-b from-muted/45 to-background p-3 mb-5 overflow-hidden" aria-hidden="true"><svg viewBox="0 0 260 112" className="w-full h-[112px]">
     <line x1="12" y1="88" x2="248" y2="88" stroke="hsl(var(--border))" strokeWidth="1.5" />
     {[28, 88, 148, 208].map((x) => <line key={x} x1={x + 8} y1="88" x2={x + 8} y2="94" stroke="hsl(var(--muted-foreground))" opacity=".35" />)}
-    {kind === "salary" && regularBars.map((x, index) => <g key={x} className="transition-all duration-300"><rect x={x} y="42" width="17" height="46" rx="5" fill="#2D8B5A" opacity={index === 3 ? 1 : .78} /><circle cx={x + 8.5} cy="35" r="2.5" fill="#2D8B5A" opacity=".45" /></g>)}
-    {kind === "freelance" && variableBars.map((bar, index) => <g key={bar.x}><rect x={bar.x} y={bar.rangeY} width="18" height={88 - bar.rangeY} rx="5" fill="none" stroke="#D4754A" strokeWidth="1.5" strokeDasharray="4 3" opacity=".65" /><rect x={bar.x + 3} y={bar.y} width="12" height={bar.h} rx="4" fill="#D4754A" opacity={index === 3 ? 1 : .76} /></g>)}
-    {kind === "mixed" && <>{[24, 88, 152, 216].map((x) => <rect key={`salary-${x}`} x={x} y="43" width="13" height="45" rx="4" fill="#2D8B5A" opacity=".82" />)}{[{ x: 51, y: 61, h: 27 }, { x: 121, y: 29, h: 59 }, { x: 187, y: 52, h: 36 }].map((bar, index) => <g key={`variable-${bar.x}`}>{index === 1 && <rect x={bar.x - 3} y="17" width="19" height="71" rx="5" fill="none" stroke="#D4754A" strokeWidth="1.5" strokeDasharray="4 3" opacity=".65" />}<rect x={bar.x} y={bar.y} width="13" height={bar.h} rx="4" fill="#D4754A" /></g>)}</>}
+    {kind === "salary" && regularBars.map((x, index) => <g key={`${x}-${active}`} className={active ? "fs-income-arrival" : ""} style={{ animationDelay: `${index * 90}ms` }}><rect x={x} y="42" width="17" height="46" rx="5" fill="#2D8B5A" opacity={index === 3 ? 1 : .78} /><circle cx={x + 8.5} cy="35" r="2.5" fill="#2D8B5A" opacity=".45" /></g>)}
+    {kind === "freelance" && variableBars.map((bar, index) => <g key={`${bar.x}-${active}`}><rect x={bar.x} y={bar.rangeY} width="18" height={88 - bar.rangeY} rx="5" fill="none" stroke="#D4754A" strokeWidth="1.5" strokeDasharray="4 3" opacity=".65" className={active ? "fs-income-range" : ""} style={{ animationDelay: `${index * 110}ms` }} /><rect x={bar.x + 3} y={bar.y} width="12" height={bar.h} rx="4" fill="#D4754A" opacity={index === 3 ? 1 : .76} className={active ? "fs-income-arrival" : ""} style={{ animationDelay: `${120 + index * 110}ms` }} /></g>)}
+    {kind === "mixed" && <>{[24, 88, 152, 216].map((x, index) => <rect key={`salary-${x}-${active}`} x={x} y="43" width="13" height="45" rx="4" fill="#2D8B5A" opacity=".82" className={active ? "fs-income-arrival" : ""} style={{ animationDelay: `${index * 100}ms` }} />)}{[{ x: 51, y: 61, h: 27 }, { x: 121, y: 29, h: 59 }, { x: 187, y: 52, h: 36 }].map((bar, index) => <g key={`variable-${bar.x}-${active}`}>{index === 1 && <rect x={bar.x - 3} y="17" width="19" height="71" rx="5" fill="none" stroke="#D4754A" strokeWidth="1.5" strokeDasharray="4 3" opacity=".65" className={active ? "fs-income-range" : ""} style={{ animationDelay: "180ms" }} />}<rect x={bar.x} y={bar.y} width="13" height={bar.h} rx="4" fill="#D4754A" className={active ? "fs-income-arrival" : ""} style={{ animationDelay: `${50 + index * 145}ms` }} /></g>)}</>}
     <text x="12" y="107" fill="hsl(var(--muted-foreground))" fontSize="8">TODAY</text><text x="225" y="107" fill="hsl(var(--muted-foreground))" fontSize="8">30 DAYS</text>
   </svg></div>;
 }
@@ -201,6 +239,144 @@ function ForecastStoryChart() {
   </div>;
 }
 
+type ForecastThreadVariant = "hero" | "aha" | "contrast";
+
+const forecastThreadShapes: Record<
+  ForecastThreadVariant,
+  {
+    desktopPath: string;
+    mobilePath: string;
+    stroke: string;
+    strokeWidth: number;
+    opacity: number;
+    desktopMarker?: { x: number; y: number };
+    mobileMarker?: { x: number; y: number };
+  }
+> = {
+  hero: {
+    desktopPath: "M -40 95 C 150 30 260 165 430 105 C 610 40 700 55 820 170 C 905 250 945 320 1040 360",
+    mobilePath: "M 88 -20 C 68 95 105 160 82 260 C 60 350 96 420 76 540",
+    stroke: "#0F1D3A",
+    strokeWidth: 1.5,
+    opacity: 0.12,
+  },
+  aha: {
+    desktopPath: "M 1040 8 C 900 55 820 120 760 210 C 700 310 640 455 500 478 C 330 505 140 480 -40 510",
+    mobilePath: "M 76 -10 C 92 95 62 180 78 285 C 92 365 60 430 82 540",
+    stroke: "#D4754A",
+    strokeWidth: 2.6,
+    opacity: 0.78,
+    desktopMarker: { x: 500, y: 478 },
+    mobileMarker: { x: 78, y: 285 },
+  },
+  contrast: {
+    desktopPath: "M -40 0 C 120 65 230 190 390 210 C 565 230 650 115 790 125 C 900 130 960 170 1040 205",
+    mobilePath: "M 82 -10 C 64 90 94 175 76 275 C 62 360 91 430 80 540",
+    stroke: "#0F1D3A",
+    strokeWidth: 1.7,
+    opacity: 0.1,
+  },
+};
+
+function ForecastThread({ variant }: { variant: ForecastThreadVariant }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const shape = forecastThreadShapes[variant];
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const paths = Array.from(root.querySelectorAll<SVGPathElement>("[data-forecast-thread-path]"));
+    const markers = Array.from(root.querySelectorAll<SVGGElement>("[data-forecast-thread-marker]"));
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let frame = 0;
+    let markerHasPlayed = false;
+
+    const draw = () => {
+      frame = 0;
+      const rect = root.getBoundingClientRect();
+      const progress = reduceMotion
+        ? 1
+        : Math.max(0, Math.min(1, (window.innerHeight - rect.top) / (window.innerHeight + rect.height * 0.6)));
+
+      paths.forEach((path) => {
+        path.style.strokeDashoffset = String(1 - progress);
+      });
+
+      if (markers.length > 0 && (progress >= 0.62 || reduceMotion)) {
+        markers.forEach((marker) => marker.classList.add("is-visible"));
+        if (!markerHasPlayed && !reduceMotion) {
+          markers.forEach((marker) => marker.classList.add("is-pulsing"));
+          window.setTimeout(() => {
+            markers.forEach((marker) => marker.classList.remove("is-pulsing"));
+          }, 850);
+          markerHasPlayed = true;
+        }
+      }
+    };
+
+    const requestDraw = () => {
+      if (!frame) frame = window.requestAnimationFrame(draw);
+    };
+
+    draw();
+    window.addEventListener("scroll", requestDraw, { passive: true });
+    window.addEventListener("resize", requestDraw);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", requestDraw);
+      window.removeEventListener("resize", requestDraw);
+    };
+  }, []);
+
+  const marker = (position: { x: number; y: number } | undefined, isMobile: boolean) =>
+    position ? (
+      <g
+        data-forecast-thread-marker
+        className={`fs-forecast-thread-marker ${isMobile ? "sm:hidden" : "hidden sm:block"}`}
+        transform={`translate(${position.x} ${position.y})`}
+      >
+        <circle r="13" fill="#D4754A" opacity="0.14" />
+        <circle r="6.5" fill="#0F1D3A" stroke="#FFFFFF" strokeWidth="2.5" />
+      </g>
+    ) : null;
+
+  return (
+    <div ref={rootRef} aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+      <svg viewBox="0 0 1000 520" preserveAspectRatio="none" className="hidden h-full w-full sm:block">
+        <path
+          data-forecast-thread-path
+          pathLength="1"
+          d={shape.desktopPath}
+          fill="none"
+          stroke={shape.stroke}
+          strokeWidth={shape.strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={shape.opacity}
+          style={{ strokeDasharray: 1, strokeDashoffset: 1 }}
+        />
+        {marker(shape.desktopMarker, false)}
+      </svg>
+      <svg viewBox="0 0 100 520" preserveAspectRatio="none" className="h-full w-full sm:hidden">
+        <path
+          data-forecast-thread-path
+          pathLength="1"
+          d={shape.mobilePath}
+          fill="none"
+          stroke={shape.stroke}
+          strokeWidth={shape.strokeWidth * 0.72}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={shape.opacity * 0.82}
+          style={{ strokeDasharray: 1, strokeDashoffset: 1 }}
+        />
+        {marker(shape.mobileMarker, true)}
+      </svg>
+    </div>
+  );
+}
+
 const processSteps = [
   { n: "01", title: "Bring in your numbers", desc: "Import a CSV from your bank, or enter the essentials yourself. No bank connection required." },
   { n: "02", title: "Check what we found", desc: "Review your transactions and confirm the paychecks, bills, and subscriptions that happen regularly." },
@@ -224,8 +400,17 @@ export default function Landing() {
   const [comparisonFocus, setComparisonFocus] = useState<"past" | "future">("past");
   const [activeStep, setActiveStep] = useState(0);
   const [heroMoment, setHeroMoment] = useState(0);
+  const [heroReady, setHeroReady] = useState(false);
+  const [activeSection, setActiveSection] = useState("");
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const sectionVisibility = useRef(new Map<string, number>());
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setHeroReady(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -237,6 +422,20 @@ export default function Landing() {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const stepsTimer = window.setInterval(() => setActiveStep((current) => (current + 1) % processSteps.length), 3200);
     return () => window.clearInterval(stepsTimer);
+  }, []);
+
+  useEffect(() => {
+    const ids = ["features", "how-it-works", "security"];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => sectionVisibility.current.set(entry.target.id, entry.isIntersecting ? entry.intersectionRatio : 0));
+      const mostVisible = ids.reduce((best, id) => (sectionVisibility.current.get(id) ?? 0) > (sectionVisibility.current.get(best) ?? 0) ? id : best, "");
+      setActiveSection((sectionVisibility.current.get(mostVisible) ?? 0) > 0 ? mostVisible : "");
+    }, { rootMargin: "-20% 0px -45% 0px", threshold: [0.15, 0.3, 0.5, 0.7] });
+    ids.forEach((id) => {
+      const section = document.getElementById(id);
+      if (section) observer.observe(section);
+    });
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -263,6 +462,11 @@ export default function Landing() {
   const endBalance = projectedBalances.at(-1) ?? 0;
   const lowestProjectedBalance = Math.min(...projectedBalances);
   const safeToSpend = Math.max(0, lowestProjectedBalance - 500);
+  const scenarioLowPoint = scenarioData.reduce<{ day: string; value: number } | null>((lowest, point) => {
+    if (typeof point.projected !== "number") return lowest;
+    return !lowest || point.projected < lowest.value ? { day: point.day, value: point.projected } : lowest;
+  }, null);
+  const scenarioCondition = safeToSpend < 500 ? { label: "Tight", className: "bg-destructive/15 text-destructive" } : safeToSpend < 1000 ? { label: "Watch", className: "bg-yellow-500/15 text-amber-700" } : { label: scenario === 0 ? "Baseline" : "Clear", className: "bg-emerald-100 text-emerald-700" };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -281,12 +485,12 @@ export default function Landing() {
           </div>
           <div className="hidden md:flex items-center gap-7">
             {["Features", "How It Works", "Security"].map((l) => (
-              <a key={l} href={`#${l.toLowerCase().replace(/\s+/g, "-")}`} className="text-sm text-muted-foreground hover:text-foreground transition-colors">{l}</a>
+              <a key={l} href={`#${l.toLowerCase().replace(/\s+/g, "-")}`} aria-current={activeSection === l.toLowerCase().replace(/\s+/g, "-") ? "location" : undefined} className={`relative py-2 text-sm transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left after:bg-primary after:transition-transform after:duration-300 ${activeSection === l.toLowerCase().replace(/\s+/g, "-") ? "font-medium text-foreground after:scale-x-100" : "text-muted-foreground hover:text-foreground after:scale-x-0"}`}>{l}</a>
             ))}
           </div>
           <div className="hidden md:flex items-center gap-3">
             <button onClick={() => navigate("/sign-in")} className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5">Sign in</button>
-            <button onClick={() => navigate("/sign-up")} className="fs-brand-action text-sm px-4 py-2 rounded-xl font-medium">Join Beta</button>
+            <Magnetic><button onClick={() => navigate("/sign-up")} className="fs-brand-action text-sm px-4 py-2 rounded-xl font-medium">Join Beta</button></Magnetic>
           </div>
           <button className="md:hidden text-muted-foreground p-1" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X size={19} /> : <Menu size={19} />}
@@ -303,22 +507,24 @@ export default function Landing() {
       </nav>
 
       {/* HERO */}
-      <section className="pt-28 pb-20 px-5 max-w-6xl mx-auto">
+      <section className="relative overflow-hidden pt-28 pb-20 px-5">
+        <ForecastThread variant="hero" />
+        <div className="relative z-10 max-w-6xl mx-auto">
         <div className="grid md:grid-cols-[1fr_1.1fr] gap-14 items-center">
           <div>
-            <div className="inline-flex items-center gap-1.5 bg-accent/10 border border-accent/20 text-accent text-xs font-medium px-3 py-1.5 rounded-full mb-8">
+            <div className={`inline-flex items-center gap-1.5 bg-accent/10 border border-accent/20 text-accent text-xs font-medium px-3 py-1.5 rounded-full mb-8 transition-all duration-500 motion-reduce:transition-none ${heroReady ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"}`}>
               <Sparkles size={10} />Now in private beta
             </div>
-            <h1 className="text-[52px] lg:text-[64px] font-medium leading-[1.05] tracking-tight text-foreground mb-6" style={display}>
+            <h1 className={`text-[52px] lg:text-[64px] font-medium leading-[1.05] tracking-tight text-foreground mb-6 transition-all duration-500 delay-75 motion-reduce:transition-none ${heroReady ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`} style={display}>
               See what&apos;s next<br /><span className="bg-gradient-to-r from-foreground via-slate-700 to-primary bg-clip-text text-transparent">for your money.</span>
             </h1>
-            <p className="text-[17px] text-muted-foreground leading-relaxed mb-10 max-w-[440px]">
+            <p className={`text-[17px] text-muted-foreground leading-relaxed mb-10 max-w-[440px] transition-all duration-500 delay-150 motion-reduce:transition-none ${heroReady ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}>
               Most finance apps tell you where your money went. FlowSight shows where it&apos;s going. Import a CSV or add a few details—and see how the next 30 days could unfold.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 mb-12">
-              <button onClick={() => navigate("/sign-up")} className="fs-brand-action flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm">
+            <div className={`flex flex-col sm:flex-row gap-3 mb-12 transition-all duration-500 motion-reduce:transition-none ${heroReady ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`} style={{ transitionDelay: "225ms" }}>
+              <Magnetic className="w-full sm:w-auto"><button onClick={() => navigate("/sign-up")} className="fs-brand-action flex w-full items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm">
                 Join the Beta <ArrowRight size={15} />
-              </button>
+              </button></Magnetic>
               <button onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })} className="fs-interactive flex items-center justify-center gap-2 text-muted-foreground border border-border px-6 py-3 rounded-xl font-medium text-sm hover:text-foreground">
                 Watch Demo
               </button>
@@ -334,7 +540,7 @@ export default function Landing() {
           </div>
 
           {/* App window mockup */}
-          <div className="relative">
+          <div className={`relative transition-all duration-700 delay-300 motion-reduce:transition-none ${heroReady ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}`}>
             <div className="absolute -inset-6 bg-primary/8 rounded-3xl blur-3xl pointer-events-none" />
             <div className="relative bg-card border border-border rounded-[20px] overflow-hidden shadow-[0_32px_80px_rgba(28,28,34,0.12)]">
               <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border">
@@ -380,11 +586,13 @@ export default function Landing() {
             </div>
           </div>
         </div>
+        </div>
       </section>
 
       {/* AHA FORECAST */}
-      <section data-reveal className="py-20 px-5 border-y border-border/60 bg-white" id="features">
-        <div className="max-w-6xl mx-auto grid lg:grid-cols-[0.78fr_1.22fr] gap-14 items-center">
+      <section data-reveal className="relative overflow-hidden py-20 px-5 border-y border-border/60 bg-white" id="features">
+        <ForecastThread variant="aha" />
+        <div className="relative z-10 max-w-6xl mx-auto grid lg:grid-cols-[0.78fr_1.22fr] gap-14 items-center">
           <div>
             <p className="text-primary text-xs font-medium uppercase tracking-[0.15em] mb-3" style={mono}>Five days of warning</p>
             <h2 className="text-[40px] lg:text-[48px] font-medium tracking-tight leading-[1.06] mb-5" style={display}>$420 on August 3.<br /><span className="text-[#CA8A04]">Payday is five days away.</span></h2>
@@ -399,8 +607,15 @@ export default function Landing() {
       </section>
 
       {/* PROBLEM */}
-      <section data-reveal className="py-20 px-5 bg-[#F8F5EE] border-y border-[#E2E5EB]">
-        <div className="max-w-6xl mx-auto">
+      <section
+        data-reveal
+        className="relative overflow-hidden py-20 px-5 bg-[#F8F5EE] border-y border-[#E2E5EB]"
+        onPointerMove={moveCursorGlow}
+        onPointerLeave={hideCursorGlow}
+      >
+        <ForecastThread variant="contrast" />
+        <div data-cursor-glow className="pointer-events-none absolute left-0 top-0 z-0 h-[480px] w-[480px] rounded-full bg-[radial-gradient(circle,rgba(212,117,74,0.11),rgba(212,117,74,0.035)_38%,transparent_70%)] opacity-0 blur-xl transition-[transform,opacity] duration-150 ease-out" />
+        <div className="relative z-10 max-w-6xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-[42px] lg:text-[52px] font-medium tracking-tight leading-[1.08] mb-4" style={display}>
               Stop looking backward.<br /><span className="text-accent">Start planning forward.</span>
@@ -433,7 +648,7 @@ export default function Landing() {
               { id: "mixed" as const, title: "A mix of both", note: "Confirmed + estimated", example: "Your salary covers known bills. The Acme invoice would keep you above your $500 buffer." },
             ]).map(({ id, title, note, example }) => {
               const selected = incomeType === id;
-              return <button key={id} role="tab" aria-selected={selected} onClick={() => setIncomeType(id)} className={`text-left rounded-2xl border p-6 transition-all duration-300 ${selected ? "border-primary/40 bg-card -translate-y-1 shadow-[0_20px_55px_rgba(28,28,34,0.10)]" : "border-border bg-card/55 hover:border-primary/20"}`}><div className="flex items-start justify-between gap-3 mb-4"><div><h3 className="font-semibold text-lg mb-1">{title}</h3><p className="text-xs text-muted-foreground">{note}</p></div>{selected && <span className="text-[10px] font-medium text-primary bg-primary/10 rounded-full px-2.5 py-1">See example</span>}</div><IncomePattern kind={id} /><div className={`grid transition-all duration-300 ${selected ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}><p className="overflow-hidden text-sm leading-relaxed text-foreground border-t border-border pt-4">{example}</p></div></button>;
+              return <button key={id} role="tab" aria-selected={selected} onClick={() => setIncomeType(id)} className={`text-left rounded-2xl border p-6 transition-all duration-300 ${selected ? "border-primary/40 bg-card -translate-y-1 shadow-[0_20px_55px_rgba(28,28,34,0.10)]" : "border-border bg-card/55 hover:border-primary/20"}`}><div className="flex items-start justify-between gap-3 mb-4"><div><h3 className="font-semibold text-lg mb-1">{title}</h3><p className="text-xs text-muted-foreground">{note}</p></div>{selected && <span className="text-[10px] font-medium text-primary bg-primary/10 rounded-full px-2.5 py-1">See example</span>}</div><IncomePattern kind={id} active={selected} /><div className={`grid transition-all duration-300 ${selected ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}><p className="overflow-hidden text-sm leading-relaxed text-foreground border-t border-border pt-4">{example}</p></div></button>;
             })}
           </div>
         </div>
@@ -460,11 +675,13 @@ export default function Landing() {
             <div className="bg-card border border-border rounded-2xl p-6">
               <div className="flex items-center justify-between mb-5">
                 <p className="text-sm font-semibold text-foreground">30-Day Forecast</p>
-                <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full ${scenarios[scenario].amount === 0 ? "bg-emerald-100 text-emerald-700" : scenarios[scenario].amount > 1500 ? "bg-destructive/15 text-destructive" : "bg-yellow-500/15 text-amber-700"}`} style={mono}>
-                  {scenarios[scenario].amount === 0 ? "Baseline" : scenarios[scenario].amount > 1500 ? "High impact" : "Moderate impact"}
+                <span key={`condition-${scenario}`} className={`fs-scenario-condition text-[10px] font-medium px-2.5 py-1 rounded-full ${scenarioCondition.className}`} style={mono}>
+                  {scenarioCondition.label}
                 </span>
               </div>
               <div className="flex items-center gap-4 text-[10px] text-muted-foreground mb-2"><span className="flex items-center gap-1.5"><span className="w-5 border-t border-dashed border-slate-400" />Without purchase</span><span className="flex items-center gap-1.5"><span className="w-5 border-t-2 border-primary" />With purchase</span></div>
+              <div className="relative">
+              {scenario > 0 && <div key={`marker-${scenario}`} className="fs-scenario-marker pointer-events-none absolute right-3 top-1 z-10 rounded-full border border-primary/20 bg-white/95 px-2.5 py-1 text-[10px] font-medium text-primary shadow-sm" style={mono}>{scenarios[scenario].label.replace(/\s*\([^)]*\)$/, "")} · −${scenarios[scenario].amount.toLocaleString()}</div>}
               <ResponsiveContainer width="100%" height={150}>
                 <AreaChart data={scenarioData} margin={{ top: 4, right: 4, left: -22, bottom: 0 }}>
                   <defs>
@@ -481,20 +698,23 @@ export default function Landing() {
                   <YAxis tick={{ fontSize: 9, fill: "#5c6b8a", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
                   <Tooltip content={<CustomTooltip />} />
                   <ReferenceLine x="Jul 31" stroke="#5c6b8a" strokeDasharray="3 2" strokeWidth={1} />
+                  <ReferenceLine key={`buffer-${scenario}`} y={500} stroke="#CA8A04" strokeDasharray="5 4" strokeWidth={1.25} className="fs-scenario-buffer" />
+                  {scenarioLowPoint && <ReferenceDot key={`low-${scenario}`} x={scenarioLowPoint.day} y={scenarioLowPoint.value} r={5} fill="#CA8A04" stroke="#ffffff" strokeWidth={2} className="fs-scenario-low-point" />}
                   <Area type="monotone" dataKey="balance" stroke="#171714" strokeWidth={2} fill="url(#lScenActual)" dot={false} connectNulls={false} />
-                  <Area type="monotone" dataKey="baseline" stroke="#9CA3AF" strokeWidth={2} strokeDasharray="5 5" fill="transparent" dot={false} connectNulls={false} animationDuration={350} animationEasing="ease-out" />
-                  <Area type="monotone" dataKey="projected" stroke="#D4754A" strokeWidth={3} fill="url(#lScenProj)" dot={false} connectNulls={false} animationDuration={350} animationEasing="ease-out" />
+                  <Area type="monotone" dataKey="baseline" stroke="#9CA3AF" strokeWidth={2} strokeDasharray="5 5" fill="transparent" dot={false} connectNulls={false} animationBegin={SCENARIO_MARKER_MS} animationDuration={SCENARIO_MOTION_MS} animationEasing="ease-out" />
+                  <Area type="monotone" dataKey="projected" stroke="#D4754A" strokeWidth={3} fill="url(#lScenProj)" dot={false} connectNulls={false} animationBegin={SCENARIO_MARKER_MS} animationDuration={SCENARIO_MOTION_MS} animationEasing="ease-out" />
                 </AreaChart>
               </ResponsiveContainer>
+              </div>
               <div className="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-3 text-center">
                 {[
-                  { label: "Today", value: "$5,500", color: "text-foreground" },
-                  { label: "End of month", value: endBalance < 0 ? `-$${Math.abs(endBalance).toLocaleString()}` : `$${endBalance.toLocaleString()}`, color: endBalance < 2000 ? "text-destructive" : "text-emerald-700" },
-                  { label: "Safe to spend", value: `$${safeToSpend.toLocaleString()}`, color: safeToSpend < 500 ? "text-destructive" : safeToSpend < 1000 ? "text-amber-700" : "text-emerald-700" },
-                ].map(({ label, value, color }) => (
+                  { label: "Today", value: 5500, prefix: "$", color: "text-foreground" },
+                  { label: "End of month", value: Math.abs(endBalance), prefix: endBalance < 0 ? "-$" : "$", color: endBalance < 2000 ? "text-destructive" : "text-emerald-700" },
+                  { label: "Safe to spend", value: safeToSpend, prefix: "$", color: safeToSpend < 500 ? "text-destructive" : safeToSpend < 1000 ? "text-amber-700" : "text-emerald-700" },
+                ].map(({ label, value, prefix, color }) => (
                   <div key={label}>
                     <p className="text-[10px] text-muted-foreground mb-1">{label}</p>
-                    <p className={`text-sm font-semibold ${color} transition-colors duration-300`} style={mono}>{value}</p>
+                    <p className={`text-sm font-semibold ${color} transition-colors`} style={{ ...mono, transitionDuration: `${SCENARIO_MOTION_MS}ms` }}><CountUp key={`${scenario}-${label}`} value={value} prefix={prefix} delay={SCENARIO_MARKER_MS} duration={SCENARIO_MOTION_MS} /></p>
                   </div>
                 ))}
               </div>
@@ -530,9 +750,9 @@ export default function Landing() {
           <div className="rounded-[26px] border border-white/10 bg-[#0C1628] text-white shadow-[0_28px_80px_rgba(12,22,40,0.22)] overflow-hidden">
             <div className="px-6 pt-5 flex items-center justify-between text-[10px] text-white/40" style={mono}><span>FLOWSIGHT · EVERYDAY</span><span>UPDATED 2 DAYS AGO</span></div>
             <button onClick={() => setShowWork((open) => !open)} aria-expanded={showWork} className="w-full p-6 flex items-center justify-between text-left hover:bg-white/[0.04]"><div><p className="text-xs text-white/50 mb-1">Safe to spend</p><p className="text-3xl font-medium text-[#65B98A]" style={mono}>$680</p></div><span className="inline-flex items-center gap-2 text-sm font-medium text-white">{showWork ? "Hide calculation" : "Show calculation"}<span className={`text-xl text-primary transition-transform duration-300 ${showWork ? "rotate-45" : ""}`}>+</span></span></button>
-            <div className={`grid transition-all duration-500 ease-out ${showWork ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+            <div aria-hidden={!showWork} className={`grid transition-all duration-500 ease-out ${showWork ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
               <div className="overflow-hidden"><div className="border-t border-white/10 px-6 py-5 space-y-3 bg-white/[0.03]">
-                {[{ label: "Balance as of Jul 15", value: "$3,840" }, { label: "Net activity since Jul 15", value: "+$420" }, { label: "Opening balance today", value: "$4,260" }, { label: "Lowest projected balance", value: "$1,180" }, { label: "Protected safety buffer", value: "−$500" }].map((row, index) => <div key={row.label} className={`flex justify-between gap-4 text-sm ${index === 2 || index === 4 ? "border-t border-white/10 pt-3 font-semibold" : ""}`}><span className="text-white/50">{row.label}</span><span style={mono}>{row.value}</span></div>)}
+                {[{ label: "Balance as of Jul 15", value: 3840, prefix: "$" }, { label: "Net activity since Jul 15", value: 420, prefix: "+$" }, { label: "Opening balance today", value: 4260, prefix: "$" }, { label: "Lowest projected balance", value: 1180, prefix: "$" }, { label: "Protected safety buffer", value: 500, prefix: "−$" }].map((row, index) => <div key={row.label} className={`flex justify-between gap-4 text-sm ${index === 2 || index === 4 ? "border-t border-white/10 pt-3 font-semibold" : ""}`}><span className="text-white/50">{row.label}</span><span style={mono}><CountUp value={row.value} prefix={row.prefix} duration={500} delay={index * 70} active={showWork} /></span></div>)}
                 <div className="rounded-xl bg-white/[0.05] border border-white/10 p-3 mt-4"><p className="text-xs font-medium">Based on 7 confirmed events and 2 estimates.</p><p className="text-[11px] text-white/45 mt-1">Balance updated 2 days ago · 1 skipped event excluded</p></div>
               </div></div>
             </div>
@@ -570,19 +790,26 @@ export default function Landing() {
             <h2 className="text-[40px] font-medium tracking-tight" style={display}>A few things to know.</h2>
           </div>
           <div className="divide-y divide-border border-y border-border">
-            {faqs.map((item) => (
-              <details key={item.question} className="group py-5">
-                <summary className="cursor-pointer list-none flex items-center justify-between gap-4 font-semibold text-foreground"><span>{item.question}</span><span className="text-primary text-xl font-normal transition-transform group-open:rotate-45">+</span></summary>
-                <p className="text-sm text-muted-foreground leading-relaxed mt-3 pr-10">{item.answer}</p>
-              </details>
+            {faqs.map((item, index) => (
+              <div key={item.question} className="py-5">
+                <button type="button" aria-expanded={openFaq === index} aria-controls={`faq-answer-${index}`} onClick={() => setOpenFaq((current) => current === index ? null : index)} className="flex w-full items-center justify-between gap-4 text-left font-semibold text-foreground"><span>{item.question}</span><span className={`text-primary text-xl font-normal transition-transform duration-300 ${openFaq === index ? "rotate-45" : ""}`}>+</span></button>
+                <div id={`faq-answer-${index}`} aria-hidden={openFaq !== index} className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${openFaq === index ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}><div className="overflow-hidden"><p className="text-sm text-muted-foreground leading-relaxed pt-3 pr-10">{item.answer}</p></div></div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section data-reveal className="py-20 px-5 relative overflow-hidden" style={{ background: "radial-gradient(circle at 50% 48%, rgba(212,117,74,0.10), transparent 38%)" }}>
-        <div className="max-w-xl mx-auto text-center">
+      <section
+        data-reveal
+        className="py-20 px-5 relative overflow-hidden"
+        style={{ background: "radial-gradient(circle at 50% 48%, rgba(212,117,74,0.10), transparent 38%)" }}
+        onPointerMove={moveCursorGlow}
+        onPointerLeave={hideCursorGlow}
+      >
+        <div data-cursor-glow className="pointer-events-none absolute left-0 top-0 h-[480px] w-[480px] rounded-full bg-[radial-gradient(circle,rgba(212,117,74,0.18),rgba(212,117,74,0.05)_42%,transparent_72%)] opacity-0 blur-2xl transition-[transform,opacity] duration-150 ease-out" />
+        <div className="relative z-10 max-w-xl mx-auto text-center">
           <div className="relative">
             <div className="absolute inset-0 bg-primary/10 rounded-3xl blur-3xl pointer-events-none" />
             <div className="relative bg-card border border-border rounded-3xl px-8 py-14">
@@ -600,7 +827,7 @@ export default function Landing() {
                 <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2.5 max-w-sm mx-auto">
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required
                     className="flex-1 bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-colors" />
-                  <button type="submit" className="fs-brand-action px-5 py-3 rounded-xl text-sm font-medium whitespace-nowrap">Join Beta</button>
+                  <Magnetic className="w-full sm:w-auto"><button type="submit" className="fs-brand-action w-full px-5 py-3 rounded-xl text-sm font-medium whitespace-nowrap">Join Beta</button></Magnetic>
                 </form>
               )}
               <p className="text-xs text-muted-foreground mt-5">Early access. No spam. Unsubscribe anytime.</p>

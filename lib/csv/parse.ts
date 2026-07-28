@@ -1,4 +1,4 @@
-import { isForecastIncomeCategory, suggestMoneyInCategory } from "../analytics/categories"
+import { isForecastIncomeCategory, isForecastObligationCategory, suggestMoneyInCategory, suggestSpendingCategory } from "../analytics/categories"
 
 export type CsvDateOrder = "mdy" | "dmy"
 
@@ -22,6 +22,14 @@ export interface RecurringSuggestion {
   occurrenceCount: number
   evidenceStartDate: string
   evidenceEndDate: string
+}
+
+export interface RecurringDetectionContext {
+  accountType?: string
+}
+
+export function isCardPaymentDescription(description: string) {
+  return /\b(payment received|thank you payment|card payment|credit card payment|autopay payment)\b/i.test(description)
 }
 
 export function recurringEvidenceConfidence(
@@ -136,6 +144,18 @@ export function applyAmountSignConvention(amountCents: number | null, spendingSi
   return spendingSign === "positive" ? -amountCents : amountCents
 }
 
+const clearMoneyInDescription =
+  /\b(interest|deposit|refund|rebate|cashback|payroll|salary|payment received|transfer from)\b/i
+const clearMoneyOutDescription =
+  /\b(purchase|withdrawal|debit|fee|charge|payment to|transfer to)\b/i
+
+export function inferPositiveOnlyDirection(descriptions: string[]): "money_in" | null {
+  const meaningful = descriptions.map((description) => description.trim()).filter(Boolean)
+  if (meaningful.length === 0) return null
+  if (meaningful.some((description) => clearMoneyOutDescription.test(description))) return null
+  return meaningful.every((description) => clearMoneyInDescription.test(description)) ? "money_in" : null
+}
+
 export function applyTransactionDirection(amountCents: number | null, direction: string) {
   if (amountCents === null) return null
   const normalized = direction.trim().toLowerCase()
@@ -153,11 +173,15 @@ export function normalizeMerchant(description: string) {
     .trim()
 }
 
-export function suggestRecurring(rows: NormalizedCsvTransaction[], accountId: string, today: Date | string = new Date()): RecurringSuggestion[] {
+export function suggestRecurring(rows: NormalizedCsvTransaction[], accountId: string, today: Date | string = new Date(), context: RecurringDetectionContext = {}): RecurringSuggestion[] {
   const todayKey = typeof today === "string" ? today : today.toISOString().slice(0, 10)
   const groups = new Map<string, NormalizedCsvTransaction[]>()
   for (const row of rows) {
+    if (context.accountType === "credit_card" && row.amountCents > 0 && isCardPaymentDescription(row.description)) continue
     if (row.amountCents > 0 && !isForecastIncomeCategory(suggestMoneyInCategory(row.description))) continue
+    if (row.amountCents < 0
+      && !isForecastObligationCategory(suggestSpendingCategory(row.description))
+      && !/\b(bill|rent|mortgage|insurance|loan|subscription|membership)\b/i.test(row.description)) continue
     const key = normalizeMerchant(row.description)
     if (!key) continue
     groups.set(key, [...(groups.get(key) ?? []), row])

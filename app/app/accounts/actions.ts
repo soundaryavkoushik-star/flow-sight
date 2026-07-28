@@ -23,7 +23,37 @@ function revalidateAccounts() {
   revalidatePath("/app/forecast")
 }
 
-export async function createAccount(input: { name: string; type: "checking" | "savings"; balanceCents: number; balanceDate: string }) {
+interface AccountInput {
+  name: string
+  type: "checking" | "savings" | "credit_card"
+  balanceCents: number
+  balanceDate: string
+  paymentAccountId?: string
+  statementBalanceCents?: number
+  minimumPaymentCents?: number
+  statementClosingDay?: number
+  paymentDueDay?: number
+  paymentStrategy?: "full_statement" | "minimum" | "fixed"
+  fixedPaymentCents?: number
+}
+
+function validCardSettings(input: AccountInput) {
+  return Boolean(
+    Number.isSafeInteger(input.statementBalanceCents)
+    && input.statementBalanceCents! >= 0
+    && Number.isInteger(input.statementClosingDay)
+    && input.statementClosingDay! >= 1
+    && input.statementClosingDay! <= 31
+    && Number.isInteger(input.paymentDueDay)
+    && input.paymentDueDay! >= 1
+    && input.paymentDueDay! <= 31
+    && ["full_statement", "minimum", "fixed"].includes(input.paymentStrategy ?? "")
+    && (input.paymentStrategy !== "minimum" || (Number.isSafeInteger(input.minimumPaymentCents) && input.minimumPaymentCents! > 0))
+    && (input.paymentStrategy !== "fixed" || (Number.isSafeInteger(input.fixedPaymentCents) && input.fixedPaymentCents! > 0)),
+  )
+}
+
+export async function createAccount(input: AccountInput) {
   const id = await userId()
   if (!id) return { ok: false as const, message: "Your session expired. Please sign in again." }
   const date = parseDate(input.balanceDate)
@@ -31,31 +61,68 @@ export async function createAccount(input: { name: string; type: "checking" | "s
   try {
     const duplicate = await prisma.account.findFirst({ where: { userId: id, name: { equals: input.name.trim(), mode: "insensitive" } }, select: { id: true } })
     if (duplicate) return { ok: false as const, message: "You already have an account with that name." }
-    const account = await prisma.account.create({ data: { userId: id, name: input.name.trim(), type: input.type, source: "manual", anchorBalanceCents: input.balanceCents, anchorDate: date } })
-    await prisma.actualBalanceObservation.create({ data: { userId: id, accountId: account.id, balanceCents: input.balanceCents, observedAt: date } })
+    const account = await prisma.$transaction(async (tx) => {
+      const account = await tx.account.create({ data: { userId: id, name: input.name.trim(), type: input.type, isLiability: input.type === "credit_card", source: "manual", anchorBalanceCents: input.balanceCents, anchorDate: date } })
+      await tx.actualBalanceObservation.create({ data: { userId: id, accountId: account.id, balanceCents: input.balanceCents, observedAt: date } })
+      return account
+    })
     await prisma.userProfile.upsert({ where: { userId: id }, update: {}, create: { userId: id } })
     revalidateAccounts()
-    return { ok: true as const }
+    return { ok: true as const, accountId: account.id, accountType: account.type }
   } catch (error) {
     console.error("Failed to create account", error)
     return { ok: false as const, message: "We couldn’t create that account." }
   }
 }
 
-export async function updateAccount(input: { accountId: string; name: string; balanceCents: number; balanceDate: string }) {
+export async function confirmCardPaymentProposal(input: { accountId: string; expectedPaymentCents: number; nextPaymentDate: string }) {
+  const id = await userId()
+  if (!id) return { ok: false as const, message: "Your session expired. Please sign in again." }
+  const date = parseDate(input.nextPaymentDate)
+  if (!date || !Number.isSafeInteger(input.expectedPaymentCents) || input.expectedPaymentCents <= 0) {
+    return { ok: false as const, message: "Add a valid expected payment and date." }
+  }
+  const account = await prisma.account.findFirst({ where: { id: input.accountId, userId: id, type: "credit_card" }, select: { id: true } })
+  if (!account) return { ok: false as const, message: "Credit-card account not found." }
+  try {
+    await prisma.creditCardSettings.upsert({
+      where: { accountId: account.id },
+      update: { statementBalanceCents: input.expectedPaymentCents, paymentDueDay: date.getUTCDate(), paymentStrategy: "full_statement" },
+      create: {
+        userId: id,
+        accountId: account.id,
+        statementBalanceCents: input.expectedPaymentCents,
+        statementClosingDay: 1,
+        paymentDueDay: date.getUTCDate(),
+        paymentStrategy: "full_statement",
+      },
+    })
+    revalidateAccounts()
+    return { ok: true as const }
+  } catch (error) {
+    console.error("Failed to confirm card payment proposal", error)
+    return { ok: false as const, message: "We couldn’t add that payment to your forecast." }
+  }
+}
+
+export async function updateAccount(input: AccountInput & { accountId: string }) {
   const id = await userId()
   if (!id) return { ok: false as const, message: "Your session expired. Please sign in again." }
   const date = parseDate(input.balanceDate)
   if (!input.name.trim() || !date || !Number.isSafeInteger(input.balanceCents)) return { ok: false as const, message: "Add a name, current balance, and balance date." }
-  const account = await prisma.account.findFirst({ where: { id: input.accountId, userId: id }, select: { id: true } })
+  const account = await prisma.account.findFirst({ where: { id: input.accountId, userId: id }, select: { id: true, type: true, creditCardSettings: { select: { id: true } } } })
   if (!account) return { ok: false as const, message: "Account not found." }
+  if (account.type === "credit_card" && account.creditCardSettings && !validCardSettings(input)) return { ok: false as const, message: "Add the expected payment amount and due date." }
   try {
     const duplicate = await prisma.account.findFirst({ where: { userId: id, id: { not: account.id }, name: { equals: input.name.trim(), mode: "insensitive" } }, select: { id: true } })
     if (duplicate) return { ok: false as const, message: "You already have an account with that name." }
-    await prisma.$transaction([
-      prisma.account.update({ where: { id: account.id }, data: { name: input.name.trim(), anchorBalanceCents: input.balanceCents, anchorDate: date } }),
-      prisma.actualBalanceObservation.upsert({ where: { accountId_observedAt: { accountId: account.id, observedAt: date } }, update: { balanceCents: input.balanceCents }, create: { userId: id, accountId: account.id, balanceCents: input.balanceCents, observedAt: date } }),
-    ])
+    await prisma.$transaction(async (tx) => {
+      await tx.account.update({ where: { id: account.id }, data: { name: input.name.trim(), anchorBalanceCents: input.balanceCents, anchorDate: date } })
+      await tx.actualBalanceObservation.upsert({ where: { accountId_observedAt: { accountId: account.id, observedAt: date } }, update: { balanceCents: input.balanceCents }, create: { userId: id, accountId: account.id, balanceCents: input.balanceCents, observedAt: date } })
+      if (account.type === "credit_card" && account.creditCardSettings) {
+        await tx.creditCardSettings.upsert({ where: { accountId: account.id }, update: { statementBalanceCents: input.statementBalanceCents!, minimumPaymentCents: input.minimumPaymentCents, statementClosingDay: input.statementClosingDay!, paymentDueDay: input.paymentDueDay!, paymentStrategy: input.paymentStrategy!, fixedPaymentCents: input.fixedPaymentCents }, create: { userId: id, accountId: account.id, statementBalanceCents: input.statementBalanceCents!, minimumPaymentCents: input.minimumPaymentCents, statementClosingDay: input.statementClosingDay!, paymentDueDay: input.paymentDueDay!, paymentStrategy: input.paymentStrategy!, fixedPaymentCents: input.fixedPaymentCents } })
+      }
+    })
     revalidateAccounts()
     return { ok: true as const }
   } catch (error) {

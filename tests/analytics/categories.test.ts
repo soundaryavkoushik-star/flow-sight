@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildMonthlySpending, suggestMoneyInCategory, suggestSpendingCategory } from "../../lib/analytics/categories"
+import { buildMonthlySpending, exactDescriptionRuleKey, suggestMoneyInCategory, suggestSpendingCategory } from "../../lib/analytics/categories"
 
 describe("spending categories", () => {
   it("suggests a category from recognizable merchant text", () => {
@@ -14,6 +14,12 @@ describe("spending categories", () => {
     expect(suggestMoneyInCategory("IRS Tax Refund")).toBe("Refund / Reimbursement")
     expect(suggestMoneyInCategory("Invoice 1042 - Corner Bakery")).toBe("Variable / side income")
     expect(suggestMoneyInCategory("Deposit from ACME 4839")).toBe("Income — needs review")
+  })
+
+  it("scopes remembered corrections to exact normalized descriptions and direction", () => {
+    expect(exactDescriptionRuleKey("  Venmo - Birthday   Gift ", 7_500)).toBe("description:money_in:venmo - birthday gift")
+    expect(exactDescriptionRuleKey("Venmo - Birthday Gift", -7_500)).toBe("description:money_out:venmo - birthday gift")
+    expect(exactDescriptionRuleKey("Venmo - Client Payment", 7_500)).not.toBe(exactDescriptionRuleKey("Venmo - Birthday Gift", 7_500))
   })
 
   it("uses saved corrections and totals expenses only", () => {

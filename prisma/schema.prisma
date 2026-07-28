@@ -30,6 +30,7 @@ model UserProfile {
   lastForecastViewedAt DateTime?
   lastSafeToSpendCents Int?
   lastLowestBalanceCents Int?
+  lastForecastAccountIds Json @default("[]")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -52,8 +53,30 @@ model Account {
   createdAt    DateTime      @default(now())
   transactions Transaction[]
   balanceObservations ActualBalanceObservation[]
+  creditCardSettings CreditCardSettings? @relation("CreditCardAccount")
+  fundedCreditCards CreditCardSettings[] @relation("CreditCardPaymentAccount")
 
   @@index([userId])
+}
+
+model CreditCardSettings {
+  id                    String   @id @default(cuid())
+  userId                String
+  accountId             String   @unique
+  account               Account  @relation("CreditCardAccount", fields: [accountId], references: [id], onDelete: Cascade)
+  paymentAccountId      String?
+  paymentAccount        Account? @relation("CreditCardPaymentAccount", fields: [paymentAccountId], references: [id], onDelete: SetNull)
+  statementBalanceCents Int
+  minimumPaymentCents   Int?
+  statementClosingDay   Int
+  paymentDueDay         Int
+  paymentStrategy       String   @default("full_statement") // "full_statement" | "minimum" | "fixed"
+  fixedPaymentCents     Int?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([userId])
+  @@index([paymentAccountId])
 }
 
 model ForecastSnapshot {
@@ -71,10 +94,24 @@ model ForecastSnapshot {
   estimatedEventCount   Int
   projectedDays         Json
   includedEvents        Json
+  includedAccountIds    Json
   createdAt             DateTime @default(now())
 
   @@unique([userId, inputFingerprint])
   @@index([userId, createdAt])
+}
+
+model RecurringSuggestionDecision {
+  id            String   @id @default(cuid())
+  userId        String
+  accountId     String
+  normalizedKey String
+  decision      String   // "dismissed"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, accountId, normalizedKey])
+  @@index([userId, decision])
 }
 
 model ActualBalanceObservation {
@@ -105,8 +142,26 @@ model Transaction {
   aiSuggested Boolean   @default(false)
   plaidTransactionId String? @unique
   createdAt   DateTime  @default(now())
+  outgoingTransfer TransactionTransfer? @relation("TransferOut")
+  incomingTransfer TransactionTransfer? @relation("TransferIn")
 
   @@index([userId, date])
+}
+
+model TransactionTransfer {
+  id                    String      @id @default(cuid())
+  userId                String
+  outgoingTransactionId String      @unique
+  outgoingTransaction   Transaction @relation("TransferOut", fields: [outgoingTransactionId], references: [id], onDelete: Cascade)
+  incomingTransactionId String      @unique
+  incomingTransaction   Transaction @relation("TransferIn", fields: [incomingTransactionId], references: [id], onDelete: Cascade)
+  confidence            String      // "high" | "possible"
+  status                String      @default("suggested") // "suggested" | "confirmed" | "rejected"
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  @@unique([outgoingTransactionId, incomingTransactionId])
+  @@index([userId, status])
 }
 
 // Categories — user-defined

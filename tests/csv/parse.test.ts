@@ -1,10 +1,25 @@
 import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
-import { applyAmountSignConvention, applyTransactionDirection, detectAmountColumns, detectDirectionColumn, findHeader, normalizeDate, normalizeMerchant, parseCsv, parseMoney, recurringEvidenceConfidence, suggestRecurring } from "../../lib/csv/parse"
+import { applyAmountSignConvention, applyTransactionDirection, detectAmountColumns, detectDirectionColumn, findHeader, inferPositiveOnlyDirection, normalizeDate, normalizeMerchant, parseCsv, parseMoney, recurringEvidenceConfidence, suggestRecurring } from "../../lib/csv/parse"
 
 const fixture = (name: string) => readFileSync(new URL(`../fixtures/${name}`, import.meta.url), "utf8")
 
 describe("CSV parsing", () => {
+  it("recognizes an obvious positive-only savings export as money in", () => {
+    expect(inferPositiveOnlyDirection([
+      "Interest Payment",
+      "Transfer from Checking",
+      "Deposit - Cash",
+    ])).toBe("money_in")
+  })
+
+  it("keeps positive-only files ambiguous when a purchase-like row appears", () => {
+    expect(inferPositiveOnlyDirection([
+      "Interest Payment",
+      "Card Purchase",
+    ])).toBeNull()
+  })
+
   it("detects comma-delimited signed-amount exports and quoted values", () => {
     const parsed = parseCsv(fixture("chase-signed.csv"))
     expect(parsed.delimiter).toBe(",")
@@ -105,5 +120,28 @@ describe("recurring suggestions", () => {
       { date: "2026-04-01", description: "Store", amountCents: -1000 },
       { date: "2026-05-19", description: "Store", amountCents: -1200 },
     ], "account", new Date("2026-06-01T00:00:00Z"))).toHaveLength(0)
+  })
+
+  it("keeps habitual discretionary spending out of forecast obligations", () => {
+    const suggestions = suggestRecurring([
+      { date: "2026-04-01", description: "Shell Gas Station", amountCents: -4200 },
+      { date: "2026-04-15", description: "Shell Gas Station", amountCents: -4600 },
+      { date: "2026-04-29", description: "Shell Gas Station", amountCents: -4400 },
+    ], "checking", "2026-05-01")
+    expect(suggestions).toEqual([])
+  })
+
+  it("routes card payments away from recurring income while retaining interest income", () => {
+    const rows = [
+      { date: "2026-04-12", description: "Payment Received - Thank You", amountCents: 99_500 },
+      { date: "2026-05-12", description: "Payment Received - Thank You", amountCents: 108_000 },
+      { date: "2026-06-12", description: "Payment Received - Thank You", amountCents: 115_000 },
+      { date: "2026-04-28", description: "Interest Payment", amountCents: 410 },
+      { date: "2026-05-28", description: "Interest Payment", amountCents: 417 },
+      { date: "2026-06-28", description: "Interest Payment", amountCents: 417 },
+    ]
+    const suggestions = suggestRecurring(rows, "card", "2026-07-01", { accountType: "credit_card" })
+    expect(suggestions.map((item) => item.name)).toEqual(["Interest Payment"])
+    expect(suggestions[0]).toMatchObject({ type: "income", amountCents: 415 })
   })
 })

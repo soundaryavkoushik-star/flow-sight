@@ -3,6 +3,7 @@ export interface MeasurementSnapshot {
   forecastStartDate: Date
   forecastEndDate: Date
   projectedDays: unknown
+  includedAccountIds: unknown
 }
 
 export interface BalanceObservation {
@@ -13,6 +14,7 @@ export interface BalanceObservation {
 }
 
 export function measureForecasts(snapshots: MeasurementSnapshot[], observations: BalanceObservation[], accountIds: string[]) {
+  const activeScope = [...accountIds].sort()
   const byDate = new Map<string, BalanceObservation[]>()
   for (const observation of observations) {
     const key = observation.observedAt.toISOString().slice(0, 10)
@@ -24,7 +26,16 @@ export function measureForecasts(snapshots: MeasurementSnapshot[], observations:
     for (const item of items) if (!latestByAccount.has(item.accountId) || latestByAccount.get(item.accountId)!.createdAt < item.createdAt) latestByAccount.set(item.accountId, item)
     if (accountIds.some((id) => !latestByAccount.has(id))) continue
     const recordedAt = new Date(Math.max(...[...latestByAccount.values()].map((item) => item.createdAt.getTime())))
-    const eligible = snapshots.filter((snapshot) => snapshot.createdAt < recordedAt && snapshot.forecastStartDate.toISOString().slice(0, 10) <= date && snapshot.forecastEndDate.toISOString().slice(0, 10) >= date).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]
+    const eligible = snapshots.filter((snapshot) => {
+      const snapshotScope = Array.isArray(snapshot.includedAccountIds)
+        ? snapshot.includedAccountIds.filter((id): id is string => typeof id === "string").sort()
+        : []
+      return snapshotScope.length === activeScope.length
+        && snapshotScope.every((id, index) => id === activeScope[index])
+        && snapshot.createdAt < recordedAt
+        && snapshot.forecastStartDate.toISOString().slice(0, 10) <= date
+        && snapshot.forecastEndDate.toISOString().slice(0, 10) >= date
+    }).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]
     if (!eligible || !Array.isArray(eligible.projectedDays)) continue
     const projected = (eligible.projectedDays as Array<{ date?: unknown; endingBalanceCents?: unknown }>).find((day) => day.date === date)
     if (!projected || !Number.isSafeInteger(projected.endingBalanceCents)) continue

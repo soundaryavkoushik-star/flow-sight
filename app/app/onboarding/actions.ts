@@ -6,8 +6,9 @@ import { prisma } from "@/lib/data/prisma"
 import { calculateForecast, type FinancialEvent, type RecurringRule } from "@/lib/forecast"
 import { determineForecastCondition, type ForecastCondition } from "@/lib/forecast/condition"
 import { financialDateKey, isValidTimeZone } from "@/lib/forecast/timezone"
+import { addDays, addMonthsAnchored, toDateKey } from "@/lib/forecast/utils"
 
-type Frequency = "weekly" | "biweekly" | "monthly" | "annual"
+type Frequency = "weekly" | "biweekly" | "monthly" | "annual" | "irregular"
 
 export interface OnboardingRecurringItem {
   name: string
@@ -47,7 +48,7 @@ function isMoney(value: number) {
 }
 
 function isFrequency(value: string): value is Frequency {
-  return ["weekly", "biweekly", "monthly", "annual"].includes(value)
+  return ["weekly", "biweekly", "monthly", "annual", "irregular"].includes(value)
 }
 
 function parseDate(value: string | null) {
@@ -57,10 +58,15 @@ function parseDate(value: string | null) {
 }
 
 function estimatedIncomeDate(start: Date, frequency: Frequency) {
-  const date = new Date(start)
-  const days = frequency === "weekly" ? 7 : frequency === "biweekly" ? 14 : frequency === "annual" ? 365 : 30
-  date.setUTCDate(date.getUTCDate() + days)
-  return date
+  if (frequency === "irregular") return new Date(start)
+  const startKey = toDateKey(start)
+  const anchorDay = start.getUTCDate()
+  const nextKey = frequency === "weekly"
+    ? addDays(startKey, 7)
+    : frequency === "biweekly"
+      ? addDays(startKey, 14)
+      : addMonthsAnchored(startKey, frequency === "annual" ? 12 : 1, anchorDay)
+  return new Date(`${nextKey}T00:00:00.000Z`)
 }
 
 export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOnboardingResult> {
@@ -82,6 +88,9 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
     return !item.name.trim() || !isMoney(item.amountCents) || item.amountCents === 0 || !isFrequency(item.frequency) || (item.nextDate !== null && (!date || date < today))
   })) {
     return { ok: false, message: "One or more recurring items is invalid." }
+  }
+  if (payload.bills.some((item) => item.frequency === "irregular") || payload.income.some((item) => item.frequency === "irregular" && (item.kind !== "variable" || !item.nextDate))) {
+    return { ok: false, message: "Income without a regular cadence needs an expected date." }
   }
 
   try {
@@ -125,7 +134,7 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
             name: item.name.trim(),
             type: "income",
             amountCents: item.amountCents,
-            frequency: item.kind === "variable" ? "irregular" : item.frequency,
+            frequency: item.frequency,
             nextExpected: parseDate(item.nextDate) ?? estimatedIncomeDate(today, item.frequency),
             earliestExpected: parseDate(item.earliestDate ?? null),
             latestExpected: parseDate(item.latestDate ?? null),
@@ -154,10 +163,10 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
       })
     })
 
-    const forecastEvents: FinancialEvent[] = payload.income.filter((item) => item.kind === "variable").map((item, index) => ({ id: `onboarding:variable:${index}`, name: item.name.trim(), date: item.nextDate ?? todayKey, amountCents: item.amountCents, type: "income", source: "manual", confidence: item.confidence === "certain" ? "confirmed" : "estimated" }))
+    const forecastEvents: FinancialEvent[] = payload.income.filter((item) => item.frequency === "irregular").map((item, index) => ({ id: `onboarding:irregular:${index}`, name: item.name.trim(), date: item.nextDate!, amountCents: item.amountCents, type: "income", source: "manual", confidence: item.confidence === "certain" ? "confirmed" : "estimated" }))
     const recurringRules: RecurringRule[] = [
-      ...payload.income.filter((item) => item.kind !== "variable").map((item, index) => ({ id: `onboarding:income:${index}`, name: item.name.trim(), amountCents: item.amountCents, frequency: item.frequency, nextDate: item.nextDate ?? todayKey, confidence: item.nextDate ? "confirmed" as const : "estimated" as const })),
-      ...payload.bills.map((item, index) => ({ id: `onboarding:bill:${index}`, name: item.name.trim(), amountCents: -item.amountCents, frequency: item.frequency, nextDate: item.nextDate ?? todayKey, confidence: item.nextDate ? "confirmed" as const : "estimated" as const })),
+      ...payload.income.filter((item): item is OnboardingRecurringItem & { frequency: Exclude<Frequency, "irregular"> } => item.frequency !== "irregular").map((item, index) => ({ id: `onboarding:income:${index}`, name: item.name.trim(), amountCents: item.amountCents, frequency: item.frequency, nextDate: item.nextDate ?? toDateKey(estimatedIncomeDate(today, item.frequency)), confidence: item.kind === "variable" ? (item.confidence === "certain" ? "confirmed" as const : "estimated" as const) : item.nextDate ? "confirmed" as const : "estimated" as const })),
+      ...payload.bills.map((item, index) => ({ id: `onboarding:bill:${index}`, name: item.name.trim(), amountCents: -item.amountCents, frequency: item.frequency as RecurringRule["frequency"], nextDate: item.nextDate ?? todayKey, confidence: item.nextDate ? "confirmed" as const : "estimated" as const })),
     ]
     const forecast = calculateForecast({ startingBalanceCents: payload.balanceCents, events: forecastEvents, recurringRules, settings: { startDate: todayKey, days: 30, safetyBufferCents: payload.safetyBufferCents } })
     const included = forecast.days.flatMap((day) => day.events)

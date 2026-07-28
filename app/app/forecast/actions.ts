@@ -167,6 +167,7 @@ export interface ForecastSnapshotInput {
   lowestBalanceDate: string
   days: Array<{ date: string; endingBalanceCents: number }>
   events: Array<{ id: string; date: string; name: string; amountCents: number; confidence: "confirmed" | "estimated"; source: string }>
+  accountIds: string[]
 }
 
 export async function recordForecastVisit(input: ForecastSnapshotInput) {
@@ -176,7 +177,7 @@ export async function recordForecastVisit(input: ForecastSnapshotInput) {
   const lowestDate = parseDate(input.lowestBalanceDate)
   const endDate = input.days.length > 0 ? parseDate(input.days.at(-1)!.date) : null
   const moneyValues = [input.startingBalanceCents, input.safetyBufferCents, input.safeToSpendCents, input.lowestBalanceCents]
-  if (!user || !startDate || !lowestDate || !endDate || input.days.length > 62 || input.events.length > 1000 || moneyValues.some((value) => !Number.isSafeInteger(value))) return
+  if (!user || !startDate || !lowestDate || !endDate || input.days.length > 62 || input.events.length > 1000 || input.accountIds.length > 100 || moneyValues.some((value) => !Number.isSafeInteger(value))) return
   if (input.days.some((day) => !parseDate(day.date) || !Number.isSafeInteger(day.endingBalanceCents)) || input.events.some((event) => !parseDate(event.date) || !event.name.trim() || !Number.isSafeInteger(event.amountCents))) return
   const snapshot = {
     startDate: input.startDate,
@@ -184,6 +185,7 @@ export async function recordForecastVisit(input: ForecastSnapshotInput) {
     safetyBufferCents: input.safetyBufferCents,
     days: input.days,
     events: input.events,
+    accountIds: [...new Set(input.accountIds)].sort(),
   }
   const inputFingerprint = createHash("sha256").update(JSON.stringify(snapshot)).digest("hex")
   const confirmedEventCount = input.events.filter((event) => event.confidence === "confirmed").length
@@ -193,13 +195,13 @@ export async function recordForecastVisit(input: ForecastSnapshotInput) {
   await prisma.$transaction([
     prisma.userProfile.upsert({
       where: { userId: user.id },
-      update: { lastForecastViewedAt: now, lastSafeToSpendCents: input.safeToSpendCents, lastLowestBalanceCents: input.lowestBalanceCents, ...(timezone ? { timezone } : {}) },
-      create: { userId: user.id, lastForecastViewedAt: now, lastSafeToSpendCents: input.safeToSpendCents, lastLowestBalanceCents: input.lowestBalanceCents, ...(timezone ? { timezone } : {}) },
+      update: { lastForecastViewedAt: now, lastSafeToSpendCents: input.safeToSpendCents, lastLowestBalanceCents: input.lowestBalanceCents, lastForecastAccountIds: snapshot.accountIds, ...(timezone ? { timezone } : {}) },
+      create: { userId: user.id, lastForecastViewedAt: now, lastSafeToSpendCents: input.safeToSpendCents, lastLowestBalanceCents: input.lowestBalanceCents, lastForecastAccountIds: snapshot.accountIds, ...(timezone ? { timezone } : {}) },
     }),
     prisma.forecastSnapshot.upsert({
       where: { userId_inputFingerprint: { userId: user.id, inputFingerprint } },
       update: {},
-      create: { userId: user.id, inputFingerprint, forecastStartDate: startDate, forecastEndDate: endDate, startingBalanceCents: input.startingBalanceCents, safetyBufferCents: input.safetyBufferCents, safeToSpendCents: input.safeToSpendCents, lowestBalanceCents: input.lowestBalanceCents, lowestBalanceDate: lowestDate, confirmedEventCount, estimatedEventCount, projectedDays: input.days, includedEvents: input.events },
+      create: { userId: user.id, inputFingerprint, forecastStartDate: startDate, forecastEndDate: endDate, startingBalanceCents: input.startingBalanceCents, safetyBufferCents: input.safetyBufferCents, safeToSpendCents: input.safeToSpendCents, lowestBalanceCents: input.lowestBalanceCents, lowestBalanceDate: lowestDate, confirmedEventCount, estimatedEventCount, projectedDays: input.days, includedEvents: input.events, includedAccountIds: [...new Set(input.accountIds)].sort() },
     }),
   ])
 }

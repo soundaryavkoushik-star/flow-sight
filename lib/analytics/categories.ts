@@ -29,6 +29,14 @@ export type SpendingCategoryName = typeof SPENDING_CATEGORIES[number]["name"]
 export type MoneyInCategoryName = typeof MONEY_IN_CATEGORIES[number]["name"]
 export type TransactionCategoryName = typeof TRANSACTION_CATEGORIES[number]["name"]
 
+export function normalizeTransactionDescription(description: string) {
+  return description.trim().toLowerCase().replace(/\s+/g, " ")
+}
+
+export function exactDescriptionRuleKey(description: string, amountCents: number) {
+  return `description:${amountCents < 0 ? "money_out" : "money_in"}:${normalizeTransactionDescription(description)}`
+}
+
 export function suggestSpendingCategory(description: string): SpendingCategoryName {
   const normalized = description.trim().toLowerCase()
   return SPENDING_CATEGORIES.find((category) => category.name !== "Other" && category.keywords.some((keyword) => normalized.includes(keyword)))?.name ?? "Other"
@@ -48,7 +56,11 @@ export function categoriesForDirection(direction: "money_out" | "money_in") {
 }
 
 export function isForecastIncomeCategory(name: string) {
-  return !["Refund / Reimbursement", "Gift", "Transfer in"].includes(name)
+  return !["Refund / Reimbursement", "Gift", "Transfer in", "Income — needs review"].includes(name)
+}
+
+export function isForecastObligationCategory(name: SpendingCategoryName) {
+  return ["Housing", "Utilities", "Subscriptions", "Insurance", "Debt payments"].includes(name)
 }
 
 export function categoryColor(name: string) {

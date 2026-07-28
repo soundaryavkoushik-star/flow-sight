@@ -23,9 +23,15 @@ export function explainLowestPoint(days: ForecastDay[], lowestDate: string): For
     }]
   }
 
-  const nextIncomeExists = days
-    .slice(lowestIndex + 1)
-    .some((item) => item.events.some((event) => event.amountCents > 0))
+  const nextIncomeIndex = days.findIndex((item, index) => index > lowestIndex && item.events.some((event) => event.amountCents > 0))
+  const formatEventDate = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric" })
+  const timing = lastIncomeIndex >= 0 && nextIncomeIndex >= 0
+    ? ` after income on ${formatEventDate(days[lastIncomeIndex].date)} and before the next income on ${formatEventDate(days[nextIncomeIndex].date)}`
+    : nextIncomeIndex >= 0
+      ? ` before income on ${formatEventDate(days[nextIncomeIndex].date)}`
+      : lastIncomeIndex >= 0
+        ? ` after income on ${formatEventDate(days[lastIncomeIndex].date)}`
+        : ""
   const names = new Intl.ListFormat("en-US", { style: "long", type: "conjunction" })
     .format(expenses.map((event) => event.name))
   const date = new Date(`${lowestDate}T00:00:00`).toLocaleDateString("en-US", {
@@ -40,7 +46,7 @@ export function explainLowestPoint(days: ForecastDay[], lowestDate: string): For
 
   return [{
     date: lowestDate,
-    headline: `${names} ${expenses.length === 1 ? "is" : "are"} expected${nextIncomeExists ? " before your next income" : ""}, bringing your projected balance to its 30-day low of ${amount} on ${date}.`,
+    headline: `${names} ${expenses.length === 1 ? "is" : "are"} expected${timing}, bringing your projected balance to its 30-day low of ${amount} on ${date}.`,
     eventIds: expenses.map((event) => event.id),
   }]
 }

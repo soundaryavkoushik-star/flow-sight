@@ -6,9 +6,11 @@ import { buildMonthlySpending } from "@/lib/analytics/categories"
 import { measureForecasts } from "@/lib/analytics/forecast-measurement"
 import { rollForwardAnchors } from "@/lib/forecast/anchors"
 import { financialDateKey } from "@/lib/forecast/timezone"
+import { cardPaymentStrategyLabel, expectedCardPaymentCents, isMatchingCardPayment, nextCardPaymentDate } from "@/lib/forecast/credit-cards"
 
 export interface DashboardForecast {
   timezone: string
+  includedAccountIds: string[]
   currentBalanceCents: number
   currentBalanceDate: string
   safetyBufferCents: number
@@ -26,6 +28,7 @@ export interface DashboardForecast {
     viewedAt: string | null
     safeToSpendCents: number | null
     lowestBalanceCents: number | null
+    accountIds: string[]
   }
   input: ForecastInput
   forecast: ForecastResult
@@ -34,6 +37,14 @@ export interface DashboardForecast {
   freshness: { balanceAgeDays: number; status: "fresh" | "aging" | "stale" }
   excludedEvents: Array<{ name: string; date: string; amountCents: number }>
   balanceRollForward: Array<{ accountName: string; anchorBalanceCents: number; anchorDate: string; activityCents: number; openingBalanceCents: number }>
+  cardPayments: Array<{
+    cardName: string
+    paymentAccountName: string
+    statementBalanceCents: number
+    expectedPaymentCents: number
+    dueDate: string
+    strategy: string
+  }>
   trackRecord: ReturnType<typeof measureForecasts>
 }
 
@@ -58,12 +69,13 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
   const historyStart = addUtcDays(start, -55)
   const monthStart = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1))
   const earliestAnchor = accounts.map((account) => account.anchorDate).filter((date): date is Date => Boolean(date)).sort((a, b) => a.getTime() - b.getTime())[0] ?? start
-  const [transactions, snapshots, observations, recurring, historicalTransactions, monthlyTransactions] = await Promise.all([
+  const [transactions, snapshots, observations, recurring, historicalTransactions, monthlyTransactions, creditCards, confirmedTransfers] = await Promise.all([
     prisma.transaction.findMany({
       where: { userId, date: { gt: earliestAnchor, lt: end } },
       orderBy: { date: "asc" },
+      include: { account: { select: { isLiability: true } } },
     }),
-    prisma.forecastSnapshot.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 100, select: { createdAt: true, forecastStartDate: true, forecastEndDate: true, projectedDays: true } }),
+    prisma.forecastSnapshot.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 100, select: { createdAt: true, forecastStartDate: true, forecastEndDate: true, projectedDays: true, includedAccountIds: true } }),
     prisma.actualBalanceObservation.findMany({ where: { userId }, orderBy: { observedAt: "desc" }, take: 500, select: { accountId: true, balanceCents: true, observedAt: true, createdAt: true } }),
     prisma.recurringSeries.findMany({
       where: {
@@ -78,11 +90,25 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     prisma.transaction.findMany({
       where: { userId, date: { gte: historyStart, lt: addUtcDays(start, 1) }, amountCents: { lt: 0 } },
       orderBy: { date: "asc" },
-      select: { date: true, amountCents: true },
+      select: { id: true, date: true, amountCents: true },
     }),
     prisma.transaction.findMany({
       where: { userId, date: { gte: monthStart, lt: addUtcDays(start, 1) }, amountCents: { lt: 0 } },
-      select: { description: true, amountCents: true, category: { select: { name: true } } },
+      select: { id: true, description: true, amountCents: true, category: { select: { name: true } } },
+    }),
+    prisma.creditCardSettings.findMany({
+      where: { userId },
+      include: {
+        account: { select: { id: true, name: true } },
+        paymentAccount: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.transactionTransfer.findMany({
+      where: { userId, status: "confirmed" },
+      include: {
+        outgoingTransaction: { include: { account: { select: { isLiability: true } } } },
+        incomingTransaction: { include: { account: { select: { isLiability: true } } } },
+      },
     }),
   ])
 
@@ -96,7 +122,34 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     .filter((date): date is Date => Boolean(date))
     .sort((a, b) => b.getTime() - a.getTime())[0] ?? start
 
-  const events: FinancialEvent[] = [...transactions.filter((transaction) => transaction.date >= start).map((transaction) => ({
+  const creditCardAccountIds = new Set(creditCards.map((card) => card.account.id))
+  const confirmedTransferTransactionIds = new Set(confirmedTransfers.flatMap((transfer) => [transfer.outgoingTransactionId, transfer.incomingTransactionId]))
+  const cashToLiabilityTransferIds = new Set(confirmedTransfers
+    .filter((transfer) => !transfer.outgoingTransaction.account?.isLiability && transfer.incomingTransaction.account?.isLiability)
+    .map((transfer) => transfer.outgoingTransactionId))
+  const cardPayments = creditCards.flatMap((card) => {
+    const expectedPaymentCents = expectedCardPaymentCents(card)
+    if (expectedPaymentCents <= 0) return []
+    const dueDate = nextCardPaymentDate(start, card.paymentDueDay)
+    if (dueDate >= end) return []
+    return [{
+      cardName: card.account.name,
+      paymentAccountName: card.paymentAccount?.name ?? "an account FlowSight will identify",
+      statementBalanceCents: card.statementBalanceCents,
+      expectedPaymentCents,
+      dueDate: dateKey(dueDate),
+      strategy: cardPaymentStrategyLabel(card.paymentStrategy),
+      paymentAccountId: card.paymentAccount?.id ?? null,
+      settingsId: card.id,
+    }]
+  })
+
+  const plannedCardPayments = cardPayments.filter((payment) => !transactions.some((transaction) => isMatchingCardPayment(transaction, payment)))
+  const events: FinancialEvent[] = [...transactions.filter((transaction) =>
+    transaction.date >= start
+    && !transaction.account?.isLiability
+    && (!confirmedTransferTransactionIds.has(transaction.id) || cashToLiabilityTransferIds.has(transaction.id)),
+  ).map((transaction) => ({
     id: transaction.id,
     date: dateKey(transaction.date),
     amountCents: transaction.amountCents,
@@ -105,9 +158,19 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     name: transaction.description,
     accountId: transaction.accountId ?? undefined,
     confidence: "confirmed" as const,
-  })), ...recurring.filter((item) => item.frequency === "irregular" && item.nextExpected).map((item) => ({ id: item.id, date: dateKey(item.nextExpected!), amountCents: item.amountCents, type: "income" as const, source: "manual" as const, name: item.name, accountId: item.accountId ?? undefined, confidence: item.dateConfidence === "confirmed" ? "confirmed" as const : "estimated" as const }))]
+  })), ...recurring.filter((item) => item.frequency === "irregular" && item.nextExpected && !creditCardAccountIds.has(item.accountId ?? "")).map((item) => ({ id: item.id, date: dateKey(item.nextExpected!), amountCents: item.amountCents, type: "income" as const, source: "manual" as const, name: item.name, accountId: item.accountId ?? undefined, confidence: item.dateConfidence === "confirmed" ? "confirmed" as const : "estimated" as const })),
+  ...plannedCardPayments.map((payment) => ({
+    id: `credit-card-payment:${payment.settingsId}`,
+    date: payment.dueDate,
+    amountCents: -payment.expectedPaymentCents,
+    type: "expense" as const,
+    source: "manual" as const,
+    name: `${payment.cardName} payment`,
+    accountId: payment.paymentAccountId ?? undefined,
+    confidence: "confirmed" as const,
+  }))]
 
-  const recurringRules: RecurringRule[] = recurring.filter((item) => item.frequency !== "irregular").map((item) => ({
+  const recurringRules: RecurringRule[] = recurring.filter((item) => item.frequency !== "irregular" && !creditCardAccountIds.has(item.accountId ?? "")).map((item) => ({
     id: item.id,
     name: item.name,
     amountCents: item.amountCents,
@@ -137,6 +200,7 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
 
   return {
     timezone,
+    includedAccountIds: anchoredAccounts.map((account) => account.id).sort(),
     currentBalanceCents,
     currentBalanceDate: dateKey(currentBalanceDate),
     safetyBufferCents: profile?.safetyBufferCents ?? 0,
@@ -154,14 +218,16 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
       viewedAt: profile?.lastForecastViewedAt?.toISOString() ?? null,
       safeToSpendCents: profile?.lastSafeToSpendCents ?? null,
       lowestBalanceCents: profile?.lastLowestBalanceCents ?? null,
+      accountIds: Array.isArray(profile?.lastForecastAccountIds) ? profile.lastForecastAccountIds.filter((value): value is string => typeof value === "string") : [],
     },
     input,
     forecast: getForecast(input),
-    spendingHistory: buildSpendingHistory(historicalTransactions, start),
-    monthlySpending: buildMonthlySpending(monthlyTransactions.map((transaction) => ({ description: transaction.description, amountCents: transaction.amountCents, categoryName: transaction.category?.name }))),
+    spendingHistory: buildSpendingHistory(historicalTransactions.filter((transaction) => !confirmedTransferTransactionIds.has(transaction.id)), start),
+    monthlySpending: buildMonthlySpending(monthlyTransactions.filter((transaction) => !confirmedTransferTransactionIds.has(transaction.id)).map((transaction) => ({ description: transaction.description, amountCents: transaction.amountCents, categoryName: transaction.category?.name }))),
     freshness: { balanceAgeDays, status: balanceAgeDays >= 7 ? "stale" : balanceAgeDays >= 3 ? "aging" : "fresh" },
     excludedEvents,
     balanceRollForward: balanceRollForward.items.map((item) => ({ accountName: item.accountName, anchorBalanceCents: item.anchorBalanceCents, anchorDate: dateKey(item.anchorDate ?? start), activityCents: item.activityCents, openingBalanceCents: item.openingBalanceCents })),
+    cardPayments: cardPayments.map(({ cardName, paymentAccountName, statementBalanceCents, expectedPaymentCents, dueDate, strategy }) => ({ cardName, paymentAccountName, statementBalanceCents, expectedPaymentCents, dueDate, strategy })),
     trackRecord: measureForecasts(snapshots, observations, anchoredAccounts.map((account) => account.id)),
   }
 }

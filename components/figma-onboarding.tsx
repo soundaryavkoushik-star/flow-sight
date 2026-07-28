@@ -15,8 +15,18 @@ const mono: React.CSSProperties = { fontFamily: "'DM Mono', monospace" };
 // ── TYPES ────────────────────────────────────────────────────────────────────
 
 type IncomePatternValue = "regular" | "variable" | "mixed";
-interface IncomeItem { id: number; name: string; amount: string; frequency: string; nextDate: string | null; kind: "regular" | "variable"; earliestDate?: string | null; latestDate?: string | null; confidence?: "certain" | "likely" | "possible" }
-interface BillItem   { id: number; name: string; amount: string; frequency: string; nextDate: string | null }
+type PeriodicFrequencyValue = "weekly" | "biweekly" | "monthly" | "annual";
+type FrequencyValue = PeriodicFrequencyValue | "irregular";
+interface IncomeItem { id: number; name: string; amount: string; frequency: FrequencyValue; nextDate: string | null; kind: "regular" | "variable"; earliestDate?: string | null; latestDate?: string | null; confidence?: "certain" | "likely" | "possible" }
+interface BillItem   { id: number; name: string; amount: string; frequency: PeriodicFrequencyValue; nextDate: string | null }
+const FREQUENCY_OPTIONS: Array<{ value: PeriodicFrequencyValue; label: string }> = [
+  { value: "weekly", label: "Weekly" },
+  { value: "biweekly", label: "Every two weeks" },
+  { value: "monthly", label: "Monthly" },
+  { value: "annual", label: "Annual" },
+];
+const IRREGULAR_FREQUENCY_OPTION = { value: "irregular" as const, label: "No regular cadence" };
+const frequencyLabel = (value: FrequencyValue) => FREQUENCY_OPTIONS.find((option) => option.value === value)?.label ?? value;
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -347,7 +357,7 @@ function RecurringIncome({
 }) {
   const [name, setName] = useState("Monthly salary");
   const [amount, setAmount] = useState("");
-  const [freq, setFreq] = useState("Monthly");
+  const [freq, setFreq] = useState<FrequencyValue>("monthly");
   const [nextDate, setNextDate] = useState("");
   const [kind, setKind] = useState<"regular" | "variable">(pattern === "variable" ? "variable" : "regular");
   const [showRange, setShowRange] = useState(false);
@@ -357,7 +367,7 @@ function RecurringIncome({
   const [adding, setAdding] = useState(items.length === 0);
 
   const handleAdd = () => {
-    if (!name || !amount) return;
+    if (!name || !amount || (freq === "irregular" && !nextDate)) return;
     onAdd({ id: Date.now(), name, amount, frequency: freq, nextDate: nextDate || null, kind, earliestDate: kind === "variable" ? earliestDate || null : null, latestDate: kind === "variable" ? latestDate || null : null, confidence: kind === "variable" ? confidence : undefined });
     setName("");
     setAmount("");
@@ -377,7 +387,7 @@ function RecurringIncome({
         </p>
       </div>
 
-      {pattern === "mixed" && <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted p-1"><button type="button" onClick={() => setKind("regular")} className={`rounded-lg px-3 py-2 text-xs font-medium ${kind === "regular" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>Regular paycheck</button><button type="button" onClick={() => setKind("variable")} className={`rounded-lg px-3 py-2 text-xs font-medium ${kind === "variable" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>Variable income</button></div>}
+      {pattern === "mixed" && <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted p-1"><button type="button" onClick={() => { setKind("regular"); if (freq === "irregular") setFreq("monthly") }} className={`rounded-lg px-3 py-2 text-xs font-medium ${kind === "regular" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>Regular paycheck</button><button type="button" onClick={() => setKind("variable")} className={`rounded-lg px-3 py-2 text-xs font-medium ${kind === "variable" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>Variable income</button></div>}
 
       {/* Added items */}
       {items.length > 0 && (
@@ -389,7 +399,7 @@ function RecurringIncome({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                <p className="text-xs text-muted-foreground">{item.frequency} · {item.nextDate ? `Next ${new Date(`${item.nextDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Date estimated"}</p>
+                <p className="text-xs text-muted-foreground">{frequencyLabel(item.frequency)} · {item.nextDate ? `Next ${new Date(`${item.nextDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Date estimated"}</p>
               </div>
               <span className="text-sm font-semibold text-accent shrink-0" style={mono}>
                 +${parseFloat(item.amount).toLocaleString()}
@@ -423,15 +433,15 @@ function RecurringIncome({
                 className="w-full bg-muted border border-border rounded-xl pl-7 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-colors [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
-            {kind === "regular" && <select
+            <select
               value={freq}
-              onChange={(e) => setFreq(e.target.value)}
+              onChange={(e) => setFreq(e.target.value as FrequencyValue)}
               className="bg-muted border border-border rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/40 transition-colors"
             >
-              {["Weekly", "Bi-weekly", "Monthly", "Annual"].map((f) => (
-                <option key={f} value={f}>{f}</option>
+              {[...FREQUENCY_OPTIONS, ...(kind === "variable" ? [IRREGULAR_FREQUENCY_OPTION] : [])].map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
               ))}
-            </select>}
+            </select>
           </div>
           <div>
             <label className="text-xs text-muted-foreground block mb-1.5" htmlFor="income-next-date">{kind === "variable" ? "Expected date" : "Next deposit date"} <span className="text-muted-foreground/60">(optional)</span></label>
@@ -443,13 +453,13 @@ function RecurringIncome({
               onChange={(e) => setNextDate(e.target.value)}
               className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/40 transition-colors"
             />
-            <p className="text-[11px] text-muted-foreground mt-1.5">{kind === "variable" ? "FlowSight uses the expected date for the Phase 1 forecast." : "Not sure? Leave this blank and we’ll mark the timing as estimated."}</p>
+            <p className="text-[11px] text-muted-foreground mt-1.5">{freq === "irregular" ? "Required for one-off income. FlowSight includes it once and does not repeat it." : kind === "variable" ? "FlowSight uses the expected date and repeats the estimate at the cadence you selected." : "Not sure? Leave this blank and we’ll mark the timing as estimated."}</p>
           </div>
           {kind === "variable" && <><div><label className="text-xs text-muted-foreground block mb-1.5" htmlFor="income-confidence">How confident are you?</label><select id="income-confidence" value={confidence} onChange={(event) => setConfidence(event.target.value as typeof confidence)} className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"><option value="certain">Certain</option><option value="likely">Likely</option><option value="possible">Possible</option></select></div><button type="button" onClick={() => setShowRange((open) => !open)} className="text-xs text-primary hover:underline">{showRange ? "Hide date range" : "Add date range"}</button>{showRange && <div className="rounded-xl bg-muted/60 p-3 space-y-3"><p className="text-[11px] text-muted-foreground">FlowSight uses the expected date for now. The range helps improve your forecast over time.</p><div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-muted-foreground block mb-1">Earliest likely date</label><input type="date" value={earliestDate} onChange={(event) => setEarliestDate(event.target.value)} className="w-full bg-white border border-border rounded-lg px-2 py-2 text-xs" /></div><div><label className="text-[10px] text-muted-foreground block mb-1">Latest likely date</label><input type="date" value={latestDate} onChange={(event) => setLatestDate(event.target.value)} className="w-full bg-white border border-border rounded-lg px-2 py-2 text-xs" /></div></div></div>}</>}
           <div className="flex gap-2">
             <button
               onClick={handleAdd}
-              disabled={!name || !amount}
+              disabled={!name || !amount || (freq === "irregular" && !nextDate)}
               className="flex-1 bg-primary/15 text-primary py-2.5 rounded-xl text-sm font-medium hover:bg-primary/20 transition-colors disabled:opacity-40"
             >
               Add income
@@ -493,7 +503,7 @@ function RecurringBills({
 }) {
   const [name, setName] = useState("Rent");
   const [amount, setAmount] = useState("");
-  const [freq, setFreq] = useState("Monthly");
+  const [freq, setFreq] = useState<PeriodicFrequencyValue>("monthly");
   const [nextDate, setNextDate] = useState("");
   const [adding, setAdding] = useState(items.length === 0);
 
@@ -545,7 +555,7 @@ function RecurringBills({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                <p className="text-xs text-muted-foreground">{item.frequency} · {item.nextDate ? `Next ${new Date(`${item.nextDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Date estimated"}</p>
+                <p className="text-xs text-muted-foreground">{frequencyLabel(item.frequency)} · {item.nextDate ? `Next ${new Date(`${item.nextDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Date estimated"}</p>
               </div>
               <span className="text-sm font-semibold text-destructive shrink-0" style={mono}>
                 –${parseFloat(item.amount).toLocaleString()}
@@ -581,11 +591,11 @@ function RecurringBills({
             </div>
             <select
               value={freq}
-              onChange={(e) => setFreq(e.target.value)}
+              onChange={(e) => setFreq(e.target.value as PeriodicFrequencyValue)}
               className="bg-muted border border-border rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/40 transition-colors"
             >
-              {["Weekly", "Bi-weekly", "Monthly", "Annual"].map((f) => (
-                <option key={f} value={f}>{f}</option>
+              {FREQUENCY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
           </div>
@@ -794,14 +804,6 @@ export default function Onboarding() {
 
   const balanceNum = parseFloat(balance) || 0;
 
-  const normalizeFrequency = (value: string) => {
-    const normalized = value.toLowerCase().replace("-", "");
-    if (normalized === "biweekly") return "biweekly" as const;
-    if (normalized === "weekly") return "weekly" as const;
-    if (normalized === "annual") return "annual" as const;
-    return "monthly" as const;
-  };
-
   const persistAndContinue = async () => {
     setSaving(true);
     setSaveError(null);
@@ -811,7 +813,7 @@ export default function Onboarding() {
       income: income.map((item) => ({
         name: item.name,
         amountCents: Math.round(parseFloat(item.amount) * 100),
-        frequency: normalizeFrequency(item.frequency),
+        frequency: item.frequency,
         nextDate: item.nextDate,
         kind: item.kind,
         earliestDate: item.earliestDate,
@@ -821,7 +823,7 @@ export default function Onboarding() {
       bills: bills.map((item) => ({
         name: item.name,
         amountCents: Math.round(parseFloat(item.amount) * 100),
-        frequency: normalizeFrequency(item.frequency),
+        frequency: item.frequency,
         nextDate: item.nextDate,
       })),
       incomePattern: incomePattern ?? "regular",

@@ -15,6 +15,7 @@ export interface ManagedRecurringItem {
   nextExpected: string | null
   accountId: string | null
   accountName: string | null
+  accountType: string | null
   confidence: "confirmed" | "estimated"
   status: "confirmed" | "dismissed"
   minAmountCents: number | null
@@ -84,7 +85,8 @@ function RecurringGroup({ title, items, workingId, onEdit, onToggle, onRemove }:
             <span className={`text-[10px] rounded-full px-2 py-0.5 ${item.confidence === "confirmed" ? "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]" : "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]"}`}>{item.confidence}</span>
           </div>
           <p className="text-xs text-muted-foreground mt-1 capitalize">{item.type} · {item.frequency} · next {item.nextExpected ? new Date(`${item.nextExpected}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "date not set"}{item.accountName ? ` · ${item.accountName}` : ""}</p>
-          {item.confidence === "estimated" && item.occurrenceCount && item.minAmountCents !== null && item.maxAmountCents !== null && <p className="text-[11px] text-muted-foreground mt-1">Estimated from {item.occurrenceCount} occurrences ranging {money(item.minAmountCents)}–{money(item.maxAmountCents)}.</p>}
+          {item.accountType === "credit_card" && item.type === "bill" && <p className="text-[11px] text-muted-foreground mt-1">Tracked on this card · its cash impact is reflected in the card payment.</p>}
+          {item.confidence === "estimated" && item.occurrenceCount && item.minAmountCents !== null && item.maxAmountCents !== null && <p className="text-[11px] text-muted-foreground mt-1">Estimated from {item.occurrenceCount} occurrences ranging {money(Math.min(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)))}–{money(Math.max(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)))}.</p>}
         </div>
         <p className={`font-mono font-medium ${item.amountCents >= 0 ? "text-[hsl(var(--fs-green))]" : "text-foreground"}`}>{item.amountCents >= 0 ? "+" : "−"}{money(item.amountCents)}</p>
         <div className="flex gap-1">

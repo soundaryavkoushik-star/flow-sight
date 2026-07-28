@@ -15,6 +15,7 @@ export interface TransactionRow {
   categoryName: string | null
   amountCents: number
   source: string | null
+  transferStatus: string | null
 }
 
 export function TransactionsTable({ transactions }: { transactions: TransactionRow[] }) {
@@ -22,8 +23,8 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkCategory, setBulkCategory] = useState("Other")
   const [saving, setSaving] = useState(false)
-  const expenseIds = transactions.filter((transaction) => transaction.amountCents < 0).map((transaction) => transaction.id)
-  const reviewCount = transactions.filter((transaction) => transaction.amountCents > 0 && (transaction.categoryName ?? suggestTransactionCategory(transaction.description, transaction.amountCents)) === "Income — needs review").length
+  const expenseIds = transactions.filter((transaction) => transaction.amountCents < 0 && transaction.transferStatus !== "confirmed").map((transaction) => transaction.id)
+  const reviewCount = transactions.filter((transaction) => transaction.transferStatus !== "confirmed" && transaction.amountCents > 0 && (transaction.categoryName ?? suggestTransactionCategory(transaction.description, transaction.amountCents)) === "Income — needs review").length
 
   return <>
     {reviewCount > 0 && <div className="mx-4 sm:mx-5 mt-4 rounded-xl bg-[hsl(var(--fs-amber-bg))] px-3 py-2 text-xs text-foreground"><span className="font-medium">{reviewCount} money-in {reviewCount === 1 ? "transaction needs" : "transactions need"} review.</span> Use the highlighted category menu to tell FlowSight what the payment represents.</div>}
@@ -64,7 +65,7 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
         </thead>
         <tbody>
           {transactions.map((transaction) => <tr key={transaction.id} className="border-t border-border">
-            <td className="px-3 sm:px-5 py-3"><input type="checkbox" aria-label={`Select ${transaction.description}`} disabled={transaction.amountCents >= 0} checked={selected.has(transaction.id)} onChange={(event) => setSelected((current) => {
+            <td className="px-3 sm:px-5 py-3"><input type="checkbox" aria-label={`Select ${transaction.description}`} disabled={transaction.amountCents >= 0 || transaction.transferStatus === "confirmed"} checked={selected.has(transaction.id)} onChange={(event) => setSelected((current) => {
               const next = new Set(current)
               if (event.target.checked) next.add(transaction.id)
               else next.delete(transaction.id)
@@ -73,8 +74,8 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
             <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{new Date(`${transaction.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
             <td className="px-3 py-3 font-medium max-w-56 truncate">{transaction.description}</td>
             <td className="px-3 py-3 text-muted-foreground">{transaction.accountName ?? "Unassigned"}</td>
-            <td className="px-3 py-3 text-xs text-muted-foreground">{transaction.amountCents < 0 ? "Money out" : "Money in"}</td>
-            <td className="px-3 py-3"><TransactionCategorySelect transactionId={transaction.id} description={transaction.description} amountCents={transaction.amountCents} currentCategory={transaction.categoryName} /></td>
+            <td className="px-3 py-3 text-xs text-muted-foreground">{transaction.transferStatus === "confirmed" ? "Transfer" : transaction.amountCents < 0 ? "Money out" : "Money in"}</td>
+            <td className="px-3 py-3">{transaction.transferStatus === "confirmed" ? <span className="inline-flex rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">Between your accounts</span> : <TransactionCategorySelect transactionId={transaction.id} description={transaction.description} amountCents={transaction.amountCents} currentCategory={transaction.categoryName} />}</td>
             <td className={`px-3 py-3 text-right font-mono ${transaction.amountCents >= 0 ? "text-primary" : "text-destructive"}`}>{transaction.amountCents >= 0 ? "+" : "−"}{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Math.abs(transaction.amountCents) / 100)}</td>
             <td className="px-3 sm:px-5 py-3 text-right text-xs text-muted-foreground">{transaction.source ?? "Manual"}</td>
           </tr>)}

@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/data/prisma"
-import { categoriesForDirection, SPENDING_CATEGORIES, suggestTransactionCategory, TRANSACTION_CATEGORIES } from "@/lib/analytics/categories"
+import { categoriesForDirection, exactDescriptionRuleKey, normalizeTransactionDescription, SPENDING_CATEGORIES, suggestTransactionCategory, TRANSACTION_CATEGORIES } from "@/lib/analytics/categories"
 import { randomUUID } from "node:crypto"
-import { recurringEvidenceConfidence } from "@/lib/csv/parse"
+import { normalizeMerchant, recurringEvidenceConfidence } from "@/lib/csv/parse"
 
 export interface CsvTransactionInput {
   date: string
@@ -24,7 +24,7 @@ export interface CsvImportInput {
 }
 
 export type CsvImportResult =
-  | { ok: true; imported: number; duplicates: number; accountId: string }
+  | { ok: true; imported: number; duplicates: number; accountId: string; accountType: string }
   | { ok: false; message: string }
 
 export interface RecurringConfirmationInput {
@@ -87,7 +87,7 @@ export async function importCsvTransactions(input: CsvImportInput): Promise<CsvI
   try {
     return await prisma.$transaction(async (tx) => {
       let account = input.accountId
-        ? await tx.account.findFirst({ where: { id: input.accountId, userId: user.id, isLiability: false } })
+        ? await tx.account.findFirst({ where: { id: input.accountId, userId: user.id, type: { in: ["checking", "savings", "credit_card"] } } })
         : null
       if (input.accountId && !account) throw new Error("Selected account not found")
       if (!account) {
@@ -126,9 +126,16 @@ export async function importCsvTransactions(input: CsvImportInput): Promise<CsvI
       })
 
       if (uniqueRows.length > 0) {
-        const suggestedNames = [...new Set(uniqueRows.map((row) => suggestTransactionCategory(row.description, row.amountCents)))]
-        const categoryIds = new Map<string, string>()
+        const exactRules = await tx.categoryRule.findMany({
+          where: { userId: user.id, keyword: { startsWith: "description:" } },
+          select: { keyword: true, category: { select: { id: true, name: true } } },
+        })
+        const exactRuleByKey = new Map(exactRules.map((rule) => [rule.keyword, rule.category]))
+        const categoryNameFor = (description: string, amountCents: number) => exactRuleByKey.get(exactDescriptionRuleKey(description, amountCents))?.name ?? suggestTransactionCategory(description, amountCents)
+        const suggestedNames = [...new Set(uniqueRows.map((row) => categoryNameFor(row.description, row.amountCents)))]
+        const categoryIds = new Map(exactRules.map((rule) => [rule.category.name, rule.category.id]))
         for (const name of suggestedNames) {
+          if (categoryIds.has(name)) continue
           const definition = TRANSACTION_CATEGORIES.find((category) => category.name === name)!
           const category = await tx.category.upsert({
             where: { userId_name: { userId: user.id, name } },
@@ -144,14 +151,14 @@ export async function importCsvTransactions(input: CsvImportInput): Promise<CsvI
             date: row.parsedDate!,
             description: row.description.trim(),
             amountCents: row.amountCents,
-            categoryId: categoryIds.get(suggestTransactionCategory(row.description, row.amountCents)),
+            categoryId: categoryIds.get(categoryNameFor(row.description, row.amountCents)),
             source: input.filename,
           })),
         })
       }
 
       await tx.userProfile.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id } })
-      return { ok: true as const, imported: uniqueRows.length, duplicates: input.rows.length - uniqueRows.length, accountId: account.id }
+      return { ok: true as const, imported: uniqueRows.length, duplicates: input.rows.length - uniqueRows.length, accountId: account.id, accountType: account.type }
     })
   } catch (error) {
     console.error("CSV import failed", error)
@@ -220,7 +227,18 @@ export async function setTransactionCategory(transactionId: string, categoryName
   if (!definition) return { ok: false as const, message: "Choose a category that matches the transaction direction." }
   try {
     const category = await prisma.category.upsert({ where: { userId_name: { userId: user.id, name: definition.name } }, update: { color: definition.color }, create: { userId: user.id, name: definition.name, color: definition.color } })
-    await prisma.transaction.update({ where: { id: transaction.id }, data: { categoryId: category.id } })
+    const fullTransaction = await prisma.transaction.findUnique({ where: { id: transaction.id }, select: { description: true } })
+    if (!fullTransaction) return { ok: false as const, message: "Transaction not found." }
+    const keyword = exactDescriptionRuleKey(fullTransaction.description, transaction.amountCents)
+    await prisma.$transaction(async (tx) => {
+      await tx.transaction.update({ where: { id: transaction.id }, data: { categoryId: category.id } })
+      const existingRule = await tx.categoryRule.findFirst({ where: { userId: user.id, keyword }, select: { id: true } })
+      if (existingRule) await tx.categoryRule.update({ where: { id: existingRule.id }, data: { categoryId: category.id } })
+      else await tx.categoryRule.create({ data: { userId: user.id, categoryId: category.id, keyword } })
+      const candidates = await tx.transaction.findMany({ where: { userId: user.id, id: { not: transaction.id }, amountCents: transaction.amountCents < 0 ? { lt: 0 } : { gt: 0 } }, select: { id: true, description: true } })
+      const matchingIds = candidates.filter((candidate) => normalizeTransactionDescription(candidate.description) === normalizeTransactionDescription(fullTransaction.description)).map((candidate) => candidate.id)
+      if (matchingIds.length > 0) await tx.transaction.updateMany({ where: { id: { in: matchingIds }, userId: user.id }, data: { categoryId: category.id } })
+    })
     revalidatePath("/app/transactions")
     revalidatePath("/app/dashboard")
     return { ok: true as const }
@@ -247,6 +265,67 @@ export async function setTransactionsCategory(transactionIds: string[], category
     console.error("Failed to update transaction categories", error)
     return { ok: false as const, message: "We couldn’t update those categories." }
   }
+}
+
+async function authenticatedUserId() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  return user?.id ?? null
+}
+
+function revalidateTransferPaths() {
+  revalidatePath("/app/transactions")
+  revalidatePath("/app/dashboard")
+  revalidatePath("/app/forecast")
+}
+
+export async function reviewTransferSuggestion(
+  outgoingTransactionId: string,
+  incomingTransactionId: string,
+  decision: "confirmed" | "rejected",
+) {
+  const userId = await authenticatedUserId()
+  if (!userId) return { ok: false as const, message: "Your session expired. Please sign in again." }
+  try {
+    const transactions = await prisma.transaction.findMany({
+      where: { userId, id: { in: [outgoingTransactionId, incomingTransactionId] }, accountId: { not: null } },
+      include: { account: { select: { id: true, type: true } } },
+    })
+    const outgoing = transactions.find((transaction) => transaction.id === outgoingTransactionId)
+    const incoming = transactions.find((transaction) => transaction.id === incomingTransactionId)
+    if (!outgoing || !incoming || outgoing.accountId === incoming.accountId || outgoing.amountCents >= 0 || incoming.amountCents <= 0 || outgoing.amountCents !== -incoming.amountCents) {
+      return { ok: false as const, message: "That transfer match is no longer valid." }
+    }
+    await prisma.$transaction(async (tx) => {
+      await tx.transactionTransfer.upsert({
+        where: { outgoingTransactionId_incomingTransactionId: { outgoingTransactionId, incomingTransactionId } },
+        update: { status: decision },
+        create: { userId, outgoingTransactionId, incomingTransactionId, confidence: "user_reviewed", status: decision },
+      })
+      const cardTransaction = [outgoing, incoming].find((transaction) => transaction.account?.type === "credit_card")
+      const cashTransaction = [outgoing, incoming].find((transaction) => transaction.account && ["checking", "savings"].includes(transaction.account.type))
+      if (decision === "confirmed" && cardTransaction?.accountId && cashTransaction?.accountId) {
+        await tx.creditCardSettings.updateMany({
+          where: { userId, accountId: cardTransaction.accountId },
+          data: { paymentAccountId: cashTransaction.accountId, paymentDueDay: outgoing.date.getUTCDate() },
+        })
+      }
+    })
+    revalidateTransferPaths()
+    return { ok: true as const }
+  } catch (error) {
+    console.error("Failed to review transfer", error)
+    return { ok: false as const, message: "We couldn’t save that transfer decision." }
+  }
+}
+
+export async function undoTransferDecision(transferId: string) {
+  const userId = await authenticatedUserId()
+  if (!userId) return { ok: false as const, message: "Your session expired. Please sign in again." }
+  const result = await prisma.transactionTransfer.deleteMany({ where: { id: transferId, userId } })
+  if (result.count === 0) return { ok: false as const, message: "That transfer decision could not be found." }
+  revalidateTransferPaths()
+  return { ok: true as const }
 }
 
 export async function saveRecurringSeries(input: RecurringSeriesInput) {
@@ -309,13 +388,17 @@ function revalidateRecurringPaths() {
   revalidatePath("/app/accounts")
 }
 
-export async function confirmRecurringSuggestions(items: RecurringConfirmationInput[], replacements: RecurringReplacementInput[] = []) {
+export async function confirmRecurringSuggestions(
+  items: RecurringConfirmationInput[],
+  replacements: RecurringReplacementInput[] = [],
+  dismissedItems: RecurringConfirmationInput[] = [],
+) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, message: "Your session expired. Please sign in again." }
-  if (items.length > 100 || replacements.length > 25) return { ok: false as const, message: "Too many recurring items were selected." }
+  if (items.length > 100 || dismissedItems.length > 100 || replacements.length > 25) return { ok: false as const, message: "Too many recurring items were selected." }
 
-  for (const item of items) {
+  for (const item of [...items, ...dismissedItems]) {
     const date = parseDate(item.nextExpected)
     const evidenceStartDate = parseDate(item.evidenceStartDate)
     const evidenceEndDate = parseDate(item.evidenceEndDate)
@@ -328,6 +411,9 @@ export async function confirmRecurringSuggestions(items: RecurringConfirmationIn
     const reconciliationIds = await prisma.$transaction(async (tx) => {
       const saved = new Map<string, { seriesId: string; created: boolean }>()
       for (const item of items) {
+        await tx.recurringSuggestionDecision.deleteMany({
+          where: { userId: user.id, accountId: item.accountId, normalizedKey: normalizeMerchant(item.name) },
+        })
         const normalizedKey = `csv:${item.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-")}`
         const dateConfidence = recurringEvidenceConfidence(item.minAmountCents, item.maxAmountCents)
         const prior = await tx.recurringSeries.findUnique({ where: { userId_normalizedKey: { userId: user.id, normalizedKey } }, select: { id: true } })
@@ -337,6 +423,14 @@ export async function confirmRecurringSuggestions(items: RecurringConfirmationIn
           create: { userId: user.id, normalizedKey, name: item.name.trim(), type: item.type, amountCents: item.amountCents, frequency: item.frequency, nextExpected: parseDate(item.nextExpected)!, anchorDayOfMonth: item.anchorDayOfMonth, minAmountCents: item.minAmountCents, maxAmountCents: item.maxAmountCents, occurrenceCount: item.occurrenceCount, evidenceStartDate: parseDate(item.evidenceStartDate)!, evidenceEndDate: parseDate(item.evidenceEndDate)!, dateConfidence, status: "confirmed", accountId: item.accountId },
         })
         if (item.id) saved.set(item.id, { seriesId: series.id, created: !prior })
+      }
+
+      for (const item of dismissedItems) {
+        await tx.recurringSuggestionDecision.upsert({
+          where: { userId_accountId_normalizedKey: { userId: user.id, accountId: item.accountId, normalizedKey: normalizeMerchant(item.name) } },
+          update: { decision: "dismissed" },
+          create: { userId: user.id, accountId: item.accountId, normalizedKey: normalizeMerchant(item.name), decision: "dismissed" },
+        })
       }
 
       const createdReconciliations: string[] = []
