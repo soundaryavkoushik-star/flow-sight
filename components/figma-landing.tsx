@@ -8,7 +8,7 @@ import {
 import {
   Shield, TrendingUp, Bell, ArrowRight, Lock,
   Code, Briefcase, AtSign, BarChart3, Home, Zap,
-  X, Menu, Sparkles, CheckCircle, RotateCcw, ChevronDown,
+  X, Menu, Sparkles, CheckCircle, RotateCcw, ChevronDown, CircleHelp,
 } from "lucide-react";
 
 const display: React.CSSProperties = { fontFamily: "'Bricolage Grotesque', sans-serif" };
@@ -105,6 +105,7 @@ function CausalAhaForecast() {
   const [phase, setPhase] = useState(0);
   const [run, setRun] = useState(0);
   const [entered, setEntered] = useState(false);
+  const [inspectedStep, setInspectedStep] = useState<number | null>(null);
 
   useEffect(() => {
     const node = rootRef.current;
@@ -130,7 +131,8 @@ function CausalAhaForecast() {
   }, [entered, run]);
 
   const eventPhase = Math.min(phase, 3);
-  const balance = ahaBuildSteps[eventPhase].amount;
+  const displayedPhase = inspectedStep ?? eventPhase;
+  const balance = ahaBuildSteps[displayedPhase].amount;
   const fullPath = ahaBuildSteps.map((point, index) => `${index ? "L" : "M"}${point.x},${point.y}`).join(" ");
   const areaPath = `${fullPath} L548,138 L28,138 Z`;
 
@@ -145,7 +147,7 @@ function CausalAhaForecast() {
           <div>
             <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground" style={mono}>Projected balance</p>
             <p className="mt-2 text-[38px] font-medium leading-none text-foreground" style={mono}><CountUp value={balance} prefix="$" duration={600} /></p>
-            <p className="mt-2 min-h-5 text-xs text-muted-foreground">{eventPhase === 0 ? "Before upcoming bills" : `After ${ahaBuildSteps[eventPhase].label.toLowerCase()}`}</p>
+            <p className="mt-2 min-h-5 text-xs text-muted-foreground">{displayedPhase === 0 ? "Before upcoming bills" : `After ${ahaBuildSteps[displayedPhase].label.toLowerCase()}`}</p>
           </div>
           <svg viewBox="0 0 576 154" className="h-[190px] w-full" role="img" aria-label="Projected balance falling as rent, insurance, and the car payment arrive">
             {[38, 76, 114].map((y) => <line key={y} x1="20" y1={y} x2="558" y2={y} stroke="#E7DDD1" strokeWidth="1" opacity=".7" />)}
@@ -153,17 +155,31 @@ function CausalAhaForecast() {
             <text x="22" y="108" fill="#B7791F" fontSize="10">$500 safety buffer</text>
             <path d={areaPath} fill="#C96B43" className={`transition-opacity duration-500 ${eventPhase === 3 ? "opacity-[0.08]" : "opacity-0"}`} />
             <path d={fullPath} fill="none" stroke="#C96B43" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" pathLength="1" strokeDasharray="1" strokeDashoffset={1 - eventPhase / 3} className="transition-[stroke-dashoffset] duration-700 ease-out" />
-            {ahaBuildSteps.map((step, index) => <g key={step.label} className={`transition-[opacity,transform] duration-300 ${index <= eventPhase ? "opacity-100" : "translate-y-1 opacity-0"}`}><line x1={step.x} y1={step.y + 7} x2={step.x} y2="138" stroke="#C96B43" strokeDasharray="3 3" opacity=".42" /><circle cx={step.x} cy={step.y} r={index === eventPhase ? 7 : 5} fill={index === 0 ? "#111827" : "#C96B43"} stroke="#FFFDFC" strokeWidth="2" /></g>)}
+            {ahaBuildSteps.map((step, index) => <g key={step.label} className={`transition-[opacity,transform] duration-300 ${index <= eventPhase ? "opacity-100" : "translate-y-1 opacity-0"}`}><line x1={step.x} y1={step.y + 7} x2={step.x} y2="138" stroke="#C96B43" strokeDasharray="3 3" opacity={index === displayedPhase ? ".8" : ".3"} className="transition-opacity duration-200" /><circle cx={step.x} cy={step.y} r={index === displayedPhase ? 8 : 5} fill={index === 0 ? "#111827" : "#C96B43"} stroke="#FFFDFC" strokeWidth={index === displayedPhase ? 3 : 2} className="transition-[r,stroke-width] duration-200" /></g>)}
           </svg>
         </div>
         <div className="mt-2 grid min-h-[80px] gap-2 sm:grid-cols-3">
-          {ahaBuildSteps.slice(1).map((step, index) => <div key={step.label} className={`rounded-xl border p-3 transition-all duration-300 ${index + 1 <= eventPhase ? "translate-y-0 border-[#E7DDD1] bg-white opacity-100" : "translate-y-2 border-transparent bg-transparent opacity-0"}`}><div className="flex justify-between gap-2 text-xs"><span className="font-medium">{step.label}</span><span style={mono}>{step.delta}</span></div><p className="mt-1 text-[10px] text-muted-foreground">{step.date} · confirmed</p></div>)}
+          {ahaBuildSteps.slice(1).map((step, index) => {
+            const stepIndex = index + 1;
+            const isInspected = displayedPhase === stepIndex;
+            return <button
+              type="button"
+              key={step.label}
+              disabled={stepIndex > eventPhase}
+              onMouseEnter={() => setInspectedStep(stepIndex)}
+              onMouseLeave={() => setInspectedStep(null)}
+              onFocus={() => setInspectedStep(stepIndex)}
+              onBlur={() => setInspectedStep(null)}
+              className={`rounded-xl border p-3 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${stepIndex <= eventPhase ? `translate-y-0 opacity-100 ${isInspected ? "border-primary/45 bg-primary/[0.06] shadow-[0_8px_22px_rgba(201,107,67,0.10)]" : "border-[#E7DDD1] bg-white hover:border-primary/30"}` : "translate-y-2 cursor-default border-transparent bg-transparent opacity-0"}`}
+              aria-label={`Inspect ${step.label}: ${step.delta}, projected balance $${step.amount.toLocaleString()}`}
+            ><div className="flex justify-between gap-2 text-xs"><span className="font-medium">{step.label}</span><span style={mono}>{step.delta}</span></div><p className="mt-1 text-[10px] text-muted-foreground">{step.date} · confirmed</p></button>;
+          })}
         </div>
       </div>
       <div className="flex min-h-[330px] flex-col justify-center">
         <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>Five days of warning</p>
         <h2 className="text-[40px] font-medium leading-[1.06] tracking-tight lg:text-[48px]" style={display}>
-          See the tight day<br />before it arrives.
+          See the <span className="text-[hsl(var(--fs-amber))]">tight day</span><br /><span className="text-primary">before it arrives.</span>
         </h2>
         <p className={`mt-5 text-[22px] leading-snug transition-all duration-500 ${phase === 4 ? "translate-y-0 opacity-100" : "translate-y-2 opacity-35"}`}><strong style={mono}>$420 on August 3.</strong><br /><span className="text-[hsl(var(--fs-amber))]">Five days before payday.</span></p>
         <p className="mt-5 text-muted-foreground leading-relaxed">FlowSight combines the timing of your balance, income, and upcoming commitments—then shows exactly what creates the low point.</p>
@@ -215,18 +231,17 @@ const scenarios = [
 ];
 
 const generateScenarioData = (amount: number) => [
-  { day: "Jul 21", balance: 4240, projected: null },
-  { day: "Jul 23", balance: 3720, projected: null },
-  { day: "Jul 25", balance: 6790, projected: null },
-  { day: "Jul 27", balance: 6320, projected: null },
-  { day: "Jul 29", balance: 5940, projected: null },
-  { day: "Jul 31", balance: 5500, baseline: 5500, projected: 5500 },
-  { day: "Aug 2", balance: null, baseline: 5240, projected: 5240 - amount },
-  { day: "Aug 4", balance: null, baseline: 4980, projected: 4980 - amount },
-  { day: "Aug 7", balance: null, baseline: 3340, projected: 3340 - amount },
-  { day: "Aug 11", balance: null, baseline: 8180, projected: 8180 - amount },
-  { day: "Aug 15", balance: null, baseline: 7440, projected: 7440 - amount },
-  { day: "Aug 20", balance: null, baseline: 6900, projected: 6900 - amount },
+  { day: "Jul 21", balance: 4240, baseline: null, projected: null },
+  { day: "Jul 23", balance: 3720, baseline: null, projected: null },
+  { day: "Jul 25", balance: 5490, baseline: null, projected: null },
+  { day: "Jul 27", balance: 5220, baseline: null, projected: null },
+  { day: "Jul 29", balance: 5740, baseline: null, projected: null },
+  { day: "Today", balance: 5500, baseline: 5500, projected: 5500 - amount },
+  { day: "Aug 2", baseline: 4210, projected: 4210 - amount },
+  { day: "Aug 7", baseline: 3340, projected: 3340 - amount },
+  { day: "Aug 11", baseline: 5740, projected: 5740 - amount },
+  { day: "Aug 15", baseline: 5120, projected: 5120 - amount },
+  { day: "Aug 20", baseline: 4460, projected: 4460 - amount },
 ];
 
 const trustItems = [
@@ -244,6 +259,23 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
     </div>
   );
 };
+
+function ScenarioTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value?: number; dataKey?: string; color?: string }>; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const values = payload.filter((item) => typeof item.value === "number");
+  if (!values.length) return null;
+  const projected = values.find((item) => item.dataKey === "projected");
+  const recorded = values.find((item) => item.dataKey === "balance");
+  const baseline = values.find((item) => item.dataKey === "baseline");
+  const primary = projected ?? recorded ?? baseline;
+  if (typeof primary?.value !== "number") return null;
+  return <div className="min-w-[130px] rounded-xl border border-[#E7DDD1] bg-white/95 px-3 py-2.5 shadow-[0_12px_30px_rgba(28,28,34,0.12)] backdrop-blur-sm">
+    <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground" style={mono}>{label}</p>
+    <p className="mt-1 text-sm font-medium text-foreground" style={mono}>${primary.value.toLocaleString()}</p>
+    <p className="mt-1 text-[9px] text-muted-foreground">{recorded ? "Recorded balance" : "Projected balance"}</p>
+    {projected && baseline && projected.value !== baseline.value && <p className="mt-1.5 border-t border-border pt-1.5 text-[9px] text-primary" style={mono}>${Math.abs(baseline.value! - projected.value!).toLocaleString()} purchase impact</p>}
+  </div>;
+}
 
 const ahaStories = [
   {
@@ -433,17 +465,21 @@ export default function Landing() {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [featureGridVisible, setFeatureGridVisible] = useState(false);
   const [featureGridResolved, setFeatureGridResolved] = useState(false);
-  const [featureGridPaused, setFeatureGridPaused] = useState(false);
+  const [scenarioPaused, setScenarioPaused] = useState(false);
+  const [incomeDemoPaused, setIncomeDemoPaused] = useState(false);
   const [activeSection, setActiveSection] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const sectionVisibility = useRef(new Map<string, number>());
   const heroSectionRef = useRef<HTMLElement>(null);
   const heroCopyRef = useRef<HTMLDivElement>(null);
   const heroMockupRef = useRef<HTMLDivElement>(null);
   const heroGlowRef = useRef<HTMLDivElement>(null);
   const featureGridRef = useRef<HTMLElement>(null);
+  const contrastRef = useRef<HTMLElement>(null);
+  const contrastInteractedRef = useRef(false);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setHeroReady(true));
@@ -462,6 +498,16 @@ export default function Landing() {
       if (interval) window.clearInterval(interval);
     };
   }, [heroHighlightPaused, heroReady]);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (heroHighlight !== 0) {
+      setHeroShowWork(false);
+      return;
+    }
+    const revealTimer = window.setTimeout(() => setHeroShowWork(true), 420);
+    return () => window.clearTimeout(revealTimer);
+  }, [heroHighlight]);
 
   useEffect(() => {
     const node = featureGridRef.current;
@@ -487,15 +533,34 @@ export default function Landing() {
   }, []);
 
   useEffect(() => {
-    if (!featureGridVisible || featureGridPaused || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const incomeOrder = ["salary", "freelance", "mixed"] as const;
-    const scenarioTimer = window.setInterval(() => setScenario((current) => (current + 1) % scenarios.length), 3200);
-    const incomeTimer = window.setInterval(() => setIncomeDemo((current) => incomeOrder[(incomeOrder.indexOf(current) + 1) % incomeOrder.length]), 3200);
+    const node = contrastRef.current;
+    if (!node || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let advanceTimer = 0;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      setComparisonFocus("past");
+      advanceTimer = window.setTimeout(() => {
+        if (!contrastInteractedRef.current) setComparisonFocus("future");
+      }, 1800);
+      observer.disconnect();
+    }, { threshold: 0.35 });
+    observer.observe(node);
     return () => {
-      window.clearInterval(scenarioTimer);
-      window.clearInterval(incomeTimer);
+      observer.disconnect();
+      if (advanceTimer) window.clearTimeout(advanceTimer);
     };
-  }, [featureGridPaused, featureGridVisible]);
+  }, []);
+
+  useEffect(() => {
+    if (!featureGridVisible || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const incomeOrder = ["salary", "freelance", "mixed"] as const;
+    const scenarioTimer = scenarioPaused ? 0 : window.setInterval(() => setScenario((current) => (current + 1) % scenarios.length), 2400);
+    const incomeTimer = incomeDemoPaused ? 0 : window.setInterval(() => setIncomeDemo((current) => incomeOrder[(incomeOrder.indexOf(current) + 1) % incomeOrder.length]), 2800);
+    return () => {
+      if (scenarioTimer) window.clearInterval(scenarioTimer);
+      if (incomeTimer) window.clearInterval(incomeTimer);
+    };
+  }, [featureGridVisible, incomeDemoPaused, scenarioPaused]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -625,8 +690,8 @@ export default function Landing() {
 
       {/* HERO */}
       <section ref={heroSectionRef} className="relative overflow-hidden pt-28 pb-20 px-5">
-        <div className="relative z-10 max-w-6xl mx-auto">
-        <div className="grid md:grid-cols-[1fr_1.1fr] gap-14 items-center">
+        <div className="relative z-10 mx-auto max-w-[1240px]">
+        <div className="grid items-center gap-14 lg:grid-cols-[0.88fr_1.22fr] lg:gap-12">
           <div ref={heroCopyRef} className="will-change-transform">
             <div className={`inline-flex items-center gap-1.5 bg-accent/10 border border-accent/20 text-accent text-xs font-medium px-3 py-1.5 rounded-full mb-8 transition-all duration-500 motion-reduce:transition-none ${heroReady ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"}`}>
               <Sparkles size={10} />Now in private beta
@@ -682,15 +747,15 @@ export default function Landing() {
                 <span className="w-3 h-3 rounded-full bg-red-500/60" />
                 <span className="w-3 h-3 rounded-full bg-yellow-500/60" />
                 <span className="w-3 h-3 rounded-full bg-green-500/60" />
-                <span className="mx-auto text-[10px] text-muted-foreground" style={mono}>FlowSight — Chase Checking ••4821</span>
+                <span className="mx-auto text-[11px] text-muted-foreground" style={mono}>FlowSight — Chase Checking ••4821</span>
               </div>
               <div className="px-5 pt-4 pb-3.5 flex items-start justify-between border-b border-border/50">
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1" style={mono}>Current Balance</p>
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-widest mb-1" style={mono}>Current Balance</p>
                   <p className="text-[28px] font-medium leading-none text-foreground" style={mono}><CountUp value={5500} prefix="$" /><span className="text-sm font-normal text-muted-foreground">.00</span></p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] text-muted-foreground mb-2">What this forecast knows</p>
+                  <p className="text-[11px] text-muted-foreground mb-2">What this forecast knows</p>
                   <div className="flex items-center gap-2 justify-end">
                     <div className="h-1.5 w-[72px] bg-muted rounded-full overflow-hidden">
                       <div className="h-full rounded-full bg-[#2D8B5A]" style={{ width: "82%" }} />
@@ -699,23 +764,23 @@ export default function Landing() {
                   </div>
                 </div>
               </div>
-              <div className="px-5 py-5 grid sm:grid-cols-[0.92fr_1.08fr] gap-4">
-                <div className={`rounded-2xl border p-4 flex flex-col justify-between min-h-[145px] overflow-hidden transition-[background-color,border-color,box-shadow] duration-[350ms] ease-out ${heroHighlight === 0 ? "border-primary/20 bg-primary/[0.07] shadow-[0_0_24px_rgba(201,107,67,0.08)]" : "border-primary/10 bg-primary/[0.04]"}`}>
-                  <div><p className="text-[10px] uppercase tracking-widest text-muted-foreground" style={mono}>Safe to spend</p><p className="text-[38px] font-medium leading-none mt-3 text-foreground" style={mono}>$680</p></div>
-                  <div><p className="text-[11px] text-muted-foreground">after upcoming bills and your buffer</p><button type="button" aria-expanded={heroShowWork} onClick={() => setHeroShowWork((open) => !open)} className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-primary hover:text-[hsl(var(--fs-primary-hover))]">{heroShowWork ? "Hide calculation" : "Show your work"} <ChevronDown size={11} className={`transition-transform duration-300 ${heroShowWork ? "rotate-180" : ""}`} /></button></div>
-                  <div className={`grid transition-all duration-300 ${heroShowWork ? "grid-rows-[1fr] opacity-100 mt-3" : "grid-rows-[0fr] opacity-0"}`}><div className="overflow-hidden space-y-1.5 border-t border-primary/15 pt-2 text-[9px]">{[["Opening balance", "$4,260"], ["Lowest projected balance", "$1,180"], ["Safety buffer", "−$500"]].map(([label, value]) => <div key={label} className="flex justify-between gap-3"><span className="text-muted-foreground">{label}</span><span style={mono}>{value}</span></div>)}</div></div>
+              <div className="grid gap-4 px-5 py-5 sm:grid-cols-[1fr_1.12fr]">
+                <div className={`rounded-2xl border p-4 flex flex-col justify-between min-h-[168px] overflow-hidden transition-[background-color,border-color,box-shadow] duration-[350ms] ease-out ${heroHighlight === 0 ? "border-primary/20 bg-primary/[0.07] shadow-[0_0_24px_rgba(201,107,67,0.08)]" : "border-primary/10 bg-primary/[0.04]"}`}>
+                  <div><p className="text-[11px] uppercase tracking-widest text-muted-foreground" style={mono}>Safe to spend</p><p className="text-[40px] font-medium leading-none mt-3 text-foreground" style={mono}>$680</p></div>
+                  <div><p className="text-[12px] text-muted-foreground">after upcoming bills and your buffer</p><button type="button" aria-expanded={heroShowWork} onClick={() => setHeroShowWork((open) => !open)} className={`mt-3 flex w-full items-center justify-between gap-2 rounded-lg border bg-white/75 px-2.5 py-2 text-left text-[11px] font-medium text-foreground transition-[background-color,border-color,box-shadow] duration-300 hover:border-primary/35 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${heroHighlight === 0 ? "border-primary/30 shadow-[0_4px_14px_rgba(201,107,67,0.10)]" : "border-primary/15"}`}><span className="inline-flex items-center gap-1.5"><CircleHelp size={13} className="text-primary" />Show your work</span><ChevronDown size={13} className={`shrink-0 text-primary transition-transform duration-300 ${heroShowWork ? "rotate-180" : ""}`} /></button></div>
+                  <div className={`grid transition-all duration-300 ${heroShowWork ? "grid-rows-[1fr] opacity-100 mt-3" : "grid-rows-[0fr] opacity-0"}`}><div className="overflow-hidden space-y-1.5 border-t border-primary/15 pt-2 text-[10px]">{[["Opening balance", "$4,260"], ["Lowest projected balance", "$1,180"], ["Safety buffer", "−$500"]].map(([label, value]) => <div key={label} className="flex justify-between gap-3"><span className="text-muted-foreground">{label}</span><span style={mono}>{value}</span></div>)}</div></div>
                 </div>
                 <div className="space-y-2">
-                  {[{ label: "Rent", timing: "in 11 days", amount: "−$1,650", tone: "bg-primary", highlight: 1 }, { label: "Paycheck", timing: "in 16 days", amount: "+$2,400", tone: "bg-[#2D8B5A]", highlight: 2 }, { label: "Electricity", timing: "Aug 18 · estimated", amount: "~−$117", tone: "bg-[#CA8A04]", highlight: -1 }].map((item) => <div key={item.label} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-[background-color,border-color,box-shadow] duration-[350ms] ease-out ${heroHighlight === item.highlight ? "border-primary/20 bg-primary/[0.05] shadow-[0_0_20px_rgba(201,107,67,0.07)]" : "border-border bg-background"}`}><span className={`h-2 w-2 rounded-full ${item.tone}`} /><div className="min-w-0 flex-1"><p className="text-xs font-medium">{item.label}</p><p className="text-[10px] text-muted-foreground">{item.timing}</p></div><span className="text-xs font-medium" style={mono}>{item.amount}</span></div>)}
+                  {[{ label: "Rent", timing: "in 11 days", amount: "−$1,650", tone: "bg-slate-400", highlight: 1 }, { label: "Paycheck", timing: "in 16 days", amount: "+$2,400", tone: "bg-[#2D8B5A]", highlight: 2 }, { label: "Electricity", timing: "Aug 18 · estimated", amount: "~−$117", tone: "bg-[#CA8A04]", highlight: -1 }].map((item) => <button type="button" onMouseEnter={() => item.highlight >= 0 && setHeroHighlight(item.highlight)} onFocus={() => item.highlight >= 0 && setHeroHighlight(item.highlight)} key={item.label} className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-[background-color,border-color,box-shadow] duration-[350ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 ${heroHighlight === item.highlight ? "border-primary/20 bg-primary/[0.05] shadow-[0_0_20px_rgba(201,107,67,0.07)]" : "border-border bg-background hover:border-primary/25"}`}><span className={`h-2 w-2 rounded-full ${item.tone}`} /><div className="min-w-0 flex-1"><p className="text-[13px] font-medium">{item.label}</p><p className="text-[11px] text-muted-foreground">{item.timing}</p></div><span className="text-[13px] font-medium" style={mono}>{item.amount}</span></button>)}
                 </div>
               </div>
-              <div className="px-5 pb-4 pt-1 flex items-center justify-between text-xs gap-3">
+              <div className="px-5 pb-4 pt-1 flex items-center justify-between text-[13px] gap-3">
                 <div className="flex items-center gap-2 bg-muted/60 rounded-lg px-2.5 py-1.5 flex-1 min-w-0">
                   <Bell size={10} className="text-muted-foreground shrink-0" />
                   <span className="text-muted-foreground truncate">Rent due in <span className="text-foreground font-medium">15 days</span> — $1,650</span>
                 </div>
                 <div className={`text-right shrink-0 rounded-lg border px-2.5 py-1.5 transition-[background-color,border-color,box-shadow] duration-[350ms] ease-out ${heroHighlight === 3 ? "border-primary/20 bg-primary/[0.05] shadow-[0_0_20px_rgba(201,107,67,0.07)]" : "border-transparent bg-transparent"}`}>
-                  <p className="text-[10px] text-muted-foreground mb-0.5">Outlook</p>
+                  <p className="text-[11px] text-muted-foreground mb-0.5">Outlook</p>
                   <p className="font-semibold text-[#2D8B5A]">Clear through Aug 1</p>
                 </div>
               </div>
@@ -740,20 +805,13 @@ export default function Landing() {
         onPointerMove={moveCursorGlow}
         onPointerLeave={(event) => {
           hideCursorGlow(event);
-          setFeatureGridPaused(false);
-        }}
-        onMouseEnter={() => setFeatureGridPaused(true)}
-        onMouseLeave={() => setFeatureGridPaused(false)}
-        onFocusCapture={() => setFeatureGridPaused(true)}
-        onBlurCapture={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFeatureGridPaused(false);
         }}
       >
         <div data-cursor-glow className="pointer-events-none absolute left-0 top-0 h-[480px] w-[480px] rounded-full bg-[radial-gradient(circle,rgba(201,107,67,0.09),rgba(201,107,67,0.025)_40%,transparent_70%)] opacity-0 blur-xl transition-[transform,opacity] duration-150 ease-out" />
         <div className="relative z-10 mx-auto max-w-6xl">
           <div className="mx-auto mb-14 max-w-3xl text-center">
             <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>The rhythm behind your money</p>
-            <h2 className="text-[40px] font-medium leading-[1.08] tracking-tight lg:text-[48px]" style={display}>Your money doesn&apos;t stand still.<br />Neither should your forecast.</h2>
+            <h2 className="text-[40px] font-medium leading-[1.08] tracking-tight lg:text-[48px]" style={display}>Your money doesn&apos;t stand still.<br />Neither should your <span className="text-primary">forecast.</span></h2>
             <p className="mx-auto mt-5 max-w-2xl text-[16px] leading-relaxed text-muted-foreground">FlowSight follows what repeats, what may change, and when cash actually moves—keeping the next 30 days grounded in your real financial rhythm.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -763,25 +821,36 @@ export default function Landing() {
               <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full border border-[#EFE7DB] bg-white/70 px-2.5 py-1 text-[10px] text-muted-foreground"><RotateCcw size={11} />You confirm first</span>
               <div className="mt-6 flex-1 rounded-2xl border border-[#EFE7DB] bg-white p-4">
                 <div className="divide-y divide-border">
-                  {[{ name: "Rent", detail: "Monthly", amount: "−$1,650/mo", Icon: Home }, { name: "Payroll", detail: "Every 2 weeks", amount: "+$1,950", Icon: Briefcase }].map((item) => <div key={item.name} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-4"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]"><item.Icon size={15} /></span><div><p className="text-sm font-medium">{item.name}</p><p className="mt-0.5 text-[11px] text-muted-foreground">{item.detail}</p></div><div className="text-right"><span className="rounded-full bg-[hsl(var(--fs-green-bg))] px-2 py-1 text-[10px] font-medium text-[hsl(var(--fs-green))]">Confirmed</span><p className="mt-2 text-xs" style={mono}>{item.amount}</p></div></div>)}
+                  {[{ name: "Rent", detail: "Monthly", amount: "−$1,650/mo", Icon: Home, iconTone: "bg-slate-100 text-slate-600" }, { name: "Payroll", detail: "Every 2 weeks", amount: "+$1,950", Icon: Briefcase, iconTone: "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]" }].map((item) => <div key={item.name} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-4"><span className={`flex h-9 w-9 items-center justify-center rounded-xl ${item.iconTone}`}><item.Icon size={15} /></span><div><p className="text-sm font-medium">{item.name}</p><p className="mt-0.5 text-[11px] text-muted-foreground">{item.detail}</p></div><div className="text-right"><span className="rounded-full bg-[hsl(var(--fs-green-bg))] px-2 py-1 text-[10px] font-medium text-[hsl(var(--fs-green))]">Confirmed</span><p className="mt-2 text-xs" style={mono}>{item.amount}</p></div></div>)}
                   <div className="grid grid-cols-[auto_1fr_auto] items-start gap-3 py-4"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]"><Zap size={15} /></span><div><p className="text-sm font-medium">National Grid Electric</p><p className={`mt-1 text-[11px] text-muted-foreground transition-opacity duration-200 ${featureGridResolved ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: featureGridResolved ? "200ms" : "0ms" }}>7 occurrences · $82.15–$142.30</p></div><div className="min-w-[118px] text-right"><span className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-medium transition-all ease-out ${featureGridResolved ? "translate-x-0 bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))] opacity-100" : "translate-x-1 bg-muted text-muted-foreground opacity-80"}`} style={{ transitionDuration: `${GRID_RESOLVE_MS}ms` }}>{featureGridResolved ? "Estimated" : <><span className="mr-1.5 h-1.5 w-1.5 animate-pulse rounded-full bg-current" />Checking pattern…</>}</span><p className="mt-2 text-xs" style={mono}>~−$117</p></div></div>
                 </div>
               </div>
             </article>
 
-            <article tabIndex={0} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#EFE7DB]/70 bg-[#FCF9F5] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
+            <article tabIndex={0} onMouseEnter={() => setScenarioPaused(true)} onMouseLeave={() => setScenarioPaused(false)} onFocus={() => setScenarioPaused(true)} onBlur={() => setScenarioPaused(false)} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#EFE7DB]/70 bg-[#FCF9F5] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
               <h3 className="text-[23px] font-medium leading-tight" style={display}>Test a decision before you make it.</h3>
               <p className="mt-3 min-h-[48px] text-[15px] leading-relaxed text-muted-foreground">See exactly how a purchase changes your next 30 days. Nothing changes until you choose to keep it.</p>
               <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full border border-[#EFE7DB] bg-white/70 px-2.5 py-1 text-[10px] text-muted-foreground"><RotateCcw size={11} />Temporary until saved</span>
               <div className="mt-6 flex-1 rounded-2xl border border-[#EFE7DB] bg-white p-4">
-                <div className="mb-3 grid grid-cols-2 gap-2" aria-label="Scenario demo">{scenarios.map((item, index) => <div key={item.label} aria-current={scenario === index ? "true" : undefined} className={`rounded-lg border px-2.5 py-2 text-left text-[10px] transition-[background-color,border-color,color] duration-300 ${scenario === index ? "border-primary/40 bg-primary/[0.08] text-foreground" : "border-border text-muted-foreground"}`}>{item.label.replace(/\s*\([^)]*\)$/, "")}</div>)}</div>
-                <div className="flex items-center justify-between"><p className="text-xs font-medium">30-day forecast</p><span className={`rounded-full px-2 py-1 text-[9px] ${scenarioCondition.className}`}>{scenarioCondition.label}</span></div>
-                <ResponsiveContainer width="100%" height={160}><AreaChart data={scenarioData} margin={{ top: 12, right: 6, left: -24, bottom: 0 }}><XAxis dataKey="day" tick={{ fontSize: 8, fill: "#73766F" }} tickLine={false} axisLine={false} interval={3} /><YAxis tick={{ fontSize: 8, fill: "#73766F" }} tickLine={false} axisLine={false} tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} /><ReferenceLine y={500} stroke="#B7791F" strokeDasharray="5 4" /><Area type="monotone" dataKey="baseline" stroke="#9CA3AF" strokeDasharray="5 5" fill="transparent" dot={false} /><Area type="monotone" dataKey="projected" stroke="#C96B43" strokeWidth={2.5} fill="#C96B4314" dot={false} animationDuration={SCENARIO_MOTION_MS} /></AreaChart></ResponsiveContainer>
-                <div className="grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">{[{ label: "Today", value: 5500 }, { label: "End", value: endBalance }, { label: "Safe", value: safeToSpend }].map((item) => <div key={item.label}><p className="text-[9px] text-muted-foreground">{item.label}</p><p className="mt-1 text-xs font-medium" style={mono}>${item.value.toLocaleString()}</p></div>)}</div>
+                <div className="mb-3 grid grid-cols-2 gap-2" aria-label="Scenario demo">{scenarios.map((item, index) => <div key={item.label} aria-current={scenario === index ? "true" : undefined} className={`rounded-lg border px-2.5 py-2 text-left text-[10px] transition-[background-color,border-color,color] duration-300 ${scenario === index ? "border-primary/40 bg-primary/[0.08] text-foreground" : "border-border text-muted-foreground"}`}>{item.label}</div>)}</div>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground" style={mono}>{scenario === 0 ? "Your current plan" : "Purchase added today"}</p>
+                    <p className="mt-1 text-sm font-medium">{scenario === 0 ? "No extra purchase" : `${scenarios[scenario].label.replace(/\s*\([^)]*\)$/, "")} · −$${scenarios[scenario].amount.toLocaleString()}`}</p>
+                  </div>
+                  <span className={`rounded-full px-2 py-1 text-[9px] ${scenarioCondition.className}`}>{scenarioCondition.label}</span>
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-4 text-[9px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5"><span className="h-0 w-5 border-t-2 border-[#111827]" />Recorded balance</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-0 w-5 border-t-2 border-primary" />{scenario === 0 ? "30-day forecast" : "With purchase"}</span>
+                  {scenario > 0 && <span className="inline-flex items-center gap-1.5"><span className="h-0 w-5 border-t border-dashed border-slate-400" />Without purchase</span>}
+                </div>
+                <ResponsiveContainer width="100%" height={168}><AreaChart data={scenarioData} margin={{ top: 12, right: 8, left: -18, bottom: 0 }}><XAxis dataKey="day" tick={{ fontSize: 8, fill: "#73766F" }} tickLine={false} axisLine={false} interval={2} /><YAxis domain={[0, 6500]} ticks={[0, 3000, 6000]} tick={{ fontSize: 8, fill: "#73766F" }} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} /><Tooltip content={<ScenarioTooltip />} cursor={{ stroke: "#C96B43", strokeWidth: 1, strokeDasharray: "3 3", opacity: 0.55 }} isAnimationActive={false} /><ReferenceLine x="Today" stroke="#94A3B8" strokeDasharray="4 4" label={{ value: "Today", position: "insideTopLeft", fill: "#73766F", fontSize: 8 }} /><ReferenceLine y={500} stroke="#B7791F" strokeDasharray="5 4" label={{ value: "$500 buffer", position: "insideBottomLeft", fill: "#B7791F", fontSize: 8 }} /><Area type="monotone" dataKey="balance" name="Recorded balance" stroke="#111827" strokeWidth={2.5} fill="#1118270A" dot={false} isAnimationActive={false} connectNulls={false} />{scenario > 0 && <Area type="monotone" dataKey="baseline" name="Without purchase" stroke="#9CA3AF" strokeDasharray="5 5" strokeWidth={1.5} fill="transparent" dot={false} isAnimationActive={false} />}<Area type="monotone" dataKey="projected" name="Projected balance" stroke="#C96B43" strokeWidth={2.75} fill="#C96B4314" dot={false} animationDuration={SCENARIO_MOTION_MS} connectNulls={false} />{scenarioLowPoint && <ReferenceDot x={scenarioLowPoint.day} y={scenarioLowPoint.value} r={4} fill="#C96B43" stroke="#fff" strokeWidth={2} />}</AreaChart></ResponsiveContainer>
+                <div className="grid grid-cols-2 gap-3 border-t border-border pt-3"><div><p className="text-[9px] text-muted-foreground">Projected low</p><p className="mt-1 text-sm font-medium" style={mono}>${lowestProjectedBalance.toLocaleString()}</p><p className="mt-1 text-[9px] text-muted-foreground">{scenarioLowPoint?.day}</p></div><div><p className="text-[9px] text-muted-foreground">Safe to Spend</p><p className="mt-1 text-sm font-medium text-[hsl(var(--fs-green))]" style={mono}>${safeToSpend.toLocaleString()}</p><p className="mt-1 text-[9px] text-muted-foreground">after $500 buffer</p></div></div>
               </div>
             </article>
 
-            <article tabIndex={0} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#EFE7DB]/70 bg-[#FCF9F5] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
+            <article tabIndex={0} onMouseEnter={() => setIncomeDemoPaused(true)} onMouseLeave={() => setIncomeDemoPaused(false)} onFocus={() => setIncomeDemoPaused(true)} onBlur={() => setIncomeDemoPaused(false)} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#EFE7DB]/70 bg-[#FCF9F5] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
               <h3 className="text-[23px] font-medium leading-tight" style={display}>Built for how income actually arrives.</h3>
               <p className="mt-3 min-h-[48px] text-[15px] leading-relaxed text-muted-foreground">Regular paychecks and variable invoices can coexist without pretending they&apos;re equally certain.</p>
               <div className="mt-6 flex flex-1 items-center rounded-2xl border border-[#EFE7DB] bg-white p-5"><div className="w-full"><div key={incomeDemo} className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"><IncomePattern kind={incomeDemo} active={featureGridVisible} /></div><div className="mt-2 grid grid-cols-3 gap-2 text-[10px]" aria-label="Income pattern demo">{([{ id: "salary", label: "Regular", note: "Known timing" }, { id: "freelance", label: "Variable", note: "Estimated" }, { id: "mixed", label: "A mix", note: "Both together" }] as const).map((item) => <div key={item.id} aria-current={incomeDemo === item.id ? "true" : undefined} className={`rounded-xl border p-2.5 transition-[background-color,border-color,color] duration-300 ${incomeDemo === item.id ? item.id === "salary" ? "border-[hsl(var(--fs-green))]/30 bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]" : "border-[hsl(var(--fs-amber))]/35 bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]" : "border-border text-muted-foreground"}`}><p className="font-medium">{item.label}</p><p className="mt-1 opacity-75">{item.note}</p></div>)}</div></div></div>
@@ -804,6 +873,7 @@ export default function Landing() {
 
       {/* CONTRAST */}
       <section
+        ref={contrastRef}
         data-reveal
         className="fs-warm-section-transition relative overflow-hidden py-24 px-5"
         onPointerMove={moveCursorGlow}
@@ -812,17 +882,18 @@ export default function Landing() {
         <div data-cursor-glow className="pointer-events-none absolute left-0 top-0 z-0 h-[480px] w-[480px] rounded-full bg-[radial-gradient(circle,rgba(201,107,67,0.12),rgba(201,107,67,0.035)_38%,transparent_70%)] opacity-0 blur-xl transition-[transform,opacity] duration-150 ease-out" />
         <div className="relative z-10 max-w-6xl mx-auto">
           <div className="text-center mb-10">
+            <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>From history to foresight</p>
             <h2 className="text-[42px] lg:text-[52px] font-medium tracking-tight leading-[1.08] mb-4" style={display}>
-              Stop looking backward.<br /><span className="text-accent">Start planning forward.</span>
+              Stop looking <span className="text-muted-foreground">backward.</span><br />Start planning <span className="text-accent">forward.</span>
             </h2>
           </div>
           <div className="max-w-3xl mx-auto">
-            <div className="mx-auto mb-5 flex w-fit rounded-full border border-border bg-white p-1 shadow-sm" role="tablist" aria-label="Compare finance apps"><button role="tab" aria-selected={comparisonFocus === "past"} onClick={() => setComparisonFocus("past")} className={`rounded-full px-5 py-2 text-sm ${comparisonFocus === "past" ? "bg-[#0F1D3A] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}>Looking back</button><button role="tab" aria-selected={comparisonFocus === "future"} onClick={() => setComparisonFocus("future")} className={`rounded-full px-5 py-2 text-sm ${comparisonFocus === "future" ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}>Looking ahead</button></div>
+            <div className="mx-auto mb-5 flex w-fit rounded-full border border-border bg-white p-1 shadow-sm" role="tablist" aria-label="Compare finance apps"><button role="tab" aria-selected={comparisonFocus === "past"} onClick={() => { contrastInteractedRef.current = true; setComparisonFocus("past"); }} className={`rounded-full px-5 py-2 text-sm ${comparisonFocus === "past" ? "bg-[#0F1D3A] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}>Looking back</button><button role="tab" aria-selected={comparisonFocus === "future"} onClick={() => { contrastInteractedRef.current = true; setComparisonFocus("future"); }} className={`rounded-full px-5 py-2 text-sm ${comparisonFocus === "future" ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}>Looking ahead</button></div>
             <div key={comparisonFocus} className="relative overflow-hidden rounded-3xl border border-border bg-white p-8 sm:p-10 shadow-[0_2px_8px_rgba(15,29,58,0.06)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
               <div className={`absolute -right-14 -top-14 h-44 w-44 rounded-full blur-3xl ${comparisonFocus === "future" ? "bg-primary/10" : "bg-[var(--fs-tint)]"}`} />
-              <div className="relative flex items-center gap-3 mb-6"><div className={`h-10 w-10 rounded-xl flex items-center justify-center ${comparisonFocus === "future" ? "bg-primary text-primary-foreground" : "bg-[var(--fs-tint)] text-muted-foreground"}`}>{comparisonFocus === "future" ? <Sparkles size={17} /> : <BarChart3 size={17} />}</div><div><p className="text-xs text-muted-foreground">{comparisonFocus === "future" ? "FlowSight" : "Traditional finance apps"}</p><h3 className="font-medium text-lg">{comparisonFocus === "future" ? "Looking ahead" : "Looking back"}</h3></div></div>
+              <div className="relative mb-6 flex items-center justify-between gap-5"><div className="flex items-center gap-3"><div className={`h-10 w-10 rounded-xl flex items-center justify-center ${comparisonFocus === "future" ? "bg-primary text-primary-foreground" : "bg-[var(--fs-tint)] text-muted-foreground"}`}>{comparisonFocus === "future" ? <Sparkles size={17} /> : <BarChart3 size={17} />}</div><div><p className="text-xs text-muted-foreground">{comparisonFocus === "future" ? "FlowSight" : "Traditional finance apps"}</p><h3 className="font-medium text-lg">{comparisonFocus === "future" ? "Looking ahead" : "Looking back"}</h3></div></div><svg viewBox="0 0 92 38" className="h-10 w-24" aria-hidden="true">{comparisonFocus === "past" ? [18, 27, 21, 31, 24].map((height, index) => <rect key={index} x={5 + index * 17} y={35 - height} width="10" height={height} rx="3" fill="#73766F" opacity={1 - index * .14} />) : <><path d="M5 29 C22 27, 31 22, 43 24 S65 12, 87 8" fill="none" stroke="#C96B43" strokeWidth="2.5" strokeLinecap="round" /><circle cx="87" cy="8" r="3.5" fill="#2D7A55" /></>}</svg></div>
               <p className="relative leading-relaxed mb-7 text-muted-foreground">{comparisonFocus === "future" ? "FlowSight shows what the next few weeks may hold—and what to do if money gets tight." : "Most tools organize what already happened. Useful for review, but they can't tell you if Friday will be tight."}</p>
-              <div className="relative grid sm:grid-cols-3 gap-3">{(comparisonFocus === "future" ? ["Warns you before the tight day", "Labels confirmed and estimated events", '“$820 safe to spend until the 18th”'] : ["Reports money already spent", "Categories instead of timing", '“$200 spent on dining last month”']).map((item) => <div key={item} className={`rounded-xl border p-3 text-sm ${comparisonFocus === "future" ? "border-primary/30 bg-primary/[0.08] font-medium" : "border-border bg-[var(--fs-tint)] text-muted-foreground line-through decoration-muted-foreground/40"}`}>{item}</div>)}</div>
+              <div className="relative grid sm:grid-cols-3 gap-3">{(comparisonFocus === "future" ? ["Warns you before the tight day", "Labels confirmed and estimated events", '“$820 safe to spend until the 18th”'] : ["Reports money already spent", "Categories instead of timing", '“$200 spent on dining last month”']).map((item, index) => <div key={item} className={`relative overflow-hidden rounded-xl border p-3 text-sm ${comparisonFocus === "future" ? `border-primary/30 bg-primary/[0.08] font-medium motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 ${index === 2 ? "fs-contrast-payoff" : ""}` : "fs-contrast-old border-border bg-[var(--fs-tint)] text-muted-foreground"}`} style={{ animationDelay: `${index * 120}ms`, ["--contrast-delay" as string]: `${index * 120}ms` }}>{comparisonFocus === "future" && <svg viewBox="0 0 16 16" className="mr-1.5 inline-block h-4 w-4 align-[-3px] text-[hsl(var(--fs-green))]" aria-hidden="true"><path d="M3 8.5 6.4 12 13 4.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" pathLength="1" className="fs-contrast-check" style={{ animationDelay: `${index * 120}ms` }} /></svg>}{item}</div>)}</div>
             </div>
           </div>
         </div>
@@ -833,7 +904,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-accent text-xs font-medium uppercase tracking-[0.15em] mb-3" style={mono}>Security</p>
-            <h2 className="text-[40px] font-medium tracking-tight mb-3" style={display}>Start without handing over your bank login.</h2>
+            <h2 className="text-[40px] font-medium tracking-tight mb-3" style={display}>Start <span className="text-primary">without handing over</span> your bank login.</h2>
             <p className="text-muted-foreground max-w-lg mx-auto">Use a CSV or manual entry, review what enters the forecast, and see the details behind the result.</p>
           </div>
           <div className="grid md:grid-cols-2 gap-4 max-w-3xl mx-auto">
@@ -855,7 +926,7 @@ export default function Landing() {
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-primary text-xs font-medium uppercase tracking-[0.15em] mb-3" style={mono}>Common questions</p>
-            <h2 className="text-[40px] font-medium tracking-tight" style={display}>A few things to know.</h2>
+            <h2 className="text-[40px] font-medium tracking-tight" style={display}>A few things to <span className="text-primary">know.</span></h2>
           </div>
           <div className="divide-y divide-border border-y border-border">
             {faqs.map((item, index) => (
@@ -886,19 +957,19 @@ export default function Landing() {
                 <div className="mt-4 flex h-12 items-end gap-1.5" aria-hidden="true">{[28, 35, 31, 42, 38, 50, 46, 58, 53].map((height, index) => <span key={height + index} className="flex-1 rounded-t-sm border border-dashed border-primary/25 bg-white" style={{ height: `${height}%` }} />)}</div>
               </div>
               <p className="text-accent text-xs font-medium uppercase tracking-[0.15em] mb-5" style={mono}>Early Access</p>
-              <h2 className="text-[40px] font-medium tracking-tight leading-[1.1] mb-4" style={display}>Stop guessing.<br />Start knowing.</h2>
+              <h2 className="text-[40px] font-medium tracking-tight leading-[1.1] mb-4" style={display}>Stop <span className="text-muted-foreground">guessing.</span><br />Start <span className="text-primary">knowing.</span></h2>
               <p className="text-muted-foreground mb-8 max-w-xs mx-auto text-sm">Join the beta and be among the first to see exactly where your money is going — before it gets there.</p>
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/[0.05] px-3 py-1.5 text-xs text-muted-foreground mb-6"><span className="h-1.5 w-1.5 rounded-full bg-primary" />Private beta · shaped with early-user feedback</div>
               {submitted ? (
-                <div className="flex flex-col items-center gap-3 py-2">
-                  <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center"><CheckCircle size={22} className="text-accent" /></div>
+                <div className="flex flex-col items-center gap-3 py-2 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500" aria-live="polite">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--fs-green-bg))] motion-safe:animate-[fs-transfer-linking_650ms_ease-out_both]"><CheckCircle size={22} className="text-[hsl(var(--fs-green))]" /></div>
                   <p className="text-foreground font-semibold">You&apos;re on the list!</p>
                   <p className="text-sm text-muted-foreground">We&apos;ll reach out when your spot opens up.</p>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2.5 max-w-sm mx-auto">
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required
-                    className="flex-1 bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-colors" />
+                  <div className="relative flex-1"><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required aria-invalid={email.length > 0 && !emailLooksValid}
+                    className="w-full bg-muted border border-border rounded-xl py-3 pl-4 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-colors" />{emailLooksValid && <CheckCircle size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(var(--fs-green))] motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:duration-200" aria-label="Email address looks valid" />}</div>
                   <Magnetic className="w-full sm:w-auto"><button type="submit" className="fs-brand-action w-full px-5 py-3 rounded-xl text-sm font-medium whitespace-nowrap">Join Beta</button></Magnetic>
                 </form>
               )}

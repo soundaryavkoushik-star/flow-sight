@@ -19,6 +19,7 @@ import { confirmForecastEstimate, deleteForecastTransaction, recordForecastVisit
 import { runScenario } from "@/lib/forecast/scenarios"
 import { determineForecastCondition } from "@/lib/forecast/condition"
 import { amountColorClass, amountDotClass } from "@/lib/financial/amount-style"
+import { ActionToast } from "@/components/ui/toast"
 
 /* ── DATA ── */
 
@@ -764,7 +765,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
               </form>
             )}
 
-            {(eventActionMessage || lastEventUndo) && <div className="rounded-xl border border-border bg-muted/40 p-4 mb-7 flex items-center justify-between gap-3"><p className="text-sm text-muted-foreground">{eventActionMessage ?? "Forecast recalculated."}</p>{lastEventUndo && <Button size="sm" variant="outline" disabled={savingEvent} onClick={async () => { await finishEventAction(updateForecastEvent(lastEventUndo), "Your last event edit was undone."); setLastEventUndo(null) }}>Undo edit</Button>}</div>}
+            {(eventActionMessage || lastEventUndo) && <div className="mb-7"><ActionToast message={eventActionMessage ?? "Forecast recalculated."} action={lastEventUndo ? "Undo edit" : undefined} onAction={lastEventUndo ? async () => { await finishEventAction(updateForecastEvent(lastEventUndo), "Your last event edit was undone."); setLastEventUndo(null) } : undefined} /></div>}
 
             <div className="rounded-xl bg-muted/40 p-4 mb-7">
               <div className="flex items-center gap-2 mb-2"><CalendarDays className="h-4 w-4 text-primary" /><h3 className="font-semibold text-sm">How this balance is calculated</h3></div>

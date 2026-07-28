@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { deleteRecurringSeries, saveRecurringSeries, setRecurringSeriesActive, type RecurringSeriesInput } from "@/app/app/transactions/actions"
 import { amountColorClass } from "@/lib/financial/amount-style"
+import { ConfidencePill } from "@/components/financial-display"
+import { ActionToast } from "@/components/ui/toast"
 
 export interface ManagedRecurringItem {
   id: string
@@ -64,7 +66,7 @@ export function RecurringManager({ items, accounts }: { items: ManagedRecurringI
       </div>
       <Button size="sm" onClick={() => setEditing("new")}><Plus className="h-4 w-4" /> Add recurring</Button>
     </div>
-    {message && <p className="text-sm text-destructive" role="alert">{message}</p>}
+    {message && <ActionToast message={message} tone="error" onDismiss={() => setMessage(null)} />}
     {items.length === 0 && <div className="rounded-2xl border border-border bg-card py-14 text-center">
       <CalendarClock className="h-8 w-8 text-primary mx-auto mb-3" />
       <h3 className="font-medium">No recurring items yet</h3>
@@ -92,7 +94,7 @@ function RecurringGroup({ title, items, workingId, onEdit, onToggle, onRemove }:
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="font-medium truncate">{item.name}</p>
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${item.confidence === "confirmed" ? "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]" : "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]"}`}>{item.confidence}</span>
+            <ConfidencePill confidence={item.confidence} />
           </div>
           <p className="mt-1 text-xs text-muted-foreground"><span className="capitalize">{item.type}</span> · <span className="capitalize">{item.frequency}</span> · Next {item.nextExpected ? new Date(`${item.nextExpected}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "date not set"}</p>
           <p className="text-[11px] text-muted-foreground/75 mt-1">{item.accountName ?? "No account assigned"} · {item.source}</p>

@@ -2,9 +2,31 @@ import type { Metadata } from "next"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined)
+  ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined)
+  ?? "http://localhost:3000"
+
 export const metadata: Metadata = {
-  title: "FlowSight — See what's next for your money",
-  description: "Know what's about to happen to your money before it does.",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "FlowSight — See what's next for your money",
+    template: "%s · FlowSight",
+  },
+  description: "See your next 30 days, understand upcoming tight spots, and know what remains safe to spend.",
+  applicationName: "FlowSight",
+  keywords: ["cash flow forecast", "personal finance", "safe to spend", "upcoming bills"],
+  openGraph: {
+    type: "website",
+    siteName: "FlowSight",
+    title: "FlowSight — See what's next for your money",
+    description: "See your next 30 days, understand upcoming tight spots, and know what remains safe to spend.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "FlowSight — See what's next for your money",
+    description: "See your next 30 days, understand upcoming tight spots, and know what remains safe to spend.",
+  },
 }
 
 export default function RootLayout({

@@ -36,7 +36,7 @@ const features = [
 
 export default function FeaturesPage() {
   return (
-    <main className="min-h-screen bg-[#FFFDFC] text-[#111827]">
+    <main className="min-h-screen overflow-hidden bg-[#FFFDFC] text-[#111827]">
       <nav className="border-b border-[#EFE7DB] bg-white/90 px-5 py-4 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium"><ArrowLeft size={15} />FlowSight</Link>
@@ -44,18 +44,19 @@ export default function FeaturesPage() {
         </div>
       </nav>
 
-      <section className="px-5 py-20 sm:py-28">
+      <section className="relative px-5 py-20 sm:py-28">
+        <div className="pointer-events-none absolute -right-40 -top-48 h-[560px] w-[560px] rounded-full bg-[radial-gradient(circle,rgba(201,107,67,0.10),transparent_68%)]" />
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl">
             <p className="text-xs font-medium uppercase tracking-[0.15em] text-[#C96B43]">FlowSight features</p>
-            <h1 className="mt-4 text-[44px] font-medium leading-[1.05] tracking-tight sm:text-[60px]">Understand what&apos;s ahead—and what creates it.</h1>
+            <h1 className="mt-4 text-[44px] font-medium leading-[1.05] tracking-tight sm:text-[60px]">Understand what&apos;s <span className="text-[#C96B43]">ahead</span>—and what creates it.</h1>
             <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-[#73766F]">FlowSight turns your current balance, income, bills, recurring activity, and account transfers into a forward-looking picture you can inspect and adjust.</p>
           </div>
 
           <div className="mt-16 grid gap-4 md:grid-cols-2">
-            {features.map(({ icon: Icon, title, copy }) => (
-              <article key={title} className="rounded-3xl border border-[#EFE7DB]/70 bg-[#FCF9F5] p-7 transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-[#C96B43]/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.08)]">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#C96B43] shadow-sm"><Icon size={18} /></span>
+            {features.map(({ icon: Icon, title, copy }, index) => (
+              <article key={title} className="group motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 rounded-3xl border border-[#EFE7DB]/70 bg-[#FCF9F5] p-7 transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-[#C96B43]/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.08)]" style={{ animationDelay: `${index * 70}ms`, animationFillMode: "both" }}>
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#C96B43] shadow-sm transition-transform duration-300 group-hover:rotate-3 group-hover:scale-105"><Icon size={18} /></span>
                 <h2 className="mt-6 text-2xl font-medium">{title}</h2>
                 <p className="mt-3 leading-relaxed text-[#73766F]">{copy}</p>
               </article>

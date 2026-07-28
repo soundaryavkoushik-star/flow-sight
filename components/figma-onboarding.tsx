@@ -8,6 +8,7 @@ import {
   Wallet, Upload,
 } from "lucide-react";
 import { saveOnboarding, type OnboardingForecastSummary } from "@/app/app/onboarding/actions";
+import { AmountReveal } from "@/components/financial-display";
 
 const display: React.CSSProperties = { fontFamily: "'Bricolage Grotesque', sans-serif" };
 const mono: React.CSSProperties = { fontFamily: "'DM Mono', monospace" };
@@ -81,7 +82,7 @@ function StepShell({
 
       {/* Content */}
       <main className="flex-1 flex flex-col items-center justify-center px-5 py-8">
-        <div className="w-full max-w-md">{children}</div>
+        <div key={step} className="w-full max-w-md motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-3 motion-safe:duration-300">{children}</div>
       </main>
 
       {/* Back */}
@@ -757,7 +758,7 @@ function ForecastReady({
               <p className="text-sm font-medium text-foreground">{label}</p>
               <p className="text-xs text-muted-foreground">{note}</p>
             </div>
-            <span className={`text-base font-bold ${color}`} style={mono}>{value}</span>
+            <span className={`text-base font-bold ${color}`} style={mono}>{label === "Safe to spend" ? <AmountReveal cents={forecast.safeToSpendCents} /> : label === "Lowest projected balance" ? <AmountReveal cents={forecast.lowestBalanceCents} /> : value}</span>
           </div>
         ))}
       </div>
