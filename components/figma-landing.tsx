@@ -239,144 +239,6 @@ function ForecastStoryChart() {
   </div>;
 }
 
-type ForecastThreadVariant = "hero" | "aha" | "contrast";
-
-const forecastThreadShapes: Record<
-  ForecastThreadVariant,
-  {
-    desktopPath: string;
-    mobilePath: string;
-    stroke: string;
-    strokeWidth: number;
-    opacity: number;
-    desktopMarker?: { x: number; y: number };
-    mobileMarker?: { x: number; y: number };
-  }
-> = {
-  hero: {
-    desktopPath: "M -40 95 C 150 30 260 165 430 105 C 610 40 700 55 820 170 C 905 250 945 320 1040 360",
-    mobilePath: "M 88 -20 C 68 95 105 160 82 260 C 60 350 96 420 76 540",
-    stroke: "#0F1D3A",
-    strokeWidth: 1.5,
-    opacity: 0.12,
-  },
-  aha: {
-    desktopPath: "M 1040 8 C 900 55 820 120 760 210 C 700 310 640 455 500 478 C 330 505 140 480 -40 510",
-    mobilePath: "M 76 -10 C 92 95 62 180 78 285 C 92 365 60 430 82 540",
-    stroke: "#D4754A",
-    strokeWidth: 2.6,
-    opacity: 0.78,
-    desktopMarker: { x: 500, y: 478 },
-    mobileMarker: { x: 78, y: 285 },
-  },
-  contrast: {
-    desktopPath: "M -40 0 C 120 65 230 190 390 210 C 565 230 650 115 790 125 C 900 130 960 170 1040 205",
-    mobilePath: "M 82 -10 C 64 90 94 175 76 275 C 62 360 91 430 80 540",
-    stroke: "#0F1D3A",
-    strokeWidth: 1.7,
-    opacity: 0.1,
-  },
-};
-
-function ForecastThread({ variant }: { variant: ForecastThreadVariant }) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const shape = forecastThreadShapes[variant];
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    const paths = Array.from(root.querySelectorAll<SVGPathElement>("[data-forecast-thread-path]"));
-    const markers = Array.from(root.querySelectorAll<SVGGElement>("[data-forecast-thread-marker]"));
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let frame = 0;
-    let markerHasPlayed = false;
-
-    const draw = () => {
-      frame = 0;
-      const rect = root.getBoundingClientRect();
-      const progress = reduceMotion
-        ? 1
-        : Math.max(0, Math.min(1, (window.innerHeight - rect.top) / (window.innerHeight + rect.height * 0.6)));
-
-      paths.forEach((path) => {
-        path.style.strokeDashoffset = String(1 - progress);
-      });
-
-      if (markers.length > 0 && (progress >= 0.62 || reduceMotion)) {
-        markers.forEach((marker) => marker.classList.add("is-visible"));
-        if (!markerHasPlayed && !reduceMotion) {
-          markers.forEach((marker) => marker.classList.add("is-pulsing"));
-          window.setTimeout(() => {
-            markers.forEach((marker) => marker.classList.remove("is-pulsing"));
-          }, 850);
-          markerHasPlayed = true;
-        }
-      }
-    };
-
-    const requestDraw = () => {
-      if (!frame) frame = window.requestAnimationFrame(draw);
-    };
-
-    draw();
-    window.addEventListener("scroll", requestDraw, { passive: true });
-    window.addEventListener("resize", requestDraw);
-    return () => {
-      if (frame) window.cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", requestDraw);
-      window.removeEventListener("resize", requestDraw);
-    };
-  }, []);
-
-  const marker = (position: { x: number; y: number } | undefined, isMobile: boolean) =>
-    position ? (
-      <g
-        data-forecast-thread-marker
-        className={`fs-forecast-thread-marker ${isMobile ? "sm:hidden" : "hidden sm:block"}`}
-        transform={`translate(${position.x} ${position.y})`}
-      >
-        <circle r="13" fill="#D4754A" opacity="0.14" />
-        <circle r="6.5" fill="#0F1D3A" stroke="#FFFFFF" strokeWidth="2.5" />
-      </g>
-    ) : null;
-
-  return (
-    <div ref={rootRef} aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-      <svg viewBox="0 0 1000 520" preserveAspectRatio="none" className="hidden h-full w-full sm:block">
-        <path
-          data-forecast-thread-path
-          pathLength="1"
-          d={shape.desktopPath}
-          fill="none"
-          stroke={shape.stroke}
-          strokeWidth={shape.strokeWidth}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity={shape.opacity}
-          style={{ strokeDasharray: 1, strokeDashoffset: 1 }}
-        />
-        {marker(shape.desktopMarker, false)}
-      </svg>
-      <svg viewBox="0 0 100 520" preserveAspectRatio="none" className="h-full w-full sm:hidden">
-        <path
-          data-forecast-thread-path
-          pathLength="1"
-          d={shape.mobilePath}
-          fill="none"
-          stroke={shape.stroke}
-          strokeWidth={shape.strokeWidth * 0.72}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity={shape.opacity * 0.82}
-          style={{ strokeDasharray: 1, strokeDashoffset: 1 }}
-        />
-        {marker(shape.mobileMarker, true)}
-      </svg>
-    </div>
-  );
-}
-
 const processSteps = [
   { n: "01", title: "Bring in your numbers", desc: "Import a CSV from your bank, or enter the essentials yourself. No bank connection required." },
   { n: "02", title: "Check what we found", desc: "Review your transactions and confirm the paychecks, bills, and subscriptions that happen regularly." },
@@ -508,7 +370,6 @@ export default function Landing() {
 
       {/* HERO */}
       <section className="relative overflow-hidden pt-28 pb-20 px-5">
-        <ForecastThread variant="hero" />
         <div className="relative z-10 max-w-6xl mx-auto">
         <div className="grid md:grid-cols-[1fr_1.1fr] gap-14 items-center">
           <div>
@@ -591,7 +452,6 @@ export default function Landing() {
 
       {/* AHA FORECAST */}
       <section data-reveal className="relative overflow-hidden py-20 px-5 border-y border-border/60 bg-white" id="features">
-        <ForecastThread variant="aha" />
         <div className="relative z-10 max-w-6xl mx-auto grid lg:grid-cols-[1.22fr_0.78fr] gap-14 items-center">
           <div className="relative rounded-[30px] border border-border bg-card p-5 sm:p-8 shadow-[0_28px_80px_rgba(28,28,34,0.10)] overflow-hidden">
             <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
@@ -613,7 +473,6 @@ export default function Landing() {
         onPointerMove={moveCursorGlow}
         onPointerLeave={hideCursorGlow}
       >
-        <ForecastThread variant="contrast" />
         <div data-cursor-glow className="pointer-events-none absolute left-0 top-0 z-0 h-[480px] w-[480px] rounded-full bg-[radial-gradient(circle,rgba(212,117,74,0.11),rgba(212,117,74,0.035)_38%,transparent_70%)] opacity-0 blur-xl transition-[transform,opacity] duration-150 ease-out" />
         <div className="relative z-10 max-w-6xl mx-auto">
           <div className="text-center mb-10">

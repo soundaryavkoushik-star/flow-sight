@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { CalendarClock, Pause, Pencil, Play, Plus, Trash2, X } from "lucide-react"
+import { CalendarClock, Landmark, Pause, Pencil, Play, Plus, ReceiptText, Trash2, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { deleteRecurringSeries, saveRecurringSeries, setRecurringSeriesActive, type RecurringSeriesInput } from "@/app/app/transactions/actions"
+import { amountColorClass } from "@/lib/financial/amount-style"
 
 export interface ManagedRecurringItem {
   id: string
@@ -16,6 +17,7 @@ export interface ManagedRecurringItem {
   accountId: string | null
   accountName: string | null
   accountType: string | null
+  source: "Manual" | "CSV pattern"
   confidence: "confirmed" | "estimated"
   status: "confirmed" | "dismissed"
   minAmountCents: number | null
@@ -76,25 +78,34 @@ export function RecurringManager({ items, accounts }: { items: ManagedRecurringI
 
 function RecurringGroup({ title, items, workingId, onEdit, onToggle, onRemove }: { title: string; items: ManagedRecurringItem[]; workingId: string | null; onEdit: (item: ManagedRecurringItem) => void; onToggle: (item: ManagedRecurringItem) => void; onRemove: (item: ManagedRecurringItem) => void }) {
   return <section>
-    <h3 className="text-xs uppercase tracking-[0.14em] text-muted-foreground mb-2">{title} · {items.length}</h3>
+    <h3 className="mb-2 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{title} · {items.length}</h3>
     <div className="rounded-2xl border border-border bg-card divide-y divide-border">
-      {items.map((item) => <div key={item.id} className={`p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${item.status === "dismissed" ? "opacity-70" : ""}`}>
+      {items.map((item) => {
+        const ItemIcon = item.type === "income" ? Landmark : item.confidence === "estimated" ? CalendarClock : ReceiptText
+        const iconTone = item.type === "income"
+          ? "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]"
+          : item.confidence === "estimated"
+            ? "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]"
+            : "bg-[#F0F1F3] text-[#6B7280]"
+        return <div key={item.id} className={`flex flex-col gap-3 p-4 transition-colors hover:bg-muted/25 sm:flex-row sm:items-center ${item.status === "dismissed" ? "opacity-70" : ""}`}>
+        <div className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconTone}`}><ItemIcon className="h-[18px] w-[18px]" strokeWidth={2} /></div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="font-medium truncate">{item.name}</p>
-            <span className={`text-[10px] rounded-full px-2 py-0.5 ${item.confidence === "confirmed" ? "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]" : "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]"}`}>{item.confidence}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${item.confidence === "confirmed" ? "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]" : "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]"}`}>{item.confidence}</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 capitalize">{item.type} · {item.frequency} · next {item.nextExpected ? new Date(`${item.nextExpected}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "date not set"}{item.accountName ? ` · ${item.accountName}` : ""}</p>
+          <p className="mt-1 text-xs text-muted-foreground"><span className="capitalize">{item.type}</span> · <span className="capitalize">{item.frequency}</span> · Next {item.nextExpected ? new Date(`${item.nextExpected}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "date not set"}</p>
+          <p className="text-[11px] text-muted-foreground/75 mt-1">{item.accountName ?? "No account assigned"} · {item.source}</p>
           {item.accountType === "credit_card" && item.type === "bill" && <p className="text-[11px] text-muted-foreground mt-1">Tracked on this card · its cash impact is reflected in the card payment.</p>}
           {item.confidence === "estimated" && item.occurrenceCount && item.minAmountCents !== null && item.maxAmountCents !== null && <p className="text-[11px] text-muted-foreground mt-1">Estimated from {item.occurrenceCount} occurrences ranging {money(Math.min(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)))}–{money(Math.max(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)))}.</p>}
         </div>
-        <p className={`font-mono font-medium ${item.amountCents >= 0 ? "text-[hsl(var(--fs-green))]" : "text-foreground"}`}>{item.amountCents >= 0 ? "+" : "−"}{money(item.amountCents)}</p>
+        <p className={`font-mono text-[15px] font-medium tabular-nums ${amountColorClass(item.type === "income" ? "income" : "spending")}`}>{item.confidence === "estimated" ? "~" : ""}{item.amountCents >= 0 ? "+" : "−"}{money(item.amountCents)}</p>
         <div className="flex gap-1">
           <Button size="icon" variant="ghost" disabled={workingId === item.id} onClick={() => onEdit(item)} aria-label={`Edit ${item.name}`}><Pencil className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" disabled={workingId === item.id} onClick={() => onToggle(item)} aria-label={item.status === "confirmed" ? `Pause ${item.name}` : `Resume ${item.name}`}>{item.status === "confirmed" ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}</Button>
           <Button size="icon" variant="ghost" className="text-destructive" disabled={workingId === item.id} onClick={() => onRemove(item)} aria-label={`Remove ${item.name}`}><Trash2 className="h-4 w-4" /></Button>
         </div>
-      </div>)}
+      </div>})}
     </div>
   </section>
 }

@@ -260,27 +260,6 @@
     50% { opacity: 1; stroke-width: 2.2; }
   }
 
-  .fs-landing .fs-forecast-thread-marker {
-    opacity: 0;
-    transition: opacity 240ms ease-out;
-  }
-
-  .fs-landing .fs-forecast-thread-marker.is-visible {
-    opacity: 1;
-  }
-
-  .fs-landing .fs-forecast-thread-marker.is-pulsing {
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: fs-forecast-thread-pulse 800ms cubic-bezier(0.19, 1, 0.22, 1);
-  }
-
-  @keyframes fs-forecast-thread-pulse {
-    0% { opacity: 0; scale: 0.45; }
-    48% { opacity: 1; scale: 1.55; }
-    100% { opacity: 1; scale: 1; }
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .fs-safe-recalculated,
     .fs-transfer-link-path,
@@ -301,7 +280,7 @@
       animation: none;
     }
 
-    .fs-landing :is(.fs-income-arrival, .fs-income-range, .fs-scenario-marker, .fs-scenario-condition, .fs-scenario-low-point, .fs-scenario-buffer, .fs-forecast-thread-marker) {
+    .fs-landing :is(.fs-income-arrival, .fs-income-range, .fs-scenario-marker, .fs-scenario-condition, .fs-scenario-low-point, .fs-scenario-buffer) {
       animation: none;
     }
   }

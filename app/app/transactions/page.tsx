@@ -95,6 +95,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
       accountId: item.accountId,
       accountName: item.accountId ? accountNameById.get(item.accountId) ?? null : null,
       accountType: item.accountId ? accountTypeById.get(item.accountId) ?? null : null,
+      source: item.isManual ? "Manual" : "CSV pattern",
       confidence: item.dateConfidence === "confirmed" ? "confirmed" : "estimated",
       status: item.status as ManagedRecurringItem["status"],
       minAmountCents: item.minAmountCents,
@@ -144,7 +145,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
 
   return <div className="p-4 sm:p-6 max-w-5xl mx-auto">
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-      <div><h1 className="text-2xl font-bold tracking-tight">Transactions</h1><p className="text-sm text-muted-foreground mt-0.5">Review activity and manage what FlowSight expects next.</p></div>
+      <div><h1 className="text-2xl font-bold tracking-tight">Transactions</h1><p className="mt-1 text-sm text-muted-foreground">Review activity and manage what FlowSight expects next.</p></div>
       <div className="flex flex-wrap gap-2"><CsvImportPanel autoOpen={query.import === "1"} {...csvProps} /><ManualTransactionPanel accounts={accountOptions} /></div>
     </div>
 

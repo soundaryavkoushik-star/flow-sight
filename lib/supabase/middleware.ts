@@ -35,7 +35,10 @@ export async function updateSession(request: NextRequest) {
   const isAuthPage = ["/sign-in", "/sign-up"].includes(request.nextUrl.pathname)
   if (user && isAuthPage) {
     const url = request.nextUrl.clone()
-    url.pathname = "/app/onboarding"
+    // Users reaching an auth page with an existing session are returning users.
+    // Fresh sign-ins and sign-ups choose onboarding vs dashboard in their own
+    // completion handlers, where onboarding status can be checked accurately.
+    url.pathname = "/app/dashboard"
     return NextResponse.redirect(url)
   }
 

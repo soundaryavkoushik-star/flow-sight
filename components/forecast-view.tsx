@@ -18,6 +18,7 @@ import type { DashboardForecast } from "@/lib/data/forecast"
 import { confirmForecastEstimate, deleteForecastTransaction, recordForecastVisit, skipForecastOccurrence, stopRecurringEvent, updateForecastEvent, updateSafetyBuffer, type ForecastEventUpdate } from "@/app/app/forecast/actions"
 import { runScenario } from "@/lib/forecast/scenarios"
 import { determineForecastCondition } from "@/lib/forecast/condition"
+import { amountColorClass, amountDotClass } from "@/lib/financial/amount-style"
 
 /* ── DATA ── */
 
@@ -29,9 +30,42 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   return (
     <div className="bg-card border border-border rounded-xl px-3 py-2 text-xs shadow-2xl">
       <p className="text-muted-foreground mb-1">{label}</p>
-      <p className="font-semibold text-foreground font-mono">${val?.value?.toLocaleString()}</p>
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Projected balance</p>
+      <p className="mt-0.5 font-semibold text-foreground font-mono">${val?.value?.toLocaleString()}</p>
     </div>
   )
+}
+
+function AnimatedMetric({ value, format = (metric) => Math.round(metric).toLocaleString() }: { value: number; format?: (metric: number) => string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [displayed, setDisplayed] = useState(0)
+
+  useEffect(() => {
+    const node = ref.current
+    if (!node) return
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return
+      observer.disconnect()
+      if (reduceMotion) {
+        setDisplayed(value)
+        return
+      }
+      const started = performance.now()
+      const duration = 650
+      const tick = (now: number) => {
+        const progress = Math.min(1, (now - started) / duration)
+        const eased = 1 - Math.pow(1 - progress, 3)
+        setDisplayed(value * eased)
+        if (progress < 1) window.requestAnimationFrame(tick)
+      }
+      window.requestAnimationFrame(tick)
+    }, { threshold: 0.4 })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [value])
+
+  return <span ref={ref}>{format(displayed)}</span>
 }
 
 function InfoTip({ label, children }: { label: string; children: React.ReactNode }) {
@@ -113,6 +147,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
 }) {
   const router = useRouter()
   const [dismissedAlerts, setDismissedAlerts] = useState<number[]>([])
+  const [exitingAlerts, setExitingAlerts] = useState<number[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(initialSelectedDate)
   const [editingEventId, setEditingEventId] = useState<string | null>(null)
   const [eventSaveError, setEventSaveError] = useState<string | null>(null)
@@ -189,6 +224,14 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
     router.refresh()
   }
 
+  function dismissAlert(index: number) {
+    setExitingAlerts((current) => [...current, index])
+    window.setTimeout(() => {
+      setDismissedAlerts((current) => [...current, index])
+      setExitingAlerts((current) => current.filter((item) => item !== index))
+    }, 200)
+  }
+
   if (!data) {
     return (
       <div className="p-6 max-w-5xl mx-auto">
@@ -205,14 +248,14 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
           </div>
         </div>
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <TrendingUp className="h-8 w-8 text-primary" />
           </div>
-          <h2 className="text-xl font-semibold mb-2">Your forecast starts here</h2>
-          <p className="text-muted-foreground text-sm max-w-sm mb-6">
+          <h2 className="text-xl font-semibold mb-2 animate-in fade-in slide-in-from-bottom-2 duration-300 [animation-delay:80ms] [animation-fill-mode:both]">Your forecast starts here</h2>
+          <p className="text-muted-foreground text-sm max-w-sm mb-6 animate-in fade-in slide-in-from-bottom-2 duration-300 [animation-delay:140ms] [animation-fill-mode:both]">
             Import a CSV or add your current balance, upcoming income, and bills to see the next 30 days.
           </p>
-          <div className="flex gap-3">
+          <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300 [animation-delay:200ms] [animation-fill-mode:both]">
             <Button asChild><Link href="/app/accounts"><Plus className="h-4 w-4" /> Add your first account</Link></Button>
             <Button asChild variant="outline"><Link href="/app/transactions?import=1"><Upload className="h-4 w-4" /> Import CSV</Link></Button>
           </div>
@@ -247,7 +290,9 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
     ...riskAlerts,
     ...(data.preferences.alertStaleBalance && balanceAgeDays >= 7 ? [{ msg: `Your balance was last updated ${balanceAgeDays} days ago. Refresh it before relying on Safe to Spend.`, type: "info" }] : []),
   ]
-  const visibleAlerts = alerts.filter((_, i) => !dismissedAlerts.includes(i))
+  const visibleAlerts = alerts
+    .map((alert, index) => ({ ...alert, index }))
+    .filter((alert) => !dismissedAlerts.includes(alert.index))
   const lowestDate = new Date(`${data.forecast.lowestBalanceDate}T00:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric" })
   const condition = determineForecastCondition(data.forecast, data.safetyBufferCents, data.freshness.status)
   const conditionStyle = condition === "clear"
@@ -300,8 +345,17 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
       name: event.name,
       amount: `${event.confidence === "estimated" ? "~" : ""}${event.amountCents > 0 ? "+" : "–"}${money(Math.abs(event.amountCents))}`,
       days: `${new Date(`${event.day}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}${event.confidence === "estimated" ? " · estimated" : ""}`,
-      color: event.amountCents > 0 ? "text-[hsl(var(--fs-green))]" : "text-destructive",
-      dot: event.amountCents > 0 ? "bg-[hsl(var(--fs-green))]" : "bg-destructive",
+      color: event.amountCents > 0 ? "text-[hsl(var(--fs-green))]" : "text-foreground",
+      dot: event.confidence === "estimated"
+        ? "bg-[hsl(var(--fs-amber))]"
+        : event.amountCents > 0
+          ? "bg-[hsl(var(--fs-green))]"
+          : "bg-foreground/65",
+      rowTone: event.confidence === "estimated"
+        ? "hover:bg-[hsl(var(--fs-amber-bg))]/65"
+        : event.amountCents > 0
+          ? "hover:bg-[hsl(var(--fs-green-bg))]/65"
+          : "hover:bg-muted/50",
     }))
   const firstUpcoming = upcoming[0]
   const dashboardContext = data.preferences.dashboardEmphasis === "calendar" && firstUpcoming
@@ -349,7 +403,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
       </div>
 
       {/* Primary forecast result */}
-      <section className={`rounded-2xl border p-5 ${conditionStyle}`}>
+      <section className={`rounded-2xl border p-5 transition-[background-color,border-color,color] duration-300 ${conditionStyle}`}>
         <div className="max-w-3xl">
           <span className="inline-flex items-center rounded-full border border-current/20 py-0.5 pl-2.5 pr-0.5 text-[10px] font-semibold uppercase tracking-wider mb-3">
             <LabelWithInfo
@@ -373,10 +427,12 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
       {/* Alerts */}
       {view === "dashboard" && visibleAlerts.length > 0 && (
         <div className="space-y-2">
-          {visibleAlerts.map((alert, i) => (
+          {visibleAlerts.map((alert) => (
             <div
-              key={i}
-              className={`flex items-start gap-3 px-4 py-3 rounded-xl border text-sm ${
+              key={alert.index}
+              className={`flex items-start gap-3 overflow-hidden px-4 py-3 rounded-xl border text-sm transition-[opacity,transform,max-height,padding,margin,border-width] duration-200 ${
+                exitingAlerts.includes(alert.index) ? "max-h-0 -translate-x-2 border-0 py-0 opacity-0" : "max-h-32 translate-x-0 opacity-100"
+              } ${
                 alert.type === "warn"
                   ? "bg-[hsl(var(--fs-amber-bg))] border-[hsl(var(--fs-amber))]/25"
                   : alert.type === "ok"
@@ -390,8 +446,9 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
               }
               <p className="text-muted-foreground flex-1 leading-relaxed">{alert.msg}</p>
               <button
-                onClick={() => setDismissedAlerts(p => [...p, alerts.indexOf(alert)])}
+                onClick={() => dismissAlert(alert.index)}
                 className="text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0"
+                aria-label="Dismiss alert"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -471,7 +528,11 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,29,58,0.08)" vertical={false} />
                 <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#6B7280" }} tickLine={false} axisLine={false} interval={2} />
                 <YAxis tick={{ fontSize: 10, fill: "#6B7280" }} tickLine={false} axisLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
-                <Tooltip content={<ChartTooltip />} />
+                <Tooltip
+                  content={<ChartTooltip />}
+                  cursor={{ stroke: "#D4754A", strokeWidth: 1, strokeDasharray: "3 3", opacity: 0.65 }}
+                  animationDuration={180}
+                />
                 <ReferenceLine x={forecastData[0]?.day} stroke="#CA8A04" strokeDasharray="4 3" strokeWidth={1.5} />
                 {selectedDay && <ReferenceDot x={new Date(`${selectedDay.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} y={selectedDay.endingBalanceCents / 100} r={5} fill="#D4754A" stroke="#FFFFFF" strokeWidth={2} />}
                 <Area type="monotone" dataKey="projected" stroke="#D4754A" strokeWidth={2} strokeDasharray="5 3" fill="url(#dashGrad2)" dot={false} connectNulls={false} />
@@ -506,7 +567,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
                     {data.forecast.days.map((day) => (
                       <tr key={day.date} className="border-b border-border/60 last:border-0 hover:bg-muted/40">
                         <td className="px-5 py-3"><button type="button" onClick={() => setSelectedDate(day.date)} className="font-medium text-left hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">{new Date(`${day.date}T00:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</button></td>
-                        <td className={`px-4 py-3 text-right font-mono ${day.netChangeCents >= 0 ? "text-primary" : "text-destructive"}`}>{day.netChangeCents >= 0 ? "+" : "−"}{money(Math.abs(day.netChangeCents))}</td>
+                        <td className={`px-4 py-3 text-right font-mono ${amountColorClass(day.netChangeCents > 0 ? "income" : "neutral")}`}>{day.netChangeCents >= 0 ? "+" : "−"}{money(Math.abs(day.netChangeCents))}</td>
                         <td className="px-5 py-3 text-right font-semibold font-mono">{money(day.endingBalanceCents)}</td>
                       </tr>
                     ))}
@@ -581,9 +642,9 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
               {upcoming.length === 0 && (
                 <p className="text-xs text-muted-foreground">No recurring events in this forecast window.</p>
               )}
-              {upcoming.map(({ id, day, name, amount, days, color, dot }) => (
-                <button key={id} type="button" onClick={() => setSelectedDate(day)} className="w-full flex items-center gap-3 text-left rounded-lg hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring p-1 -m-1 transition-colors">
-                  <div className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
+              {upcoming.map(({ id, day, name, amount, days, color, dot, rowTone }) => (
+                <button key={id} type="button" onClick={() => setSelectedDate(day)} className={`w-full flex items-center gap-3 text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring p-2 -m-2 transition-colors ${rowTone}`}>
+                  <div className={`w-2.5 h-2.5 rounded-[3px] shrink-0 ${dot}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{name}</p>
                     <p className="text-xs text-muted-foreground">{days}</p>
@@ -620,7 +681,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
 
           {view === "forecast" && <div className="bg-card border border-border rounded-2xl p-5">
             <h3 className="text-sm font-semibold"><LabelWithInfo label="Forecast track record" explanation="Compares earlier forecasts with later actual balances. Only dates with sufficient refreshed account data are evaluated." /></h3>
-            {data.trackRecord.eligibleDays === 0 ? <p className="text-xs text-muted-foreground leading-relaxed mt-2">Measurement starts after you refresh every active account balance for a date that an earlier forecast covered. We won’t score days without enough actual data.</p> : <div className="mt-3 space-y-3"><div className="grid grid-cols-2 gap-2"><div className="rounded-lg bg-muted/50 p-3"><p className="text-lg font-bold font-mono">{data.trackRecord.eligibleDays}</p><p className="text-[10px] text-muted-foreground">Evaluated days</p></div><div className="rounded-lg bg-muted/50 p-3"><p className="text-lg font-bold font-mono">{money(data.trackRecord.meanAbsoluteErrorCents ?? 0)}</p><p className="text-[10px] text-muted-foreground">Typical absolute error</p></div></div>{data.trackRecord.latest && <p className="text-xs text-muted-foreground">Latest evaluation: projected {money(data.trackRecord.latest.projectedBalanceCents)} and observed {money(data.trackRecord.latest.actualBalanceCents)} on {new Date(`${data.trackRecord.latest.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}.</p>}</div>}
+            {data.trackRecord.eligibleDays === 0 ? <p className="text-xs text-muted-foreground leading-relaxed mt-2">Measurement starts after you refresh every active account balance for a date that an earlier forecast covered. We won’t score days without enough actual data.</p> : <div className="mt-3 space-y-3"><div className="grid grid-cols-2 gap-2"><div className="rounded-lg bg-muted/50 p-3"><p className="text-lg font-bold font-mono"><AnimatedMetric value={data.trackRecord.eligibleDays} /></p><p className="text-[10px] text-muted-foreground">Evaluated days</p></div><div className="rounded-lg bg-muted/50 p-3"><p className="text-lg font-bold font-mono"><AnimatedMetric value={data.trackRecord.meanAbsoluteErrorCents ?? 0} format={(value) => money(Math.round(value))} /></p><p className="text-[10px] text-muted-foreground">Typical absolute error</p></div></div>{data.trackRecord.latest && <p className="text-xs text-muted-foreground">Latest evaluation: projected {money(data.trackRecord.latest.projectedBalanceCents)} and observed {money(data.trackRecord.latest.actualBalanceCents)} on {new Date(`${data.trackRecord.latest.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}.</p>}</div>}
           </div>}
         </div>
       </div>
@@ -643,16 +704,16 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
             </div>
 
             <div className="mb-7">
-              <div className="flex items-center justify-between mb-3"><h3 className="font-semibold">What changes that day</h3><span className={`text-sm font-semibold font-mono ${selectedDay.netChangeCents >= 0 ? "text-primary" : "text-destructive"}`}>{selectedDay.netChangeCents >= 0 ? "+" : "−"}{money(Math.abs(selectedDay.netChangeCents))}</span></div>
+              <div className="flex items-center justify-between mb-3"><h3 className="font-semibold">What changes that day</h3><span className={`text-sm font-semibold font-mono ${amountColorClass(selectedDay.netChangeCents > 0 ? "income" : "neutral")}`}>{selectedDay.netChangeCents >= 0 ? "+" : "−"}{money(Math.abs(selectedDay.netChangeCents))}</span></div>
               {selectedDay.events.length === 0 ? (
                 <p className="text-sm text-muted-foreground rounded-xl border border-border p-4">No income or bills are expected that day.</p>
               ) : (
                 <div className="space-y-2">
                   {selectedDay.events.map((event) => (
                     <button key={event.id} type="button" onClick={() => { setEditingEventId(event.id); setEventSaveError(null) }} className="w-full rounded-xl border border-border p-4 flex items-start gap-3 text-left hover:border-primary/30 hover:bg-primary/[0.04] transition-colors">
-                      <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${event.amountCents >= 0 ? "bg-primary" : "bg-destructive"}`} />
+                      <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${amountDotClass(event.amountCents >= 0 ? "income" : "spending")}`} />
                       <div className="flex-1 min-w-0"><p className="font-medium truncate">{event.name}</p><p className="text-xs text-muted-foreground mt-1 capitalize">{event.confidence} · {event.recurring ? "Recurring" : event.source}</p>{event.confidence === "estimated" && event.estimateEvidence && <p className="text-[11px] text-muted-foreground mt-1">Based on {event.estimateEvidence.occurrenceCount} occurrences ranging {money(Math.min(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}–{money(Math.max(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}.</p>}</div>
-                      <div className="text-right"><span className={`font-semibold font-mono ${event.amountCents >= 0 ? "text-primary" : "text-destructive"}`}>{event.amountCents >= 0 ? "+" : "−"}{money(Math.abs(event.amountCents))}</span><p className="text-[10px] text-muted-foreground mt-1">Edit</p></div>
+                      <div className="text-right"><span className={`font-semibold font-mono ${amountColorClass(event.amountCents >= 0 ? "income" : "spending")}`}>{event.amountCents >= 0 ? "+" : "−"}{money(Math.abs(event.amountCents))}</span><p className="text-[10px] text-muted-foreground mt-1">Edit</p></div>
                     </button>
                   ))}
                 </div>
@@ -662,7 +723,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
             {editingEvent && (
               <form
                 key={editingEvent.id}
-                className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-4 mb-7 space-y-4"
+                className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-4 mb-7 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200"
                 onSubmit={async (event) => {
                   event.preventDefault()
                   const formData = new FormData(event.currentTarget)

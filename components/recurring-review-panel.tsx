@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { CheckCircle, Repeat2 } from "lucide-react"
+import { CalendarClock, CheckCircle, Landmark, ReceiptText, Repeat2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { confirmRecurringSuggestions, type RecurringConfirmationInput } from "@/app/app/transactions/actions"
+import { amountColorClass } from "@/lib/financial/amount-style"
 
 type Suggestion = RecurringConfirmationInput & { id: string }
 
@@ -30,13 +31,22 @@ export function RecurringReviewPanel({ suggestions }: { suggestions: Suggestion[
 
       {suggestions.length > 0 && (
         <div className="mt-5 space-y-3">
-          {suggestions.map((item) => (
-            <label key={item.id} className="flex items-start gap-3 rounded-xl border border-border p-4 cursor-pointer">
+          {suggestions.map((item) => {
+            const isSelected = selected.has(item.id)
+            const ItemIcon = item.type === "income" ? Landmark : item.minAmountCents === item.maxAmountCents ? ReceiptText : CalendarClock
+            const iconTone = item.type === "income"
+              ? "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]"
+              : item.minAmountCents !== item.maxAmountCents
+                ? "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]"
+                : "bg-[#F0F1F3] text-[#6B7280]"
+            return (
+            <label key={item.id} className={`flex items-start gap-3 rounded-xl border p-4 cursor-pointer transition-[background-color,border-color,box-shadow,opacity] ${isSelected ? "border-primary/25 bg-primary/[0.035] shadow-[inset_0_0_0_1px_rgba(212,117,74,0.14)]" : "border-border bg-muted/20 opacity-70 hover:opacity-100"}`}>
               <input type="checkbox" checked={selected.has(item.id)} onChange={(event) => setSelected((current) => { const next = new Set(current); if (event.target.checked) next.add(item.id); else next.delete(item.id); return next })} className="mt-1" />
-              <span className="flex-1"><span className="block text-sm font-medium">{item.name}</span><span className="block text-xs text-muted-foreground mt-1 capitalize">{item.frequency} · {item.type} · next estimated {new Date(`${item.nextExpected}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span><span className="block text-[11px] text-muted-foreground mt-1">Estimated from {item.occurrenceCount} occurrences ranging {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Math.min(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)) / 100)}–{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Math.max(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)) / 100)}.</span></span>
-              <span className="text-sm font-mono">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(item.amountCents / 100)}</span>
+              <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconTone}`}><ItemIcon className="h-[18px] w-[18px]" strokeWidth={2} /></span>
+              <span className="flex-1"><span className="block text-sm font-medium">{item.name}</span><span className="block text-xs text-muted-foreground mt-1"><span className="capitalize">{item.type}</span> · <span className="capitalize">{item.frequency}</span> · Next estimated {new Date(`${item.nextExpected}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span><span className="block text-[11px] text-muted-foreground mt-1">Estimated from {item.occurrenceCount} occurrences ranging {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Math.min(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)) / 100)}–{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Math.max(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)) / 100)}.</span></span>
+              <span className={`font-mono text-[15px] font-medium tabular-nums ${amountColorClass(item.type === "income" ? "income" : "spending")}`}>~{item.amountCents > 0 ? "+" : "−"}{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Math.abs(item.amountCents) / 100)}</span>
             </label>
-          ))}
+          )})}
           {message && <p className="text-sm text-muted-foreground" role="status">{message}</p>}
           <p className="text-[11px] text-muted-foreground">Unchecked items will be remembered as “Not recurring” and won’t be suggested again for this account.</p>
           <Button disabled={saving} onClick={async () => { setSaving(true); setMessage(null); const result = await confirmRecurringSuggestions(suggestions.filter((item) => selected.has(item.id)), [], suggestions.filter((item) => !selected.has(item.id))); setSaving(false); if (!result.ok) { setMessage(result.message); return } setMessage("Your recurring decisions were saved. Your forecast has been refreshed."); router.refresh() }}><CheckCircle className="h-4 w-4" /> {saving ? "Saving…" : "Save review"}</Button>
