@@ -786,7 +786,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
                     <div className="flex justify-between text-sm"><span className="text-muted-foreground">Projected low before</span><span className="font-mono">{money(scenarioComparison.baseline.lowestBalanceCents)}</span></div>
                     <div className="flex justify-between text-sm"><span className="text-muted-foreground">Projected low with scenario</span><span className="font-mono">{money(scenarioComparison.scenario.lowestBalanceCents)}</span></div>
                     <div className="flex justify-between text-sm"><span className="text-muted-foreground">Safe to Spend with scenario</span><span className="font-mono text-primary">{money(scenarioComparison.scenario.safeToSpendCents)}</span></div>
-                    <p className={`text-sm rounded-lg p-3 ${scenarioComparison.scenario.risks.length > 0 ? "bg-yellow-500/10 text-yellow-300" : "bg-primary/10 text-foreground"}`}>
+                    <p className={`text-sm rounded-lg border p-3 ${scenarioComparison.scenario.risks.length > 0 ? "border-[hsl(var(--fs-red))]/25 bg-[hsl(var(--fs-red-bg))] text-[hsl(var(--fs-red))]" : "border-[hsl(var(--fs-green))]/20 bg-[hsl(var(--fs-green-bg))] text-foreground"}`}>
                       {scenarioComparison.scenario.risks.length > 0
                         ? `This would put your projected balance below your safety buffer. Your projected low would be ${money(scenarioComparison.scenario.lowestBalanceCents)}.`
                         : `Your forecast would remain above your safety buffer, with a projected low of ${money(scenarioComparison.scenario.lowestBalanceCents)}.`}

@@ -87,7 +87,7 @@ function RecurringGroup({ title, items, workingId, onEdit, onToggle, onRemove }:
           : item.confidence === "estimated"
             ? "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]"
             : "bg-[#F0F1F3] text-[#6B7280]"
-        return <div key={item.id} className={`flex flex-col gap-3 p-4 transition-colors hover:bg-muted/25 sm:flex-row sm:items-center ${item.status === "dismissed" ? "opacity-70" : ""}`}>
+        return <div key={item.id} className={`flex flex-col gap-3 p-4 transition-colors hover:bg-muted/25 sm:flex-row sm:items-center ${item.confidence === "estimated" ? "border-l-2 border-dashed border-l-[hsl(var(--fs-amber))]/45" : ""} ${item.status === "dismissed" ? "opacity-70" : ""}`}>
         <div className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconTone}`}><ItemIcon className="h-[18px] w-[18px]" strokeWidth={2} /></div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
