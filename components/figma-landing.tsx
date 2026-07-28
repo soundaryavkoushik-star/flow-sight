@@ -8,7 +8,7 @@ import {
 import {
   Shield, TrendingUp, Bell, ArrowRight, Lock,
   Code, Briefcase, AtSign, BarChart3, Home, Zap,
-  X, Menu, Sparkles, CheckCircle,
+  X, Menu, Sparkles, CheckCircle, RotateCcw, ChevronDown,
 } from "lucide-react";
 
 const display: React.CSSProperties = { fontFamily: "'Bricolage Grotesque', sans-serif" };
@@ -426,12 +426,14 @@ export default function Landing() {
   const [scenario, setScenario] = useState(0);
   const [incomeDemo, setIncomeDemo] = useState<"salary" | "freelance" | "mixed">("salary");
   const [comparisonFocus, setComparisonFocus] = useState<"past" | "future">("past");
-  const [productTab, setProductTab] = useState<"forecast" | "scenario" | "recurring" | "transfers">("forecast");
   const [heroReady, setHeroReady] = useState(false);
   const [heroHighlight, setHeroHighlight] = useState(-1);
   const [heroHighlightPaused, setHeroHighlightPaused] = useState(false);
+  const [heroShowWork, setHeroShowWork] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const [featureGridVisible, setFeatureGridVisible] = useState(false);
   const [featureGridResolved, setFeatureGridResolved] = useState(false);
+  const [featureGridPaused, setFeatureGridPaused] = useState(false);
   const [activeSection, setActiveSection] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [email, setEmail] = useState("");
@@ -485,7 +487,7 @@ export default function Landing() {
   }, []);
 
   useEffect(() => {
-    if (!featureGridVisible || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!featureGridVisible || featureGridPaused || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const incomeOrder = ["salary", "freelance", "mixed"] as const;
     const scenarioTimer = window.setInterval(() => setScenario((current) => (current + 1) % scenarios.length), 3200);
     const incomeTimer = window.setInterval(() => setIncomeDemo((current) => incomeOrder[(incomeOrder.indexOf(current) + 1) % incomeOrder.length]), 3200);
@@ -493,10 +495,15 @@ export default function Landing() {
       window.clearInterval(scenarioTimer);
       window.clearInterval(incomeTimer);
     };
-  }, [featureGridVisible]);
+  }, [featureGridPaused, featureGridVisible]);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
+    const onScroll = () => {
+      setScrolled(window.scrollY > 20);
+      const available = document.documentElement.scrollHeight - window.innerHeight;
+      setScrollProgress(available > 0 ? Math.min(1, window.scrollY / available) : 0);
+    };
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
@@ -584,6 +591,7 @@ export default function Landing() {
 
   return (
     <div className="fs-landing min-h-screen bg-background text-foreground overflow-x-hidden" style={flowsightLandingTheme}>
+      <div className="fixed inset-x-0 top-0 z-[60] h-[2px] bg-transparent" aria-hidden="true"><span className="block h-full origin-left bg-[linear-gradient(90deg,#2D7A55_0%,#C96B43_52%,#2D7A55_100%)] transition-transform duration-75" style={{ transform: `scaleX(${scrollProgress})` }} /></div>
 
       {/* NAV */}
       <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? "bg-background/80 backdrop-blur-2xl border-b border-border" : "bg-transparent"}`}>
@@ -652,9 +660,19 @@ export default function Landing() {
           <div className={`relative transition-all duration-700 delay-300 motion-reduce:transition-none ${heroReady ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}`}>
             <div ref={heroGlowRef} className="absolute -inset-8 bg-primary/12 rounded-3xl blur-3xl pointer-events-none will-change-[opacity]" />
             <div
-              className="relative bg-card border border-border rounded-[20px] overflow-hidden shadow-[0_32px_80px_rgba(28,28,34,0.12)]"
+              className="relative bg-card border border-border rounded-[20px] overflow-hidden shadow-[0_32px_80px_rgba(28,28,34,0.12)] transition-transform duration-200 ease-out [transform-style:preserve-3d]"
               onMouseEnter={() => setHeroHighlightPaused(true)}
               onMouseLeave={() => setHeroHighlightPaused(false)}
+              onPointerMove={(event) => {
+                if (!window.matchMedia("(pointer: fine)").matches || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+                const bounds = event.currentTarget.getBoundingClientRect();
+                const x = (event.clientX - bounds.left) / bounds.width - 0.5;
+                const y = (event.clientY - bounds.top) / bounds.height - 0.5;
+                event.currentTarget.style.transform = `perspective(1100px) rotateX(${-y * 3}deg) rotateY(${x * 3}deg)`;
+              }}
+              onPointerLeave={(event) => {
+                event.currentTarget.style.transform = "perspective(1100px) rotateX(0deg) rotateY(0deg)";
+              }}
               onFocusCapture={() => setHeroHighlightPaused(true)}
               onBlurCapture={(event) => {
                 if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHeroHighlightPaused(false);
@@ -684,7 +702,8 @@ export default function Landing() {
               <div className="px-5 py-5 grid sm:grid-cols-[0.92fr_1.08fr] gap-4">
                 <div className={`rounded-2xl border p-4 flex flex-col justify-between min-h-[145px] overflow-hidden transition-[background-color,border-color,box-shadow] duration-[350ms] ease-out ${heroHighlight === 0 ? "border-primary/20 bg-primary/[0.07] shadow-[0_0_24px_rgba(201,107,67,0.08)]" : "border-primary/10 bg-primary/[0.04]"}`}>
                   <div><p className="text-[10px] uppercase tracking-widest text-muted-foreground" style={mono}>Safe to spend</p><p className="text-[38px] font-medium leading-none mt-3 text-foreground" style={mono}>$680</p></div>
-                  <p className="text-[11px] text-muted-foreground">after upcoming bills and your buffer</p>
+                  <div><p className="text-[11px] text-muted-foreground">after upcoming bills and your buffer</p><button type="button" aria-expanded={heroShowWork} onClick={() => setHeroShowWork((open) => !open)} className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-primary hover:text-[hsl(var(--fs-primary-hover))]">{heroShowWork ? "Hide calculation" : "Show your work"} <ChevronDown size={11} className={`transition-transform duration-300 ${heroShowWork ? "rotate-180" : ""}`} /></button></div>
+                  <div className={`grid transition-all duration-300 ${heroShowWork ? "grid-rows-[1fr] opacity-100 mt-3" : "grid-rows-[0fr] opacity-0"}`}><div className="overflow-hidden space-y-1.5 border-t border-primary/15 pt-2 text-[9px]">{[["Opening balance", "$4,260"], ["Lowest projected balance", "$1,180"], ["Safety buffer", "−$500"]].map(([label, value]) => <div key={label} className="flex justify-between gap-3"><span className="text-muted-foreground">{label}</span><span style={mono}>{value}</span></div>)}</div></div>
                 </div>
                 <div className="space-y-2">
                   {[{ label: "Rent", timing: "in 11 days", amount: "−$1,650", tone: "bg-primary", highlight: 1 }, { label: "Paycheck", timing: "in 16 days", amount: "+$2,400", tone: "bg-[#2D8B5A]", highlight: 2 }, { label: "Electricity", timing: "Aug 18 · estimated", amount: "~−$117", tone: "bg-[#CA8A04]", highlight: -1 }].map((item) => <div key={item.label} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-[background-color,border-color,box-shadow] duration-[350ms] ease-out ${heroHighlight === item.highlight ? "border-primary/20 bg-primary/[0.05] shadow-[0_0_20px_rgba(201,107,67,0.07)]" : "border-border bg-background"}`}><span className={`h-2 w-2 rounded-full ${item.tone}`} /><div className="min-w-0 flex-1"><p className="text-xs font-medium">{item.label}</p><p className="text-[10px] text-muted-foreground">{item.timing}</p></div><span className="text-xs font-medium" style={mono}>{item.amount}</span></div>)}
@@ -712,52 +731,37 @@ export default function Landing() {
         <div className="relative z-10 max-w-6xl mx-auto"><CausalAhaForecast /></div>
       </section>
 
-      {/* PRODUCT DESTINATIONS */}
-      {false && (
-      <section data-reveal className="bg-white px-5 py-24" id="features">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-10 max-w-2xl">
-            <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>Inside FlowSight</p>
-            <h2 className="text-[40px] font-medium leading-[1.08] tracking-tight lg:text-[48px]" style={display}>Here&apos;s what FlowSight actually sees.</h2>
-            <p className="mt-4 text-[17px] leading-relaxed text-muted-foreground">Four connected views turn your activity into a forecast you can understand and act on.</p>
-          </div>
-          <div className="-mx-1 mb-5 overflow-x-auto px-1">
-            <div className="flex min-w-max gap-2 rounded-2xl border border-border bg-[var(--fs-tint-soft)] p-1.5" role="tablist" aria-label="FlowSight product views">
-              {(["forecast", "scenario", "recurring", "transfers"] as const).map((tab) => <button key={tab} role="tab" aria-selected={productTab === tab} onClick={() => setProductTab(tab)} className={`rounded-xl px-5 py-2.5 text-sm font-medium capitalize transition-all ${productTab === tab ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{tab === "scenario" ? "Scenario Planner" : tab}</button>)}
-            </div>
-          </div>
-          <div className="min-h-[520px] overflow-hidden rounded-[28px] border border-border bg-[var(--fs-tint-soft)] p-4 sm:p-7">
-            <div key={productTab} className="grid min-h-[464px] gap-8 rounded-3xl border border-border bg-white p-5 shadow-[0_20px_60px_rgba(28,28,34,0.08)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300 sm:p-7 lg:grid-cols-[0.36fr_0.64fr] lg:items-center">
-              <div>
-                <p className="text-xs uppercase tracking-[0.15em] text-primary" style={mono}>{productTab === "scenario" ? "Scenario Planner" : productTab}</p>
-                <h3 className="mt-3 text-[30px] font-medium leading-tight" style={display}>{productTab === "forecast" ? "Know where the month is headed." : productTab === "scenario" ? "Test a decision before making it." : productTab === "recurring" ? "Review what happens again." : "Move money without counting it twice."}</h3>
-                <p className="mt-4 leading-relaxed text-muted-foreground">{productTab === "forecast" ? "Whether income is a steady paycheck, a variable invoice, or both, FlowSight tells confirmed activity apart from estimates." : productTab === "scenario" ? "Compare the next 30 days with and without a purchase. Nothing changes permanently until you choose to save it." : productTab === "recurring" ? "FlowSight detects patterns, preserves the evidence behind estimates, and waits for your confirmation before adding them." : "Purchases explain what you spent. The card payment is when cash actually leaves your account."}</p>
-              </div>
-              <div>
-                {productTab === "forecast" && <StepIllustration step={2} />}
-                {productTab === "recurring" && <StepIllustration step={1} />}
-                {productTab === "transfers" && <div className="rounded-2xl border border-border bg-white p-5"><div className="mb-5 flex items-center justify-between"><div><p className="text-[10px] uppercase tracking-[0.15em] text-primary">Likely transfer</p><h4 className="mt-1 font-medium">Between your accounts</h4></div><span className="rounded-full bg-[hsl(var(--fs-green-bg))] px-2.5 py-1 text-[10px] text-[hsl(var(--fs-green))]">Strong match</span></div><div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center"><div className="rounded-xl border border-border p-4"><p className="text-xs text-muted-foreground">Everyday checking · Jul 12</p><p className="mt-2 text-sm font-medium">Payment to Card ••4821</p><p className="mt-3 text-lg" style={mono}>−$1,200</p></div><div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">↔</div><div className="rounded-xl border border-border p-4"><p className="text-xs text-muted-foreground">Card ••4821 · Jul 13</p><p className="mt-2 text-sm font-medium">Payment received</p><p className="mt-3 text-lg text-muted-foreground" style={mono}>+$1,200</p></div></div><div className="mt-4 flex flex-wrap gap-2"><button className="fs-brand-action rounded-lg px-3 py-2 text-xs font-medium">Yes, link</button><button className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">Not a transfer</button></div></div>}
-                {productTab === "scenario" && <div className="rounded-2xl border border-border bg-card p-5"><div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{scenarios.map((item, index) => <button key={item.label} onClick={() => setScenario(index)} className={`rounded-lg border px-2.5 py-2 text-left text-[11px] transition-colors ${scenario === index ? "border-primary/40 bg-primary/[0.08] text-foreground" : "border-border text-muted-foreground"}`}>{item.label.replace(/\s*\([^)]*\)$/, "")}</button>)}</div><div className="flex items-center justify-between"><p className="text-sm font-medium">30-day forecast</p><span className={`rounded-full px-2.5 py-1 text-[10px] ${scenarioCondition.className}`}>{scenarioCondition.label}</span></div><ResponsiveContainer width="100%" height={210}><AreaChart data={scenarioData} margin={{ top: 14, right: 8, left: -18, bottom: 0 }}><XAxis dataKey="day" tick={{ fontSize: 9, fill: "#73766F" }} tickLine={false} axisLine={false} interval={2} /><YAxis tick={{ fontSize: 9, fill: "#73766F" }} tickLine={false} axisLine={false} tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} /><ReferenceLine y={500} stroke="#B7791F" strokeDasharray="5 4" /><Area type="monotone" dataKey="baseline" stroke="#9CA3AF" strokeDasharray="5 5" fill="transparent" dot={false} /><Area type="monotone" dataKey="projected" stroke="#C96B43" strokeWidth={3} fill="#C96B4314" dot={false} animationDuration={SCENARIO_MOTION_MS} /></AreaChart></ResponsiveContainer><div className="grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">{[{ label: "Today", value: 5500 }, { label: "End", value: endBalance }, { label: "Safe", value: safeToSpend }].map((item) => <div key={item.label}><p className="text-[10px] text-muted-foreground">{item.label}</p><p className="mt-1 text-sm font-medium" style={mono}>${item.value.toLocaleString()}</p></div>)}</div></div>}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-      )}
-
       {/* ENGINE QUALITIES */}
-      <section ref={featureGridRef} data-reveal className="px-5 py-24" id="features">
-        <div className="mx-auto max-w-6xl">
+      <section
+        ref={featureGridRef}
+        data-reveal
+        className="relative overflow-hidden px-5 py-24"
+        id="features"
+        onPointerMove={moveCursorGlow}
+        onPointerLeave={(event) => {
+          hideCursorGlow(event);
+          setFeatureGridPaused(false);
+        }}
+        onMouseEnter={() => setFeatureGridPaused(true)}
+        onMouseLeave={() => setFeatureGridPaused(false)}
+        onFocusCapture={() => setFeatureGridPaused(true)}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFeatureGridPaused(false);
+        }}
+      >
+        <div data-cursor-glow className="pointer-events-none absolute left-0 top-0 h-[480px] w-[480px] rounded-full bg-[radial-gradient(circle,rgba(201,107,67,0.09),rgba(201,107,67,0.025)_40%,transparent_70%)] opacity-0 blur-xl transition-[transform,opacity] duration-150 ease-out" />
+        <div className="relative z-10 mx-auto max-w-6xl">
           <div className="mx-auto mb-14 max-w-3xl text-center">
             <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>The rhythm behind your money</p>
             <h2 className="text-[40px] font-medium leading-[1.08] tracking-tight lg:text-[48px]" style={display}>Your money doesn&apos;t stand still.<br />Neither should your forecast.</h2>
             <p className="mx-auto mt-5 max-w-2xl text-[16px] leading-relaxed text-muted-foreground">FlowSight follows what repeats, what may change, and when cash actually moves—keeping the next 30 days grounded in your real financial rhythm.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <article tabIndex={0} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#E7DDD1] bg-[#F8F1E8] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
+            <article tabIndex={0} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#EFE7DB]/70 bg-[#FCF9F5] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
               <h3 className="text-[23px] font-medium leading-tight" style={display}>Recurring, and honest about it.</h3>
               <p className="mt-3 min-h-[48px] text-[15px] leading-relaxed text-muted-foreground">Stable patterns get confirmed. Variable ones keep their evidence instead of pretending to be certain.</p>
-              <div className="mt-6 flex-1 rounded-2xl border border-[#E7DDD1] bg-white p-4">
+              <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full border border-[#EFE7DB] bg-white/70 px-2.5 py-1 text-[10px] text-muted-foreground"><RotateCcw size={11} />You confirm first</span>
+              <div className="mt-6 flex-1 rounded-2xl border border-[#EFE7DB] bg-white p-4">
                 <div className="divide-y divide-border">
                   {[{ name: "Rent", detail: "Monthly", amount: "−$1,650/mo", Icon: Home }, { name: "Payroll", detail: "Every 2 weeks", amount: "+$1,950", Icon: Briefcase }].map((item) => <div key={item.name} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-4"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]"><item.Icon size={15} /></span><div><p className="text-sm font-medium">{item.name}</p><p className="mt-0.5 text-[11px] text-muted-foreground">{item.detail}</p></div><div className="text-right"><span className="rounded-full bg-[hsl(var(--fs-green-bg))] px-2 py-1 text-[10px] font-medium text-[hsl(var(--fs-green))]">Confirmed</span><p className="mt-2 text-xs" style={mono}>{item.amount}</p></div></div>)}
                   <div className="grid grid-cols-[auto_1fr_auto] items-start gap-3 py-4"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]"><Zap size={15} /></span><div><p className="text-sm font-medium">National Grid Electric</p><p className={`mt-1 text-[11px] text-muted-foreground transition-opacity duration-200 ${featureGridResolved ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: featureGridResolved ? "200ms" : "0ms" }}>7 occurrences · $82.15–$142.30</p></div><div className="min-w-[118px] text-right"><span className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-medium transition-all ease-out ${featureGridResolved ? "translate-x-0 bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))] opacity-100" : "translate-x-1 bg-muted text-muted-foreground opacity-80"}`} style={{ transitionDuration: `${GRID_RESOLVE_MS}ms` }}>{featureGridResolved ? "Estimated" : <><span className="mr-1.5 h-1.5 w-1.5 animate-pulse rounded-full bg-current" />Checking pattern…</>}</span><p className="mt-2 text-xs" style={mono}>~−$117</p></div></div>
@@ -765,10 +769,11 @@ export default function Landing() {
               </div>
             </article>
 
-            <article tabIndex={0} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#E7DDD1] bg-[#F8F1E8] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
+            <article tabIndex={0} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#EFE7DB]/70 bg-[#FCF9F5] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
               <h3 className="text-[23px] font-medium leading-tight" style={display}>Test a decision before you make it.</h3>
               <p className="mt-3 min-h-[48px] text-[15px] leading-relaxed text-muted-foreground">See exactly how a purchase changes your next 30 days. Nothing changes until you choose to keep it.</p>
-              <div className="mt-6 flex-1 rounded-2xl border border-[#E7DDD1] bg-white p-4">
+              <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full border border-[#EFE7DB] bg-white/70 px-2.5 py-1 text-[10px] text-muted-foreground"><RotateCcw size={11} />Temporary until saved</span>
+              <div className="mt-6 flex-1 rounded-2xl border border-[#EFE7DB] bg-white p-4">
                 <div className="mb-3 grid grid-cols-2 gap-2" aria-label="Scenario demo">{scenarios.map((item, index) => <div key={item.label} aria-current={scenario === index ? "true" : undefined} className={`rounded-lg border px-2.5 py-2 text-left text-[10px] transition-[background-color,border-color,color] duration-300 ${scenario === index ? "border-primary/40 bg-primary/[0.08] text-foreground" : "border-border text-muted-foreground"}`}>{item.label.replace(/\s*\([^)]*\)$/, "")}</div>)}</div>
                 <div className="flex items-center justify-between"><p className="text-xs font-medium">30-day forecast</p><span className={`rounded-full px-2 py-1 text-[9px] ${scenarioCondition.className}`}>{scenarioCondition.label}</span></div>
                 <ResponsiveContainer width="100%" height={160}><AreaChart data={scenarioData} margin={{ top: 12, right: 6, left: -24, bottom: 0 }}><XAxis dataKey="day" tick={{ fontSize: 8, fill: "#73766F" }} tickLine={false} axisLine={false} interval={3} /><YAxis tick={{ fontSize: 8, fill: "#73766F" }} tickLine={false} axisLine={false} tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} /><ReferenceLine y={500} stroke="#B7791F" strokeDasharray="5 4" /><Area type="monotone" dataKey="baseline" stroke="#9CA3AF" strokeDasharray="5 5" fill="transparent" dot={false} /><Area type="monotone" dataKey="projected" stroke="#C96B43" strokeWidth={2.5} fill="#C96B4314" dot={false} animationDuration={SCENARIO_MOTION_MS} /></AreaChart></ResponsiveContainer>
@@ -776,22 +781,24 @@ export default function Landing() {
               </div>
             </article>
 
-            <article tabIndex={0} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#E7DDD1] bg-[#F8F1E8] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
+            <article tabIndex={0} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#EFE7DB]/70 bg-[#FCF9F5] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
               <h3 className="text-[23px] font-medium leading-tight" style={display}>Built for how income actually arrives.</h3>
               <p className="mt-3 min-h-[48px] text-[15px] leading-relaxed text-muted-foreground">Regular paychecks and variable invoices can coexist without pretending they&apos;re equally certain.</p>
-              <div className="mt-6 flex flex-1 items-center rounded-2xl border border-[#E7DDD1] bg-white p-5"><div className="w-full"><div key={incomeDemo} className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"><IncomePattern kind={incomeDemo} active={featureGridVisible} /></div><div className="mt-2 grid grid-cols-3 gap-2 text-[10px]" aria-label="Income pattern demo">{([{ id: "salary", label: "Regular", note: "Known timing" }, { id: "freelance", label: "Variable", note: "Estimated" }, { id: "mixed", label: "A mix", note: "Both together" }] as const).map((item) => <div key={item.id} aria-current={incomeDemo === item.id ? "true" : undefined} className={`rounded-xl border p-2.5 transition-[background-color,border-color,color] duration-300 ${incomeDemo === item.id ? item.id === "salary" ? "border-[hsl(var(--fs-green))]/30 bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]" : "border-[hsl(var(--fs-amber))]/35 bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]" : "border-border text-muted-foreground"}`}><p className="font-medium">{item.label}</p><p className="mt-1 opacity-75">{item.note}</p></div>)}</div></div></div>
+              <div className="mt-6 flex flex-1 items-center rounded-2xl border border-[#EFE7DB] bg-white p-5"><div className="w-full"><div key={incomeDemo} className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300"><IncomePattern kind={incomeDemo} active={featureGridVisible} /></div><div className="mt-2 grid grid-cols-3 gap-2 text-[10px]" aria-label="Income pattern demo">{([{ id: "salary", label: "Regular", note: "Known timing" }, { id: "freelance", label: "Variable", note: "Estimated" }, { id: "mixed", label: "A mix", note: "Both together" }] as const).map((item) => <div key={item.id} aria-current={incomeDemo === item.id ? "true" : undefined} className={`rounded-xl border p-2.5 transition-[background-color,border-color,color] duration-300 ${incomeDemo === item.id ? item.id === "salary" ? "border-[hsl(var(--fs-green))]/30 bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]" : "border-[hsl(var(--fs-amber))]/35 bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]" : "border-border text-muted-foreground"}`}><p className="font-medium">{item.label}</p><p className="mt-1 opacity-75">{item.note}</p></div>)}</div></div></div>
             </article>
 
-            <article tabIndex={0} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#E7DDD1] bg-[#F8F1E8] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
+            <article tabIndex={0} className="group flex min-h-[530px] flex-col rounded-3xl border border-[#EFE7DB]/70 bg-[#FCF9F5] p-6 transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(28,28,34,0.09)] focus-visible:-translate-y-1 focus-visible:border-primary/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
               <h3 className="text-[23px] font-medium leading-tight" style={display}>Moves money without counting it twice.</h3>
               <p className="mt-3 min-h-[48px] text-[15px] leading-relaxed text-muted-foreground">A card payment isn&apos;t a second expense—it&apos;s the same purchase, arriving at your account on a different day.</p>
-              <div className="mt-6 flex flex-1 flex-col rounded-2xl border border-[#E7DDD1] bg-white p-5">
+              <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full border border-[#EFE7DB] bg-white/70 px-2.5 py-1 text-[10px] text-muted-foreground"><RotateCcw size={11} />Link can be undone</span>
+              <div className="mt-6 flex flex-1 flex-col rounded-2xl border border-[#EFE7DB] bg-white p-5">
                 <div className="flex justify-end"><span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-medium transition-all ease-out ${featureGridResolved ? "translate-x-0 bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))] opacity-100" : "translate-x-1 bg-muted text-muted-foreground opacity-80"}`} style={{ transitionDuration: `${GRID_RESOLVE_MS}ms` }}>{featureGridResolved ? "Strong match" : <><span className="mr-1.5 h-1.5 w-1.5 animate-pulse rounded-full bg-current" />Comparing accounts…</>}</span></div>
                 <div className="mt-4 grid flex-1 gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center"><div className="rounded-xl border border-border p-4"><p className="text-[10px] text-muted-foreground">Everyday · Jul 12</p><p className="mt-2 text-xs font-medium">Payment to Card ••4821</p><p className="mt-3 text-sm" style={mono}>−$1,200</p></div><div className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary ${featureGridResolved ? "fs-transfer-linking" : ""}`}>↔</div><div className="rounded-xl border border-border p-4"><p className="text-[10px] text-muted-foreground">Card ••4821 · Jul 13</p><p className="mt-2 text-xs font-medium">Payment received</p><p className="mt-3 text-sm text-muted-foreground" style={mono}>+$1,200</p></div></div>
                 <p className={`mt-4 text-center text-[11px] text-muted-foreground transition-opacity duration-200 ${featureGridResolved ? "opacity-100" : "opacity-0"}`}>Linked as a transfer · excluded from income and spending</p>
               </div>
             </article>
           </div>
+          <button type="button" onClick={() => navigate("/features")} className="mx-auto mt-8 flex items-center gap-2 text-sm font-medium text-primary hover:text-[hsl(var(--fs-primary-hover))]">See all features <ArrowRight size={14} /></button>
         </div>
       </section>
 
@@ -853,7 +860,7 @@ export default function Landing() {
           <div className="divide-y divide-border border-y border-border">
             {faqs.map((item, index) => (
               <div key={item.question} className="py-5">
-                <button type="button" aria-expanded={openFaq === index} aria-controls={`faq-answer-${index}`} onClick={() => setOpenFaq((current) => current === index ? null : index)} className="flex w-full items-center justify-between gap-4 text-left font-semibold text-foreground"><span>{item.question}</span><span className={`text-primary text-xl font-normal transition-transform duration-300 ${openFaq === index ? "rotate-45" : ""}`}>+</span></button>
+                <button type="button" aria-expanded={openFaq === index} aria-controls={`faq-answer-${index}`} onClick={() => setOpenFaq((current) => current === index ? null : index)} className="flex w-full items-center justify-between gap-4 text-left font-semibold text-foreground"><span>{item.question}</span><ChevronDown size={18} className={`shrink-0 text-primary ${openFaq === index ? "fs-faq-chevron-open" : "transition-transform duration-300"}`} /></button>
                 <div id={`faq-answer-${index}`} aria-hidden={openFaq !== index} className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${openFaq === index ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}><div className="overflow-hidden"><p className="text-sm text-muted-foreground leading-relaxed pt-3 pr-10">{item.answer}</p></div></div>
               </div>
             ))}
@@ -874,6 +881,10 @@ export default function Landing() {
           <div className="relative">
             <div className="absolute inset-0 bg-primary/10 rounded-3xl blur-3xl pointer-events-none" />
             <div className="relative bg-card border border-border rounded-3xl px-8 py-14">
+              <div className="mx-auto mb-8 max-w-sm rounded-2xl border border-dashed border-primary/25 bg-[#FCF9F5] p-4 text-left">
+                <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-primary shadow-sm"><BarChart3 size={16} /></span><div><p className="text-xs font-medium">Your first forecast starts here.</p><p className="mt-0.5 text-[10px] text-muted-foreground">Add a balance, income, and upcoming bills.</p></div></div>
+                <div className="mt-4 flex h-12 items-end gap-1.5" aria-hidden="true">{[28, 35, 31, 42, 38, 50, 46, 58, 53].map((height, index) => <span key={height + index} className="flex-1 rounded-t-sm border border-dashed border-primary/25 bg-white" style={{ height: `${height}%` }} />)}</div>
+              </div>
               <p className="text-accent text-xs font-medium uppercase tracking-[0.15em] mb-5" style={mono}>Early Access</p>
               <h2 className="text-[40px] font-medium tracking-tight leading-[1.1] mb-4" style={display}>Stop guessing.<br />Start knowing.</h2>
               <p className="text-muted-foreground mb-8 max-w-xs mx-auto text-sm">Join the beta and be among the first to see exactly where your money is going — before it gets there.</p>
