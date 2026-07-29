@@ -270,6 +270,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(cents / 100)
+  const horizonDays = data.forecast.days.length
   const forecastData = data.forecast.days.map((day) => ({
     date: day.date,
     day: new Date(`${day.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
@@ -310,13 +311,16 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
       : condition === "watch"
         ? "Watch · Low point ahead"
         : "Clear"
+  const scopedConditionLabel = view === "dashboard" && condition === "clear"
+    ? `Clear · Next ${horizonDays} days`
+    : conditionLabel
   const resultTitle = condition === "update_needed"
     ? "Update your balance before relying on this forecast."
     : condition === "tight"
     ? `Your balance may fall below your safety buffer on ${lowestDate}.`
     : condition === "watch"
       ? `Your balance may feel tight around ${lowestDate}.`
-      : "You’re on track for the next 30 days."
+      : `You’re on track for the next ${horizonDays} days.`
   const resultExplanation = data.forecast.explanations[0]?.headline
   const effectiveBufferCents = bufferPreviewCents ?? data.safetyBufferCents
   const previewSafeToSpendCents = Math.max(0, data.forecast.lowestBalanceCents - effectiveBufferCents)
@@ -389,7 +393,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-[26px] font-extrabold tracking-tight leading-tight">
-            {view === "dashboard" ? `Good ${getTimeOfDay()}, ${name}.` : "Your 30-day forecast"}
+            {view === "dashboard" ? `Good ${getTimeOfDay()}, ${name}.` : `Your ${horizonDays}-day forecast`}
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
             {view === "dashboard"
@@ -408,7 +412,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
         <div className="max-w-3xl">
           <span className="inline-flex items-center rounded-full border border-current/20 py-0.5 pl-2.5 pr-0.5 text-[10px] font-semibold uppercase tracking-wider mb-3">
             <LabelWithInfo
-              label={conditionLabel}
+              label={scopedConditionLabel}
               explanation="Your condition is based on the lowest projected balance, your safety buffer, and the confirmed or estimated events included in this forecast."
             />
           </span>
@@ -468,7 +472,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
         <div className={`bg-card border border-border rounded-2xl px-4 py-4 ${safeToSpendPulse ? "fs-safe-recalculated" : ""}`}>
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-mono">Safe to Spend</p>
           <p aria-live="polite" className="text-xl font-bold text-[hsl(var(--fs-green))] leading-none font-mono">{money(data.forecast.safeToSpendCents)}</p>
-          <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">After upcoming commitments and your safety buffer.</p>
+          <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">Protects your plan through {endDate}.</p>
         </div>
         <div className="bg-card border border-border rounded-2xl px-4 py-4">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-mono">Lowest projected balance</p>
@@ -493,7 +497,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
                 <h3 className="text-sm font-semibold">Cash Flow Forecast</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Projected through {endDate}</p>
               </div>
-              <span className="text-xs px-2.5 py-1 rounded-md bg-muted text-muted-foreground font-mono">30 days</span>
+              {view === "forecast" ? <div className="inline-flex rounded-lg border border-border bg-muted/50 p-0.5" aria-label="Forecast horizon">{[30, 60, 90].map((range) => <Link key={range} href={`/app/forecast?range=${range}`} className={`rounded-md px-2 py-1 text-[11px] font-mono transition-colors ${horizonDays === range ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{range}d</Link>)}</div> : <span className="text-xs px-2.5 py-1 rounded-md bg-muted text-muted-foreground font-mono">30 days</span>}
             </div>
 
             <div className="flex items-center gap-4 mb-4">
@@ -546,8 +550,8 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
                   <span aria-hidden="true">·</span>{" "}
                   Forecast based on {confirmedEventCount} confirmed {confirmedEventCount === 1 ? "event" : "events"} and {estimatedEventCount} {estimatedEventCount === 1 ? "estimate" : "estimates"}.
                 </p>
-                <Link href="/app/forecast" className="inline-flex shrink-0 items-center gap-1 font-medium text-primary hover:underline">
-                  Explore forecast <ChevronRight className="h-3 w-3" />
+                <Link href="/app/forecast?range=60" className="inline-flex shrink-0 items-center gap-1 font-medium text-primary hover:underline">
+                  Explore 60- or 90-day outlook <ChevronRight className="h-3 w-3" />
                 </Link>
               </div>
             )}
