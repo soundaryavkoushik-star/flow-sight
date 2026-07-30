@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/data/prisma"
 import { getForecast } from "@/lib/services/forecast"
-import type { FinancialEvent, ForecastInput, ForecastResult, RecurringRule } from "@/lib/forecast"
+import { generateRecurringEvents, type FinancialEvent, type ForecastInput, type ForecastResult, type RecurringRule } from "@/lib/forecast"
 import { buildSpendingHistory, type SpendingHistory } from "@/lib/analytics/spending"
 import { buildMonthlySpending } from "@/lib/analytics/categories"
 import { measureForecasts } from "@/lib/analytics/forecast-measurement"
@@ -47,6 +47,8 @@ export interface DashboardForecast {
     knownCycleChargesCents: number
     expectedPaymentCents: number
     chargeCount: number
+    postedChargeCount: number
+    upcomingChargeCount: number
     cycleCloseDate: string
     usesFallback: boolean
     dueDate: string
@@ -147,6 +149,44 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     .filter((transfer) => !transfer.outgoingTransaction.account?.isLiability && transfer.incomingTransaction.account?.isLiability)
     .map((transfer) => transfer.outgoingTransactionId))
   const cardPayments = creditCards.flatMap((card) => {
+    const cardRecurring = recurring.filter((item) =>
+      item.accountId === card.account.id
+      && item.type === "bill"
+      && item.nextExpected,
+    )
+    const upcomingCardCharges = [
+      ...generateRecurringEvents(
+        cardRecurring
+          .filter((item) => item.frequency !== "irregular")
+          .map((item) => ({
+            id: item.id,
+            name: recurringDisplayName(item.name, item.type),
+            amountCents: item.amountCents,
+            frequency: item.frequency as RecurringRule["frequency"],
+            nextDate: dateKey(item.nextExpected!),
+            anchorDayOfMonth: item.anchorDayOfMonth ?? undefined,
+            confidence: item.dateConfidence === "confirmed" ? "confirmed" as const : "estimated" as const,
+            exceptions: item.exceptions.map((exception) => ({ date: dateKey(exception.originalDate), movedDate: exception.movedDate ? dateKey(exception.movedDate) : undefined })),
+          })),
+        dateKey(start),
+        dateKey(addUtcDays(start, 40)),
+      ),
+      ...cardRecurring
+        .filter((item) => item.frequency === "irregular" && item.nextExpected)
+        .map((item) => ({
+          id: item.id,
+          name: recurringDisplayName(item.name, item.type),
+          date: dateKey(item.nextExpected!),
+          amountCents: item.amountCents,
+          type: "expense" as const,
+          source: "manual" as const,
+          confidence: item.dateConfidence === "confirmed" ? "confirmed" as const : "estimated" as const,
+        })),
+    ].map((event) => ({
+      date: new Date(`${event.date}T00:00:00.000Z`),
+      description: event.name,
+      amountCents: event.amountCents,
+    }))
     const payment = buildKnownCardPayment(
       start,
       card.statementClosingDay,
@@ -159,6 +199,7 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
           description: transaction.description,
           amountCents: transaction.amountCents,
         })),
+      upcomingCardCharges,
     )
     if (payment.expectedPaymentCents <= 0 || new Date(`${payment.dueDate}T00:00:00.000Z`) >= end) return []
     return [{
@@ -168,12 +209,14 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
       knownCycleChargesCents: payment.knownCycleChargesCents,
       expectedPaymentCents: payment.expectedPaymentCents,
       chargeCount: payment.chargeCount,
+      postedChargeCount: payment.postedChargeCount,
+      upcomingChargeCount: payment.upcomingChargeCount,
       cycleCloseDate: payment.cycleCloseDate,
       usesFallback: payment.usesFallback,
       dueDate: payment.dueDate,
       strategy: payment.usesFallback
         ? "Cold-start estimate — no card purchases are available for this cycle yet"
-        : `Based on ${payment.chargeCount} ${payment.chargeCount === 1 ? "charge" : "charges"} recorded so far: ${shortMoney(card.statementBalanceCents)} unpaid statement + ${shortMoney(payment.knownCycleChargesCents)} current-cycle activity. More spending before ${shortDate(payment.cycleCloseDate)} will increase this payment`,
+        : `Based on ${payment.postedChargeCount} posted ${payment.postedChargeCount === 1 ? "charge" : "charges"}${payment.upcomingChargeCount > 0 ? ` and ${payment.upcomingChargeCount} known upcoming ${payment.upcomingChargeCount === 1 ? "bill" : "bills"}` : ""}: ${shortMoney(card.statementBalanceCents)} unpaid statement + ${shortMoney(payment.knownCycleChargesCents)} current-cycle activity. More spending before ${shortDate(payment.cycleCloseDate)} will increase this payment`,
       paymentAccountId: card.paymentAccount?.id ?? null,
       cardAccountId: card.account.id,
       settingsId: card.id,
@@ -273,7 +316,7 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     freshness: { balanceAgeDays, status: balanceAgeDays >= 7 ? "stale" : balanceAgeDays >= 3 ? "aging" : "fresh" },
     excludedEvents,
     balanceRollForward: balanceRollForward.items.map((item) => ({ accountName: item.accountName, anchorBalanceCents: item.anchorBalanceCents, anchorDate: dateKey(item.anchorDate ?? start), activityCents: item.activityCents, openingBalanceCents: item.openingBalanceCents })),
-    cardPayments: cardPayments.map(({ cardName, paymentAccountName, statementBalanceCents, knownCycleChargesCents, expectedPaymentCents, chargeCount, cycleCloseDate, usesFallback, dueDate, strategy }) => ({ cardName, paymentAccountName, statementBalanceCents, knownCycleChargesCents, expectedPaymentCents, chargeCount, cycleCloseDate, usesFallback, dueDate, strategy })),
+    cardPayments: cardPayments.map(({ cardName, paymentAccountName, statementBalanceCents, knownCycleChargesCents, expectedPaymentCents, chargeCount, postedChargeCount, upcomingChargeCount, cycleCloseDate, usesFallback, dueDate, strategy }) => ({ cardName, paymentAccountName, statementBalanceCents, knownCycleChargesCents, expectedPaymentCents, chargeCount, postedChargeCount, upcomingChargeCount, cycleCloseDate, usesFallback, dueDate, strategy })),
     trackRecord: measureForecasts(snapshots, observations, anchoredAccounts.map((account) => account.id)),
   }
 }

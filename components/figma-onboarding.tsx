@@ -19,7 +19,8 @@ type IncomePatternValue = "regular" | "variable" | "mixed";
 type PeriodicFrequencyValue = "weekly" | "biweekly" | "monthly" | "annual";
 type FrequencyValue = PeriodicFrequencyValue | "irregular";
 interface IncomeItem { id: number; name: string; amount: string; frequency: FrequencyValue; nextDate: string | null; kind: "regular" | "variable"; earliestDate?: string | null; latestDate?: string | null; confidence?: "certain" | "likely" | "possible" }
-interface BillItem   { id: number; name: string; amount: string; frequency: PeriodicFrequencyValue; nextDate: string | null }
+interface BillItem   { id: number; name: string; amount: string; frequency: PeriodicFrequencyValue; nextDate: string | null; accountId: string | null }
+interface CreditCardOption { id: string; name: string }
 const FREQUENCY_OPTIONS: Array<{ value: PeriodicFrequencyValue; label: string }> = [
   { value: "weekly", label: "Weekly" },
   { value: "biweekly", label: "Every two weeks" },
@@ -500,9 +501,11 @@ function RecurringIncome({
 
 // 4 — Recurring bills
 function RecurringBills({
-  items, onAdd, onRemove, onNext,
+  items, creditCards, primaryAccountName, onAdd, onRemove, onNext,
 }: {
   items: BillItem[];
+  creditCards: CreditCardOption[];
+  primaryAccountName: string;
   onAdd: (item: BillItem) => void;
   onRemove: (id: number) => void;
   onNext: () => void;
@@ -511,16 +514,18 @@ function RecurringBills({
   const [amount, setAmount] = useState("");
   const [freq, setFreq] = useState<PeriodicFrequencyValue>("monthly");
   const [nextDate, setNextDate] = useState("");
+  const [accountId, setAccountId] = useState<string | null>(null);
   const [adding, setAdding] = useState(items.length === 0);
 
   const suggestions = ["Rent", "Netflix", "Spotify", "Internet", "Phone", "Gym"];
 
   const handleAdd = () => {
     if (!name || !amount) return;
-    onAdd({ id: Date.now(), name, amount, frequency: freq, nextDate: nextDate || null });
+    onAdd({ id: Date.now(), name, amount, frequency: freq, nextDate: nextDate || null, accountId });
     setName("");
     setAmount("");
     setNextDate("");
+    setAccountId(null);
     setAdding(false);
   };
 
@@ -561,7 +566,7 @@ function RecurringBills({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                <p className="text-xs text-muted-foreground">{frequencyLabel(item.frequency)} · {item.nextDate ? `Next ${new Date(`${item.nextDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Date estimated"}</p>
+                <p className="text-xs text-muted-foreground">{frequencyLabel(item.frequency)} · {item.nextDate ? `Next ${new Date(`${item.nextDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Date estimated"} · Paid with {creditCards.find((card) => card.id === item.accountId)?.name ?? primaryAccountName}</p>
               </div>
               <span className="text-sm font-semibold text-destructive shrink-0" style={mono}>
                 –${parseFloat(item.amount).toLocaleString()}
@@ -617,6 +622,19 @@ function RecurringBills({
             />
             <p className="text-[11px] text-muted-foreground mt-1.5">Don’t know your Netflix date? Leave this blank; the forecast will treat it as estimated.</p>
           </div>
+          {creditCards.length > 0 && <div>
+            <label className="text-xs text-muted-foreground block mb-1.5" htmlFor="bill-paid-with">Paid with</label>
+            <select
+              id="bill-paid-with"
+              value={accountId ?? ""}
+              onChange={(e) => setAccountId(e.target.value || null)}
+              className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/40 transition-colors"
+            >
+              <option value="">{primaryAccountName}</option>
+              {creditCards.map((card) => <option key={card.id} value={card.id}>{card.name} · credit card</option>)}
+            </select>
+            <p className="text-[11px] text-muted-foreground mt-1.5">Card-funded bills count as spending now. Cash leaves checking only with the card payment.</p>
+          </div>}
           <div className="flex gap-2">
             <button
               onClick={handleAdd}
@@ -790,7 +808,7 @@ function ForecastReady({
 
 // ── ORCHESTRATOR ─────────────────────────────────────────────────────────────
 
-export default function Onboarding() {
+export default function Onboarding({ creditCards = [] }: { creditCards?: CreditCardOption[] }) {
   const router = useRouter();
   const navigate = router.push;
   const [step, setStep] = useState(0);
@@ -836,6 +854,7 @@ export default function Onboarding() {
         amountCents: Math.round(parseFloat(item.amount) * 100),
         frequency: item.frequency,
         nextDate: item.nextDate,
+        accountId: item.accountId,
       })),
       incomePattern: incomePattern ?? "regular",
       timezone: timezoneRef.current,
@@ -867,6 +886,8 @@ export default function Onboarding() {
       case 5: return (
         <RecurringBills
           items={bills}
+          creditCards={creditCards}
+          primaryAccountName={accountName}
           onAdd={(item) => setBills((p) => [...p, item])}
           onRemove={(id) => setBills((p) => p.filter((b) => b.id !== id))}
           onNext={next}

@@ -338,8 +338,8 @@ export async function saveRecurringSeries(input: RecurringSeriesInput) {
     return { ok: false as const, message: "Add a name, amount, frequency, and next date." }
   }
   if (input.accountId) {
-    const account = await prisma.account.findFirst({ where: { id: input.accountId, userId: user.id, isLiability: false }, select: { id: true } })
-    if (!account) return { ok: false as const, message: "Choose a valid account." }
+    const account = await prisma.account.findFirst({ where: { id: input.accountId, userId: user.id, type: { in: ["checking", "savings", "credit_card"] } }, select: { id: true, type: true } })
+    if (!account || (input.type === "income" && account.type === "credit_card")) return { ok: false as const, message: "Choose a valid account." }
   }
   try {
     if (input.id) {

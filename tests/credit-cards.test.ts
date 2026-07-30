@@ -47,6 +47,8 @@ describe("credit card payment planning", () => {
       knownCycleChargesCents: 8_000,
       expectedPaymentCents: 48_000,
       chargeCount: 2,
+      postedChargeCount: 2,
+      upcomingChargeCount: 0,
       usesFallback: false,
     })
   })
@@ -80,8 +82,26 @@ describe("credit card payment planning", () => {
       expectedPaymentCents: 72_000,
       knownCycleChargesCents: 0,
       chargeCount: 0,
+      postedChargeCount: 0,
+      upcomingChargeCount: 0,
       usesFallback: true,
     }))
+  })
+
+  it("includes a known recurring card bill before the statement closes", () => {
+    const payment = buildKnownCardPayment(
+      new Date("2026-08-10T00:00:00.000Z"),
+      15,
+      10,
+      40_000,
+      [],
+      [{ date: new Date("2026-08-12T00:00:00.000Z"), description: "Netflix", amountCents: -1_799 }],
+    )
+
+    expect(payment.expectedPaymentCents).toBe(41_799)
+    expect(payment.postedChargeCount).toBe(0)
+    expect(payment.upcomingChargeCount).toBe(1)
+    expect(payment.usesFallback).toBe(false)
   })
 
   it("proposes the next payment from observed card-payment history", () => {

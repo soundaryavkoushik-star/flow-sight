@@ -163,7 +163,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
       {totalPages > 1 && <nav className="flex items-center justify-between mt-5 text-sm" aria-label="Transaction pages"><Link href={paramsFor(Math.max(1, page - 1))} aria-disabled={page === 1} className={`rounded-md border border-input px-3 py-2 ${page === 1 ? "pointer-events-none opacity-50" : "hover:bg-accent"}`}>Previous</Link><span className="text-muted-foreground">Page {Math.min(page, totalPages)} of {totalPages}</span><Link href={paramsFor(Math.min(totalPages, page + 1))} aria-disabled={page >= totalPages} className={`rounded-md border border-input px-3 py-2 ${page >= totalPages ? "pointer-events-none opacity-50" : "hover:bg-accent"}`}>Next</Link></nav>}
     </> : <div className="space-y-6">
       {recurringSuggestions.length > 0 && <RecurringReviewPanel suggestions={recurringSuggestions} />}
-      <RecurringManager items={recurringItems} accounts={accounts.map(({ id, name }) => ({ id, name }))} editId={query.edit} />
+      <RecurringManager items={recurringItems} accounts={accounts.map(({ id, name, type }) => ({ id, name, type }))} editId={query.edit} />
     </div>}
   </div>
 }

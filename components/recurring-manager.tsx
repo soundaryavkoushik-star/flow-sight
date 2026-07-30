@@ -28,7 +28,7 @@ export interface ManagedRecurringItem {
   occurrenceCount: number | null
 }
 
-interface AccountOption { id: string; name: string }
+interface AccountOption { id: string; name: string; type: string }
 
 function money(cents: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Math.abs(cents) / 100)
@@ -142,7 +142,7 @@ function RecurringEditor({ item, accounts, onClose, onSaved }: { item: ManagedRe
         <div><label className="text-xs text-muted-foreground block mb-1.5" htmlFor="recurring-next">Next date</label><input id="recurring-next" name="nextExpected" type="date" defaultValue={item?.nextExpected ?? ""} required className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" /></div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div><label className="text-xs text-muted-foreground block mb-1.5" htmlFor="recurring-account">Account</label><select id="recurring-account" name="accountId" defaultValue={item?.accountId ?? ""} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"><option value="">Not assigned</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></div>
+        <div><label className="text-xs text-muted-foreground block mb-1.5" htmlFor="recurring-account">{type === "bill" ? "Paid with" : "Deposited to"}</label><select id="recurring-account" name="accountId" defaultValue={item?.accountId ?? ""} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"><option value="">Not assigned</option>{accounts.filter((account) => type === "bill" || account.type !== "credit_card").map((account) => <option key={account.id} value={account.id}>{account.name}{account.type === "credit_card" ? " · credit card" : ""}</option>)}</select></div>
         <div><label className="text-xs text-muted-foreground block mb-1.5" htmlFor="recurring-confidence">Status</label><select id="recurring-confidence" name="confidence" defaultValue={item?.confidence ?? "confirmed"} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"><option value="confirmed">Confirmed</option><option value="estimated">Estimated</option></select></div>
       </div>
       {error && <p className="text-sm text-destructive" role="alert">{error}</p>}

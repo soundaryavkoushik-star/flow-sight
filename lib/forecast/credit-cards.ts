@@ -28,6 +28,8 @@ export interface KnownCardPayment {
   knownCycleChargesCents: number
   expectedPaymentCents: number
   chargeCount: number
+  postedChargeCount: number
+  upcomingChargeCount: number
   usesFallback: boolean
 }
 
@@ -71,6 +73,7 @@ export function buildKnownCardPayment(
   paymentDueDay: number,
   unpaidStatementBalanceCents: number,
   transactions: CardCycleTransaction[],
+  knownUpcomingCharges: CardCycleTransaction[] = [],
 ): KnownCardPayment {
   let closeYear = start.getUTCFullYear()
   let closeMonth = start.getUTCMonth()
@@ -106,14 +109,22 @@ export function buildKnownCardPayment(
     dueDate = utcDateForDay(dueYear, dueMonth, paymentDueDay)
   }
 
-  const cycleActivity = transactions.filter((transaction) =>
+  const postedCycleActivity = transactions.filter((transaction) =>
     transaction.date >= cycleStartDate
     && transaction.date <= start
     && transaction.date <= closeDate
     && !isCardPaymentDescription(transaction.description),
   )
+  const upcomingCycleActivity = knownUpcomingCharges.filter((transaction) =>
+    transaction.date > start
+    && transaction.date <= closeDate
+    && !isCardPaymentDescription(transaction.description),
+  )
+  const cycleActivity = [...postedCycleActivity, ...upcomingCycleActivity]
   const knownCycleChargesCents = Math.max(0, -cycleActivity.reduce((total, transaction) => total + transaction.amountCents, 0))
   const chargeCount = cycleActivity.filter((transaction) => transaction.amountCents < 0).length
+  const postedChargeCount = postedCycleActivity.filter((transaction) => transaction.amountCents < 0).length
+  const upcomingChargeCount = upcomingCycleActivity.filter((transaction) => transaction.amountCents < 0).length
   const usesFallback = cycleActivity.length === 0
 
   return {
@@ -124,6 +135,8 @@ export function buildKnownCardPayment(
     knownCycleChargesCents,
     expectedPaymentCents: usesFallback ? unpaidStatementBalanceCents : unpaidStatementBalanceCents + knownCycleChargesCents,
     chargeCount,
+    postedChargeCount,
+    upcomingChargeCount,
     usesFallback,
   }
 }

@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/data/prisma"
-import { calculateForecast, type FinancialEvent, type RecurringRule } from "@/lib/forecast"
 import { determineForecastCondition, type ForecastCondition } from "@/lib/forecast/condition"
 import { financialDateKey, isValidTimeZone } from "@/lib/forecast/timezone"
 import { addDays, addMonthsAnchored, toDateKey } from "@/lib/forecast/utils"
+import { loadDashboardForecast } from "@/lib/data/forecast"
 
 type Frequency = "weekly" | "biweekly" | "monthly" | "annual" | "irregular"
 
@@ -19,6 +19,7 @@ export interface OnboardingRecurringItem {
   earliestDate?: string | null
   latestDate?: string | null
   confidence?: "certain" | "likely" | "possible"
+  accountId?: string | null
 }
 
 export interface OnboardingPayload {
@@ -94,6 +95,11 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
   if (payload.bills.some((item) => item.frequency === "irregular") || payload.income.some((item) => item.frequency === "irregular" && (item.kind !== "variable" || !item.nextDate))) {
     return { ok: false, message: "Income without a regular cadence needs an expected date." }
   }
+  const selectedCardIds = [...new Set(payload.bills.map((item) => item.accountId).filter((value): value is string => Boolean(value)))]
+  if (selectedCardIds.length > 0) {
+    const validCardCount = await prisma.account.count({ where: { userId: user.id, id: { in: selectedCardIds }, type: "credit_card" } })
+    if (validCardCount !== selectedCardIds.length) return { ok: false, message: "Choose a valid account for each recurring bill." }
+  }
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -159,21 +165,17 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
             dateConfidence: item.nextDate ? "confirmed" : "estimated",
             status: "confirmed",
             isManual: true,
-            accountId: account.id,
+            accountId: item.accountId ?? account.id,
           })),
         ],
       })
     })
 
-    const forecastEvents: FinancialEvent[] = payload.income.filter((item) => item.frequency === "irregular").map((item, index) => ({ id: `onboarding:irregular:${index}`, name: item.name.trim(), date: item.nextDate!, amountCents: item.amountCents, type: "income", source: "manual", confidence: item.confidence === "certain" ? "confirmed" : "estimated" }))
-    const recurringRules: RecurringRule[] = [
-      ...payload.income.filter((item): item is OnboardingRecurringItem & { frequency: Exclude<Frequency, "irregular"> } => item.frequency !== "irregular").map((item, index) => ({ id: `onboarding:income:${index}`, name: item.name.trim(), amountCents: item.amountCents, frequency: item.frequency, nextDate: item.nextDate ?? toDateKey(estimatedIncomeDate(today, item.frequency)), confidence: item.kind === "variable" ? (item.confidence === "certain" ? "confirmed" as const : "estimated" as const) : item.nextDate ? "confirmed" as const : "estimated" as const })),
-      ...payload.bills.map((item, index) => ({ id: `onboarding:bill:${index}`, name: item.name.trim(), amountCents: -item.amountCents, frequency: item.frequency as RecurringRule["frequency"], nextDate: item.nextDate ?? todayKey, confidence: item.nextDate ? "confirmed" as const : "estimated" as const })),
-    ]
-    const forecast = calculateForecast({ startingBalanceCents: payload.balanceCents, events: forecastEvents, recurringRules, settings: { startDate: todayKey, days: 30, safetyBufferCents: payload.safetyBufferCents } })
-    const included = forecast.days.flatMap((day) => day.events)
+    const dashboard = await loadDashboardForecast(user.id)
+    if (!dashboard) return { ok: false, message: "We saved your setup, but couldn’t prepare the forecast. Refresh the dashboard to try again." }
+    const included = dashboard.forecast.days.flatMap((day) => day.events)
     revalidatePath("/app/dashboard")
-    return { ok: true, forecast: { safeToSpendCents: forecast.safeToSpendCents, lowestBalanceCents: forecast.lowestBalanceCents, lowestBalanceDate: forecast.lowestBalanceDate, condition: determineForecastCondition(forecast, payload.safetyBufferCents, "fresh"), confirmedEventCount: included.filter((event) => event.confidence === "confirmed").length, estimatedEventCount: included.filter((event) => event.confidence === "estimated").length } }
+    return { ok: true, forecast: { safeToSpendCents: dashboard.forecast.safeToSpendCents, lowestBalanceCents: dashboard.forecast.lowestBalanceCents, lowestBalanceDate: dashboard.forecast.lowestBalanceDate, condition: determineForecastCondition(dashboard.forecast, payload.safetyBufferCents, dashboard.freshness.status), confirmedEventCount: included.filter((event) => event.confidence === "confirmed").length, estimatedEventCount: included.filter((event) => event.confidence === "estimated").length } }
   } catch (error) {
     console.error("Failed to save onboarding", error)
     return { ok: false, message: "We couldn't save your forecast setup. Please try again." }
