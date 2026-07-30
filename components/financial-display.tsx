@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { formatCurrencyCents } from "@/lib/financial/currency"
 
 export function ConfidencePill({ confidence }: { confidence: "confirmed" | "estimated" }) {
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${confidence === "confirmed" ? "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]" : "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]"}`}>{confidence === "confirmed" ? "Confirmed" : "Estimated"}</span>
@@ -22,5 +23,5 @@ export function AmountReveal({ cents, prefix = "", estimated = false, className 
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
   }, [cents])
-  return <span className={className}>{estimated ? "~" : ""}{prefix}{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Math.abs(value) / 100)}</span>
+  return <span className={className}>{estimated ? "~" : ""}{prefix}{formatCurrencyCents(value)}</span>
 }

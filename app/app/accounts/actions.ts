@@ -58,12 +58,16 @@ export async function createAccount(input: AccountInput) {
   if (!id) return { ok: false as const, message: "Your session expired. Please sign in again." }
   const date = parseDate(input.balanceDate)
   if (!input.name.trim() || !date || !Number.isSafeInteger(input.balanceCents)) return { ok: false as const, message: "Add a name, current balance, and balance date." }
+  if (input.type === "credit_card" && !validCardSettings(input)) return { ok: false as const, message: "Add the card’s statement closing day and next payment date." }
   try {
     const duplicate = await prisma.account.findFirst({ where: { userId: id, name: { equals: input.name.trim(), mode: "insensitive" } }, select: { id: true } })
     if (duplicate) return { ok: false as const, message: "You already have an account with that name." }
     const account = await prisma.$transaction(async (tx) => {
       const account = await tx.account.create({ data: { userId: id, name: input.name.trim(), type: input.type, isLiability: input.type === "credit_card", source: "manual", anchorBalanceCents: input.balanceCents, anchorDate: date } })
       await tx.actualBalanceObservation.create({ data: { userId: id, accountId: account.id, balanceCents: input.balanceCents, observedAt: date } })
+      if (input.type === "credit_card") {
+        await tx.creditCardSettings.create({ data: { userId: id, accountId: account.id, statementBalanceCents: input.statementBalanceCents!, minimumPaymentCents: input.minimumPaymentCents, statementClosingDay: input.statementClosingDay!, paymentDueDay: input.paymentDueDay!, paymentStrategy: input.paymentStrategy!, fixedPaymentCents: input.fixedPaymentCents } })
+      }
       return account
     })
     await prisma.userProfile.upsert({ where: { userId: id }, update: {}, create: { userId: id } })

@@ -15,7 +15,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { DashboardForecast } from "@/lib/data/forecast"
-import { confirmForecastEstimate, deleteForecastTransaction, recordForecastVisit, skipForecastOccurrence, stopRecurringEvent, updateForecastEvent, updateSafetyBuffer, type ForecastEventUpdate } from "@/app/app/forecast/actions"
+import { confirmForecastEstimate, deleteForecastTransaction, dismissSafetyBufferPrompt, recordForecastVisit, skipForecastOccurrence, stopRecurringEvent, updateForecastEvent, updateSafetyBuffer, type ForecastEventUpdate } from "@/app/app/forecast/actions"
 import { runScenario } from "@/lib/forecast/scenarios"
 import { determineForecastCondition } from "@/lib/forecast/condition"
 import { amountColorClass, amountDotClass } from "@/lib/financial/amount-style"
@@ -163,6 +163,8 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
   const [eventActionMessage, setEventActionMessage] = useState<string | null>(null)
   const [showWorkOpen, setShowWorkOpen] = useState(false)
   const [safeToSpendPulse, setSafeToSpendPulse] = useState(false)
+  const [bufferPromptHidden, setBufferPromptHidden] = useState(false)
+  const [bufferPromptError, setBufferPromptError] = useState<string | null>(null)
   const previousSafeToSpend = useRef(
     data ? Math.max(0, data.forecast.lowestBalanceCents - (bufferPreviewCents ?? data.safetyBufferCents)) : null,
   )
@@ -222,6 +224,27 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
     if (!result.ok) { setEventSaveError(result.message); return }
     setEditingEventId(null)
     setEventActionMessage(success)
+    router.refresh()
+  }
+
+  function editForecastEvent(event: { id: string; recurring?: boolean }) {
+    if (event.recurring && event.id.startsWith("recurring:")) {
+      const recurringId = event.id.split(":")[1]
+      router.push(`/app/transactions?tab=recurring&edit=${encodeURIComponent(recurringId)}`)
+      return
+    }
+    setEditingEventId(event.id)
+    setEventSaveError(null)
+  }
+
+  async function resolveBufferPrompt(action: Promise<{ ok: true } | { ok: false; message: string }>) {
+    setBufferPromptError(null)
+    const result = await action
+    if (!result.ok) {
+      setBufferPromptError(result.message)
+      return
+    }
+    setBufferPromptHidden(true)
     router.refresh()
   }
 
@@ -406,6 +429,23 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
           <span>Calculated from your latest details</span>
         </div>
       </div>
+
+      {view === "dashboard" && !data.safetyBufferConfigured && !data.safetyBufferPromptDismissed && !bufferPromptHidden && (
+        <section className="rounded-2xl border border-[hsl(var(--fs-amber))]/25 bg-[hsl(var(--fs-amber-bg))]/55 p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-sm font-semibold text-foreground">Add a safety buffer when you’re ready</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">You haven’t set a safety buffer yet. For now, Safe to Spend only protects against your balance going below $0.</p>
+              {bufferPromptError && <p className="mt-2 text-xs text-destructive">{bufferPromptError}</p>}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="outline"><Link href="/app/settings">Set a buffer</Link></Button>
+              <Button size="sm" variant="outline" onClick={() => void resolveBufferPrompt(updateSafetyBuffer(0))}>Keep using $0</Button>
+              <Button size="sm" variant="ghost" onClick={() => void resolveBufferPrompt(dismissSafetyBufferPrompt())}>Dismiss</Button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Primary forecast result */}
       <section className={`rounded-2xl border p-5 transition-[background-color,border-color,color] duration-300 ${conditionStyle}`}>
@@ -715,10 +755,10 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
               ) : (
                 <div className="space-y-2">
                   {selectedDay.events.map((event) => (
-                    <button key={event.id} type="button" onClick={() => { setEditingEventId(event.id); setEventSaveError(null) }} className="w-full rounded-xl border border-border p-4 flex items-start gap-3 text-left hover:border-primary/30 hover:bg-primary/[0.04] transition-colors">
+                    <button key={event.id} type="button" onClick={() => editForecastEvent(event)} className="w-full rounded-xl border border-border p-4 flex items-start gap-3 text-left hover:border-primary/30 hover:bg-primary/[0.04] transition-colors">
                       <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${amountDotClass(event.amountCents >= 0 ? "income" : "spending")}`} />
                       <div className="flex-1 min-w-0"><p className="font-medium truncate">{event.name}</p><p className="text-xs text-muted-foreground mt-1 capitalize">{event.confidence} · {event.recurring ? "Recurring" : event.source}</p>{event.confidence === "estimated" && event.estimateEvidence && <p className="text-[11px] text-muted-foreground mt-1">Based on {event.estimateEvidence.occurrenceCount} occurrences ranging {money(Math.min(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}–{money(Math.max(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}.</p>}</div>
-                      <div className="text-right"><span className={`font-semibold font-mono ${amountColorClass(event.amountCents >= 0 ? "income" : "spending")}`}>{event.amountCents >= 0 ? "+" : "−"}{money(Math.abs(event.amountCents))}</span><p className="text-[10px] text-muted-foreground mt-1">Edit</p></div>
+                      <div className="text-right"><span className={`font-semibold font-mono ${amountColorClass(event.amountCents >= 0 ? "income" : "spending")}`}>{event.amountCents >= 0 ? "+" : "−"}{money(Math.abs(event.amountCents))}</span><p className="text-[10px] text-muted-foreground mt-1">{event.recurring ? "Manage recurring" : "Edit"}</p></div>
                     </button>
                   ))}
                 </div>
@@ -754,7 +794,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
                 <div><label className="text-xs text-muted-foreground block mb-1.5" htmlFor="event-name">Name</label><input id="event-name" name="name" defaultValue={editingEvent.name} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" required /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className="text-xs text-muted-foreground block mb-1.5" htmlFor="event-amount">Amount</label><input id="event-amount" name="amount" type="number" min="0.01" step="0.01" defaultValue={(Math.abs(editingEvent.amountCents) / 100).toFixed(2)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono" required /></div>
-                  <div><label className="text-xs text-muted-foreground block mb-1.5" htmlFor="event-type">Type</label><select id="event-type" name="type" defaultValue={editingEvent.amountCents < 0 ? "expense" : "income"} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"><option value="expense">Expense</option><option value="income">Income</option></select></div>
+                  <div><label className="text-xs text-muted-foreground block mb-1.5" htmlFor="event-type">Direction</label><select id="event-type" name="type" defaultValue={editingEvent.amountCents < 0 ? "expense" : "income"} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"><option value="expense">Money out</option><option value="income">Money in</option></select></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className="text-xs text-muted-foreground block mb-1.5" htmlFor="event-date">Date</label><input id="event-date" name="date" type="date" defaultValue={selectedDay.date} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" required /></div>
@@ -777,7 +817,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2">
-              <Button className="flex-1" disabled={selectedDay.events.length === 0} onClick={() => setEditingEventId(selectedDay.events[0]?.id ?? null)}><Pencil className="h-4 w-4" /> Edit events</Button>
+              <Button className="flex-1" disabled={selectedDay.events.length === 0} onClick={() => { const first = selectedDay.events[0]; if (first) editForecastEvent(first) }}><Pencil className="h-4 w-4" /> {selectedDay.events[0]?.recurring ? "Manage recurring" : "Edit event"}</Button>
               <Button variant="outline" className="flex-1" onClick={() => setScenarioOpen((value) => !value)}><GitBranch className="h-4 w-4" /> Try a scenario</Button>
             </div>
 

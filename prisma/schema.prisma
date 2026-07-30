@@ -19,6 +19,8 @@ model UserProfile {
   incomePatternSource String @default("onboarding") // "onboarding" | "csv_confirmed" | "user_updated"
   incomePatternUpdatedAt DateTime @default(now())
   safetyBufferCents Int     @default(0) // minimum balance the user wants to stay above
+  safetyBufferConfiguredAt DateTime?
+  safetyBufferPromptDismissedAt DateTime?
   alertSafetyBuffer Boolean @default(true)
   alertKnownBill Boolean @default(true)
   alertEstimateReview Boolean @default(true)

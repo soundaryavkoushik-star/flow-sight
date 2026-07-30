@@ -8,6 +8,7 @@ import { deleteRecurringSeries, saveRecurringSeries, setRecurringSeriesActive, t
 import { amountColorClass } from "@/lib/financial/amount-style"
 import { ConfidencePill } from "@/components/financial-display"
 import { ActionToast } from "@/components/ui/toast"
+import { recurringFrequencyLabel } from "@/lib/financial/recurring-label"
 
 export interface ManagedRecurringItem {
   id: string
@@ -33,9 +34,9 @@ function money(cents: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Math.abs(cents) / 100)
 }
 
-export function RecurringManager({ items, accounts }: { items: ManagedRecurringItem[]; accounts: AccountOption[] }) {
+export function RecurringManager({ items, accounts, editId }: { items: ManagedRecurringItem[]; accounts: AccountOption[]; editId?: string }) {
   const router = useRouter()
-  const [editing, setEditing] = useState<ManagedRecurringItem | "new" | null>(null)
+  const [editing, setEditing] = useState<ManagedRecurringItem | "new" | null>(() => items.find((item) => item.id === editId) ?? null)
   const [workingId, setWorkingId] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const active = items.filter((item) => item.status === "confirmed")
@@ -96,7 +97,7 @@ function RecurringGroup({ title, items, workingId, onEdit, onToggle, onRemove }:
             <p className="font-medium truncate">{item.name}</p>
             <ConfidencePill confidence={item.confidence} />
           </div>
-          <p className="mt-1 text-xs text-muted-foreground"><span className="capitalize">{item.type}</span> · <span className="capitalize">{item.frequency}</span> · Next {item.nextExpected ? new Date(`${item.nextExpected}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "date not set"}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{item.type === "income" ? "Income" : "Bill"} · {recurringFrequencyLabel(item.frequency)} · Next {item.nextExpected ? new Date(`${item.nextExpected}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "date not set"}</p>
           <p className="text-[11px] text-muted-foreground/75 mt-1">{item.accountName ?? "No account assigned"} · {item.source}</p>
           {item.accountType === "credit_card" && item.type === "bill" && <p className="text-[11px] text-muted-foreground mt-1">Tracked on this card · its cash impact is reflected in the card payment.</p>}
           {item.confidence === "estimated" && item.occurrenceCount && item.minAmountCents !== null && item.maxAmountCents !== null && <p className="text-[11px] text-muted-foreground mt-1">Estimated from {item.occurrenceCount} occurrences ranging {money(Math.min(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)))}–{money(Math.max(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)))}.</p>}

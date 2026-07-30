@@ -145,8 +145,8 @@ export async function updateSafetyBuffer(safetyBufferCents: number): Promise<Saf
   try {
     await prisma.userProfile.upsert({
       where: { userId: user.id },
-      update: { safetyBufferCents },
-      create: { userId: user.id, safetyBufferCents },
+      update: { safetyBufferCents, safetyBufferConfiguredAt: new Date(), safetyBufferPromptDismissedAt: null },
+      create: { userId: user.id, safetyBufferCents, safetyBufferConfiguredAt: new Date() },
     })
     revalidatePath("/app/dashboard")
     revalidatePath("/app/forecast")
@@ -154,6 +154,25 @@ export async function updateSafetyBuffer(safetyBufferCents: number): Promise<Saf
   } catch (error) {
     console.error("Failed to update safety buffer", error)
     return { ok: false, message: "We couldn’t save your safety buffer. Please try again." }
+  }
+}
+
+export async function dismissSafetyBufferPrompt(): Promise<SafetyBufferUpdateResult> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, message: "Your session expired. Please sign in again." }
+
+  try {
+    await prisma.userProfile.upsert({
+      where: { userId: user.id },
+      update: { safetyBufferPromptDismissedAt: new Date() },
+      create: { userId: user.id, safetyBufferPromptDismissedAt: new Date() },
+    })
+    revalidatePath("/app/dashboard")
+    return { ok: true }
+  } catch (error) {
+    console.error("Failed to dismiss safety buffer prompt", error)
+    return { ok: false, message: "We couldn’t dismiss that prompt. Please try again." }
   }
 }
 

@@ -27,8 +27,8 @@ export async function savePreferences(input: PersonalizationPreferences) {
   try {
     await prisma.userProfile.upsert({
       where: { userId: user.id },
-      update: input,
-      create: { userId: user.id, ...input },
+      update: { ...input, safetyBufferConfiguredAt: new Date(), safetyBufferPromptDismissedAt: null },
+      create: { userId: user.id, ...input, safetyBufferConfiguredAt: new Date() },
     })
     revalidatePath("/app/settings")
     revalidatePath("/app/dashboard")

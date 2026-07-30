@@ -14,6 +14,23 @@ export interface CardPaymentHistoryItem {
   amountCents: number
 }
 
+export interface CardCycleTransaction {
+  date: Date
+  description: string
+  amountCents: number
+}
+
+export interface KnownCardPayment {
+  cycleStartDate: string
+  cycleCloseDate: string
+  dueDate: string
+  unpaidStatementBalanceCents: number
+  knownCycleChargesCents: number
+  expectedPaymentCents: number
+  chargeCount: number
+  usesFallback: boolean
+}
+
 export function suggestCardPaymentFromHistory(items: CardPaymentHistoryItem[]) {
   const payments = items
     .filter((item) => item.amountCents > 0 && /\b(payment received|autopay payment|payment thank|thank you payment)\b/i.test(item.description))
@@ -38,6 +55,77 @@ export function suggestCardPaymentFromHistory(items: CardPaymentHistoryItem[]) {
 
 function daysInUtcMonth(year: number, month: number) {
   return new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+}
+
+function utcDateForDay(year: number, month: number, day: number) {
+  return new Date(Date.UTC(year, month, Math.min(day, daysInUtcMonth(year, month))))
+}
+
+function isCardPaymentDescription(description: string) {
+  return /\b(payment received|autopay payment|payment thank|thank you payment|card payment)\b/i.test(description)
+}
+
+export function buildKnownCardPayment(
+  start: Date,
+  statementClosingDay: number,
+  paymentDueDay: number,
+  unpaidStatementBalanceCents: number,
+  transactions: CardCycleTransaction[],
+): KnownCardPayment {
+  let closeYear = start.getUTCFullYear()
+  let closeMonth = start.getUTCMonth()
+  let closeDate = utcDateForDay(closeYear, closeMonth, statementClosingDay)
+  if (closeDate < start) {
+    closeMonth += 1
+    if (closeMonth > 11) {
+      closeMonth = 0
+      closeYear += 1
+    }
+    closeDate = utcDateForDay(closeYear, closeMonth, statementClosingDay)
+  }
+
+  let previousCloseMonth = closeMonth - 1
+  let previousCloseYear = closeYear
+  if (previousCloseMonth < 0) {
+    previousCloseMonth = 11
+    previousCloseYear -= 1
+  }
+  const previousCloseDate = utcDateForDay(previousCloseYear, previousCloseMonth, statementClosingDay)
+  const cycleStartDate = new Date(previousCloseDate)
+  cycleStartDate.setUTCDate(cycleStartDate.getUTCDate() + 1)
+
+  let dueYear = closeYear
+  let dueMonth = closeMonth
+  let dueDate = utcDateForDay(dueYear, dueMonth, paymentDueDay)
+  if (dueDate <= closeDate) {
+    dueMonth += 1
+    if (dueMonth > 11) {
+      dueMonth = 0
+      dueYear += 1
+    }
+    dueDate = utcDateForDay(dueYear, dueMonth, paymentDueDay)
+  }
+
+  const cycleActivity = transactions.filter((transaction) =>
+    transaction.date >= cycleStartDate
+    && transaction.date <= start
+    && transaction.date <= closeDate
+    && !isCardPaymentDescription(transaction.description),
+  )
+  const knownCycleChargesCents = Math.max(0, -cycleActivity.reduce((total, transaction) => total + transaction.amountCents, 0))
+  const chargeCount = cycleActivity.filter((transaction) => transaction.amountCents < 0).length
+  const usesFallback = cycleActivity.length === 0
+
+  return {
+    cycleStartDate: cycleStartDate.toISOString().slice(0, 10),
+    cycleCloseDate: closeDate.toISOString().slice(0, 10),
+    dueDate: dueDate.toISOString().slice(0, 10),
+    unpaidStatementBalanceCents,
+    knownCycleChargesCents,
+    expectedPaymentCents: usesFallback ? unpaidStatementBalanceCents : unpaidStatementBalanceCents + knownCycleChargesCents,
+    chargeCount,
+    usesFallback,
+  }
 }
 
 export function nextCardPaymentDate(start: Date, dueDay: number) {

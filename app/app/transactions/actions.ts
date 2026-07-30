@@ -191,7 +191,7 @@ export async function createManualTransaction(input: ManualTransactionInput) {
 
   try {
     await prisma.$transaction(async (tx) => {
-      let account = input.accountId ? await tx.account.findFirst({ where: { id: input.accountId, userId: user.id, isLiability: false } }) : null
+      let account = input.accountId ? await tx.account.findFirst({ where: { id: input.accountId, userId: user.id, type: { in: ["checking", "savings", "credit_card"] } } }) : null
       if (input.accountId && !account) throw new Error("Selected account not found")
       if (!account) {
         const balanceDate = input.newAccountBalanceDate ? parseDate(input.newAccountBalanceDate) : null

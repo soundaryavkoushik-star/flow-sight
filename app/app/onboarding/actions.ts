@@ -22,6 +22,7 @@ export interface OnboardingRecurringItem {
 }
 
 export interface OnboardingPayload {
+  accountName: string
   balanceCents: number
   safetyBufferCents: number
   income: OnboardingRecurringItem[]
@@ -74,6 +75,7 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) return { ok: false, message: "Your session expired. Please sign in again." }
+  if (!payload.accountName.trim()) return { ok: false, message: "Name the account this balance belongs to." }
 
   const timezone = isValidTimeZone(payload.timezone) ? payload.timezone : "UTC"
   const todayKey = financialDateKey(new Date(), timezone)
@@ -97,8 +99,8 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
     await prisma.$transaction(async (tx) => {
       await tx.userProfile.upsert({
         where: { userId: user.id },
-        update: { safetyBufferCents: payload.safetyBufferCents, incomePattern: payload.incomePattern, incomePatternSource: "onboarding", incomePatternUpdatedAt: new Date(), timezone },
-        create: { userId: user.id, safetyBufferCents: payload.safetyBufferCents, incomePattern: payload.incomePattern, incomePatternSource: "onboarding", incomePatternUpdatedAt: new Date(), timezone },
+        update: { safetyBufferCents: payload.safetyBufferCents, safetyBufferConfiguredAt: new Date(), safetyBufferPromptDismissedAt: null, incomePattern: payload.incomePattern, incomePatternSource: "onboarding", incomePatternUpdatedAt: new Date(), timezone },
+        create: { userId: user.id, safetyBufferCents: payload.safetyBufferCents, safetyBufferConfiguredAt: new Date(), incomePattern: payload.incomePattern, incomePatternSource: "onboarding", incomePatternUpdatedAt: new Date(), timezone },
       })
 
       const existingAccount = await tx.account.findFirst({
@@ -109,12 +111,12 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
       const account = existingAccount
         ? await tx.account.update({
             where: { id: existingAccount.id },
-            data: { name: "Primary checking", anchorBalanceCents: payload.balanceCents, anchorDate: today },
+            data: { name: payload.accountName.trim(), anchorBalanceCents: payload.balanceCents, anchorDate: today },
           })
         : await tx.account.create({
             data: {
               userId: user.id,
-              name: "Primary checking",
+              name: payload.accountName.trim(),
               type: "checking",
               source: "onboarding",
               anchorBalanceCents: payload.balanceCents,

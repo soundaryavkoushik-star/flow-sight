@@ -13,10 +13,11 @@ import { prisma } from "@/lib/data/prisma"
 import { normalizeMerchant, suggestRecurring } from "@/lib/csv/parse"
 import { suggestTransactionCategory } from "@/lib/analytics/categories"
 import { detectTransferSuggestions } from "@/lib/transfers/detect"
+import { recurringDisplayName } from "@/lib/financial/recurring-label"
 
 const PAGE_SIZE = 25
 
-export default async function TransactionsPage({ searchParams }: { searchParams: Promise<{ import?: string; account?: string; tab?: string; q?: string; type?: string; category?: string; page?: string }> }) {
+export default async function TransactionsPage({ searchParams }: { searchParams: Promise<{ import?: string; account?: string; tab?: string; edit?: string; q?: string; type?: string; category?: string; page?: string }> }) {
   const query = await searchParams
   const tab = query.tab === "recurring" ? "recurring" : "activity"
   const supabase = await createClient()
@@ -38,7 +39,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
     prisma.recurringSeries.findMany({ where: { userId: user.id, status: "confirmed" }, select: { id: true, name: true, amountCents: true, frequency: true, type: true, nextExpected: true, accountId: true, isManual: true, normalizedKey: true } }),
     prisma.recurringSeries.findMany({ where: { userId: user.id, status: { in: ["confirmed", "dismissed"] } }, orderBy: [{ status: "asc" }, { nextExpected: "asc" }] }),
     prisma.account.findMany({ where: { userId: user.id, type: { in: ["checking", "savings", "credit_card"] } }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, type: true, source: true, anchorBalanceCents: true, anchorDate: true } }),
-    prisma.userProfile.findUnique({ where: { userId: user.id }, select: { incomePattern: true, incomePatternSource: true } }),
+    prisma.userProfile.findUnique({ where: { userId: user.id }, select: { incomePattern: true, incomePatternSource: true, safetyBufferConfiguredAt: true, safetyBufferPromptDismissedAt: true } }),
     prisma.transaction.findMany({ where: { userId: user.id, accountId: { not: null } }, orderBy: { date: "desc" }, take: 2000, include: { account: { select: { name: true, type: true } } } }),
     prisma.transactionTransfer.findMany({
       where: { userId: user.id },
@@ -81,13 +82,14 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
     initialAccountId: accounts.some((account) => account.id === query.account) ? query.account : undefined,
     existingRecurring: confirmedRecurring.map((item) => ({ ...item, nextExpected: item.nextExpected?.toISOString().slice(0, 10) ?? null })),
     incomePatternEstablished: Boolean(profile && (profile.incomePatternSource === "onboarding" || profile.incomePatternSource === "user_updated")),
+    safetyBufferSetupResolved: Boolean(profile?.safetyBufferConfiguredAt || profile?.safetyBufferPromptDismissedAt),
     dismissedRecurringKeys: [...dismissedRecurringKeys],
   }
   const recurringItems: ManagedRecurringItem[] = managedRecurring.flatMap((item) => {
     if (!["bill", "income"].includes(item.type) || !["weekly", "biweekly", "monthly", "annual"].includes(item.frequency) || !["confirmed", "dismissed"].includes(item.status)) return []
     return [{
       id: item.id,
-      name: item.name,
+      name: recurringDisplayName(item.name, item.type),
       type: item.type as ManagedRecurringItem["type"],
       amountCents: item.amountCents,
       frequency: item.frequency as ManagedRecurringItem["frequency"],
@@ -161,7 +163,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
       {totalPages > 1 && <nav className="flex items-center justify-between mt-5 text-sm" aria-label="Transaction pages"><Link href={paramsFor(Math.max(1, page - 1))} aria-disabled={page === 1} className={`rounded-md border border-input px-3 py-2 ${page === 1 ? "pointer-events-none opacity-50" : "hover:bg-accent"}`}>Previous</Link><span className="text-muted-foreground">Page {Math.min(page, totalPages)} of {totalPages}</span><Link href={paramsFor(Math.min(totalPages, page + 1))} aria-disabled={page >= totalPages} className={`rounded-md border border-input px-3 py-2 ${page >= totalPages ? "pointer-events-none opacity-50" : "hover:bg-accent"}`}>Next</Link></nav>}
     </> : <div className="space-y-6">
       {recurringSuggestions.length > 0 && <RecurringReviewPanel suggestions={recurringSuggestions} />}
-      <RecurringManager items={recurringItems} accounts={accounts.map(({ id, name }) => ({ id, name }))} />
+      <RecurringManager items={recurringItems} accounts={accounts.map(({ id, name }) => ({ id, name }))} editId={query.edit} />
     </div>}
   </div>
 }

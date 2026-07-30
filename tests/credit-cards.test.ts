@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { expectedCardPaymentCents, isMatchingCardPayment, nextCardPaymentDate, suggestCardPaymentFromHistory } from "../lib/forecast/credit-cards"
+import { buildKnownCardPayment, expectedCardPaymentCents, isMatchingCardPayment, nextCardPaymentDate, suggestCardPaymentFromHistory } from "../lib/forecast/credit-cards"
 import { detectTransferSuggestions } from "../lib/transfers/detect"
 
 describe("credit card payment planning", () => {
@@ -26,6 +26,62 @@ describe("credit card payment planning", () => {
       { date: new Date("2027-03-12T00:00:00.000Z"), amountCents: -142500, accountId: "checking", description: "CHASE CARD AUTOPAY" },
       { dueDate: "2027-03-12", expectedPaymentCents: 142500, paymentAccountId: "checking", cardName: "Chase Freedom" },
     )).toBe(true)
+  })
+
+  it("combines the unpaid statement with charges known in the current cycle", () => {
+    expect(buildKnownCardPayment(
+      new Date("2026-08-10T00:00:00.000Z"),
+      15,
+      10,
+      40_000,
+      [
+        { date: new Date("2026-07-20T00:00:00.000Z"), description: "Market Basket", amountCents: -6_000 },
+        { date: new Date("2026-08-02T00:00:00.000Z"), description: "Trader Joe's", amountCents: -3_000 },
+        { date: new Date("2026-08-05T00:00:00.000Z"), description: "Store refund", amountCents: 1_000 },
+      ],
+    )).toEqual({
+      cycleStartDate: "2026-07-16",
+      cycleCloseDate: "2026-08-15",
+      dueDate: "2026-09-10",
+      unpaidStatementBalanceCents: 40_000,
+      knownCycleChargesCents: 8_000,
+      expectedPaymentCents: 48_000,
+      chargeCount: 2,
+      usesFallback: false,
+    })
+  })
+
+  it("assigns purchases after closing to the next statement cycle", () => {
+    const payment = buildKnownCardPayment(
+      new Date("2026-08-20T00:00:00.000Z"),
+      15,
+      10,
+      0,
+      [
+        { date: new Date("2026-08-14T00:00:00.000Z"), description: "Old cycle", amountCents: -9_000 },
+        { date: new Date("2026-08-18T00:00:00.000Z"), description: "New cycle", amountCents: -6_000 },
+      ],
+    )
+
+    expect(payment.cycleStartDate).toBe("2026-08-16")
+    expect(payment.cycleCloseDate).toBe("2026-09-15")
+    expect(payment.dueDate).toBe("2026-10-10")
+    expect(payment.knownCycleChargesCents).toBe(6_000)
+  })
+
+  it("uses the unpaid-statement amount as a cold-start fallback", () => {
+    expect(buildKnownCardPayment(
+      new Date("2026-08-10T00:00:00.000Z"),
+      15,
+      10,
+      72_000,
+      [],
+    )).toEqual(expect.objectContaining({
+      expectedPaymentCents: 72_000,
+      knownCycleChargesCents: 0,
+      chargeCount: 0,
+      usesFallback: true,
+    }))
   })
 
   it("proposes the next payment from observed card-payment history", () => {

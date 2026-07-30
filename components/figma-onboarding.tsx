@@ -274,10 +274,12 @@ function IncomePattern({ value, onChange, onNext }: { value: IncomePatternValue 
 
 // 3 — Current balance
 function CurrentBalance({
-  value, onChange, onNext,
+  value, onChange, accountName, onAccountNameChange, onNext,
 }: {
   value: string;
   onChange: (v: string) => void;
+  accountName: string;
+  onAccountNameChange: (v: string) => void;
   onNext: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -298,9 +300,11 @@ function CurrentBalance({
           What&apos;s your current balance?
         </h2>
         <p className="text-sm text-muted-foreground">
-          Your main checking account balance right now.
+          Name the checking account this balance belongs to.
         </p>
       </div>
+
+      <div><label htmlFor="onboarding-account-name" className="text-xs text-muted-foreground block mb-1.5">Account name</label><input id="onboarding-account-name" value={accountName} onChange={(event) => onAccountNameChange(event.target.value)} placeholder="Everyday checking" className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary/40" /></div>
 
       <div className="bg-card border border-border rounded-2xl px-6 py-8 text-center">
         <p className="text-xs text-muted-foreground uppercase tracking-widest mb-4" style={mono}>Checking balance</p>
@@ -339,7 +343,7 @@ function CurrentBalance({
         ))}
       </div>
 
-      <PrimaryButton onClick={onNext} disabled={!value || numeric <= 0}>
+      <PrimaryButton onClick={onNext} disabled={!accountName.trim() || !value || numeric <= 0}>
         Continue <ArrowRight size={15} />
       </PrimaryButton>
     </div>
@@ -356,7 +360,7 @@ function RecurringIncome({
   onRemove: (id: number) => void;
   onNext: () => void;
 }) {
-  const [name, setName] = useState("Monthly salary");
+  const [name, setName] = useState("Salary paycheck");
   const [amount, setAmount] = useState("");
   const [freq, setFreq] = useState<FrequencyValue>("monthly");
   const [nextDate, setNextDate] = useState("");
@@ -420,7 +424,7 @@ function RecurringIncome({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Income name (e.g. Monthly salary)"
+            placeholder="Income name (e.g. Salary paycheck)"
             className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-colors"
           />
           <div className="flex gap-2">
@@ -430,7 +434,7 @@ function RecurringIncome({
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="Amount"
+                placeholder={freq === "biweekly" ? "Amount each payday" : "Amount"}
                 className="w-full bg-muted border border-border rounded-xl pl-7 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-colors [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
@@ -444,6 +448,7 @@ function RecurringIncome({
               ))}
             </select>
           </div>
+          <p className="text-[11px] text-muted-foreground -mt-1">{freq === "biweekly" ? "Enter the take-home amount that reaches your account every two weeks." : freq === "weekly" ? "Enter the take-home amount that reaches your account each week." : freq === "monthly" ? "Enter the amount that reaches your account each month." : "Enter the amount received each time."}</p>
           <div>
             <label className="text-xs text-muted-foreground block mb-1.5" htmlFor="income-next-date">{kind === "variable" ? "Expected date" : "Next deposit date"} <span className="text-muted-foreground/60">(optional)</span></label>
             <input
@@ -659,6 +664,7 @@ function SafetyBuffer({
   error: string | null;
 }) {
   const presets = [
+    { amount: 0, label: "No buffer", desc: "Only protect against a negative balance" },
     { amount: 200, label: "Minimal", desc: "Just enough to avoid fees" },
     { amount: 500, label: "Standard", desc: "A small cushion for surprises" },
     { amount: 1000, label: "Comfortable", desc: "Recommended for most people" },
@@ -707,12 +713,14 @@ function SafetyBuffer({
       <div className="bg-muted/40 rounded-xl px-4 py-3 flex items-start gap-2.5">
         <Wallet size={13} className="text-primary shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Your &ldquo;safe to spend&rdquo; amount will always reflect this buffer — so you&apos;re never caught off guard.
+          {value === 0
+            ? "Choose $0 if you only want FlowSight to protect against a negative balance."
+            : "Your “safe to spend” amount will always reflect this buffer — so you’re never caught off guard."}
         </p>
       </div>
 
       {error && <p className="text-sm text-destructive text-center" role="alert">{error}</p>}
-      <PrimaryButton onClick={onNext} disabled={!value} loading={saving}>
+      <PrimaryButton onClick={onNext} loading={saving}>
         Build my forecast <ArrowRight size={15} />
       </PrimaryButton>
     </div>
@@ -790,6 +798,7 @@ export default function Onboarding() {
   const [source, setSource] = useState<"csv" | "manual" | null>(null);
   const [incomePattern, setIncomePattern] = useState<IncomePatternValue | null>(null);
   const [balance, setBalance] = useState("");
+  const [accountName, setAccountName] = useState("Primary checking");
   const [income, setIncome] = useState<IncomeItem[]>([]);
   const [bills, setBills] = useState<BillItem[]>([]);
   const [buffer, setBuffer] = useState(1000);
@@ -809,6 +818,7 @@ export default function Onboarding() {
     setSaving(true);
     setSaveError(null);
     const result = await saveOnboarding({
+      accountName,
       balanceCents: Math.round(balanceNum * 100),
       safetyBufferCents: Math.round(buffer * 100),
       income: income.map((item) => ({
@@ -844,7 +854,7 @@ export default function Onboarding() {
       case 0: return <Welcome onNext={next} />;
       case 1: return <ChooseSource value={source} onChange={setSource} onNext={source === "csv" ? () => navigate("/app/transactions?import=1") : next} />;
       case 2: return <IncomePattern value={incomePattern} onChange={setIncomePattern} onNext={next} />;
-      case 3: return <CurrentBalance value={balance} onChange={setBalance} onNext={next} />;
+      case 3: return <CurrentBalance value={balance} onChange={setBalance} accountName={accountName} onAccountNameChange={setAccountName} onNext={next} />;
       case 4: return (
         <RecurringIncome
           items={income}

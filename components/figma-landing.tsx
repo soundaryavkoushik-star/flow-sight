@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceDot,
 } from "recharts";
@@ -450,9 +451,15 @@ function StepIllustration({ step }: { step: number }) {
   return <div className="min-h-[286px] rounded-2xl border border-[#E2E5EB] bg-white p-5"><div className="grid grid-cols-3 gap-2 mb-5"><div className="rounded-xl bg-[var(--fs-tint)] p-3"><p className="text-[10px] text-[#6B7280]">Safe to spend</p><p className="text-lg font-medium text-[#0F1D3A] mt-1" style={mono}>$680</p></div><div className="rounded-xl bg-[var(--fs-tint)] p-3"><p className="text-[10px] text-[#6B7280]">Projected low</p><p className="text-lg font-medium text-[#CA8A04] mt-1" style={mono}>$420</p></div><div className="rounded-xl bg-[#CA8A04]/10 p-3"><p className="text-[10px] text-[#6B7280]">Condition</p><p className="text-xs font-medium text-[#CA8A04] mt-2">Watch · Aug 3</p></div></div><div className="rounded-xl border border-[#E2E5EB] p-4"><div className="flex justify-between text-[10px] text-[#6B7280] mb-4"><span>30-day forecast</span><span>Jul 21 → Aug 20</span></div><div className="h-24 flex items-end gap-1.5">{[72, 67, 62, 56, 50, 35, 16, 43, 39, 34, 30, 27].map((height, index) => <span key={index} className={`flex-1 rounded-t ${index === 6 ? "bg-[#CA8A04]" : "bg-primary/70"}`} style={{ height: `${height}%` }} />)}</div><div className="border-t border-dashed border-[#CA8A04] mt-1 pt-2 text-[10px] text-[#CA8A04]">$500 safety buffer</div></div></div>;
 }
 
-export default function Landing() {
+export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }) {
   const router = useRouter();
   const navigate = router.push;
+  const primaryHref = isSignedIn ? "/app/dashboard" : "/sign-up";
+  const primaryLabel = isSignedIn ? "Open dashboard" : "Join Beta";
+  const useAnotherAccount = async () => {
+    await createClient().auth.signOut();
+    window.location.assign("/sign-up");
+  };
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scenario, setScenario] = useState(0);
@@ -671,8 +678,8 @@ export default function Landing() {
             ))}
           </div>
           <div className="hidden md:flex items-center gap-3">
-            <button onClick={() => navigate("/sign-in")} className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5">Sign in</button>
-            <Magnetic><button onClick={() => navigate("/sign-up")} className="fs-brand-action text-sm px-4 py-2 rounded-xl font-medium">Join Beta</button></Magnetic>
+            {isSignedIn ? <button onClick={useAnotherAccount} className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5">Use another account</button> : <button onClick={() => navigate("/sign-in")} className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5">Sign in</button>}
+            <Magnetic><button onClick={() => navigate(primaryHref)} className="fs-brand-action text-sm px-4 py-2 rounded-xl font-medium">{primaryLabel}</button></Magnetic>
           </div>
           <button className="md:hidden text-muted-foreground p-1" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X size={19} /> : <Menu size={19} />}
@@ -683,7 +690,8 @@ export default function Landing() {
             {["Features", "Security", "FAQ"].map((l) => (
               <a key={l} href={`#${l.toLowerCase().replace(/\s+/g, "-")}`} className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>{l}</a>
             ))}
-            <button onClick={() => navigate("/sign-up")} className="fs-brand-action text-sm px-4 py-2.5 rounded-xl font-medium">Join Beta</button>
+            {isSignedIn && <button onClick={useAnotherAccount} className="text-sm text-muted-foreground text-left">Use another account</button>}
+            <button onClick={() => navigate(primaryHref)} className="fs-brand-action text-sm px-4 py-2.5 rounded-xl font-medium">{primaryLabel}</button>
           </div>
         )}
       </nav>
@@ -703,8 +711,8 @@ export default function Landing() {
               Most finance apps tell you where your money went. FlowSight shows where it&apos;s going. Import a CSV or add a few details—and see how the next 30 days could unfold.
             </p>
             <div className={`flex flex-col sm:flex-row gap-3 mb-12 transition-all duration-500 motion-reduce:transition-none ${heroReady ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`} style={{ transitionDelay: "225ms" }}>
-              <Magnetic className="w-full sm:w-auto"><button onClick={() => navigate("/sign-up")} className="fs-brand-action flex w-full items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm">
-                Join the Beta <ArrowRight size={15} />
+              <Magnetic className="w-full sm:w-auto"><button onClick={() => navigate(primaryHref)} className="fs-brand-action flex w-full items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm">
+                {isSignedIn ? "Open dashboard" : "Join the Beta"} <ArrowRight size={15} />
               </button></Magnetic>
               <button onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })} className="fs-interactive flex items-center justify-center gap-2 text-muted-foreground border border-border px-6 py-3 rounded-xl font-medium text-sm hover:text-foreground">
                 Watch Demo
@@ -960,7 +968,9 @@ export default function Landing() {
               <h2 className="text-[40px] font-medium tracking-tight leading-[1.1] mb-4" style={display}>Stop <span className="text-muted-foreground">guessing.</span><br />Start <span className="text-primary">knowing.</span></h2>
               <p className="text-muted-foreground mb-8 max-w-xs mx-auto text-sm">Join the beta and be among the first to see exactly where your money is going — before it gets there.</p>
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/[0.05] px-3 py-1.5 text-xs text-muted-foreground mb-6"><span className="h-1.5 w-1.5 rounded-full bg-primary" />Private beta · shaped with early-user feedback</div>
-              {submitted ? (
+              {isSignedIn ? (
+                <Magnetic><button type="button" onClick={() => navigate("/app/dashboard")} className="fs-brand-action px-6 py-3 rounded-xl text-sm font-medium">Open dashboard</button></Magnetic>
+              ) : submitted ? (
                 <div className="flex flex-col items-center gap-3 py-2 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500" aria-live="polite">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--fs-green-bg))] motion-safe:animate-[fs-transfer-linking_650ms_ease-out_both]"><CheckCircle size={22} className="text-[hsl(var(--fs-green))]" /></div>
                   <p className="text-foreground font-semibold">You&apos;re on the list!</p>
