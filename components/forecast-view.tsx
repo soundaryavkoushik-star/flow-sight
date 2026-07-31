@@ -371,8 +371,8 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
       id: event.id,
       day: event.day,
       name: event.name,
-      amount: `${event.confidence === "estimated" ? "~" : ""}${event.amountCents > 0 ? "+" : "–"}${money(Math.abs(event.amountCents))}`,
-      days: `${new Date(`${event.day}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}${event.confidence === "estimated" ? " · estimated" : ""}`,
+      amount: `${event.amountEstimated ? "~" : ""}${event.amountCents > 0 ? "+" : "–"}${money(Math.abs(event.amountCents))}`,
+      days: `${new Date(`${event.day}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}${event.confidence === "estimated" ? event.amountEstimated ? " · estimated" : " · date estimated" : ""}`,
       color: event.amountCents > 0 ? "text-[hsl(var(--fs-green))]" : "text-foreground",
       dot: event.confidence === "estimated"
         ? "bg-[hsl(var(--fs-amber))]"
@@ -409,6 +409,12 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
     : condition === "tight" || condition === "watch"
       ? { href: `/app/forecast?date=${encodeURIComponent(data.forecast.lowestBalanceDate)}&detail=1`, label: "Review low point" }
       : { href: "/app/scenarios", label: "Test a decision" }
+  const maxWeeklySpendingCents = Math.max(1, ...data.spendingHistory.weeks.map((week) => week.spendingCents))
+  const spendingChangeLabel = data.spendingHistory.changePercent === null
+    ? "Not enough earlier history for a comparison."
+    : data.spendingHistory.changePercent === 0
+      ? "About the same as the previous four weeks."
+      : `${Math.abs(data.spendingHistory.changePercent)}% ${data.spendingHistory.changePercent > 0 ? "more" : "less"} than the previous four weeks.`
 
   return (
     <div className={`${data.preferences.dashboardDensity === "compact" ? "px-4 lg:px-6 py-4 space-y-3" : "px-5 lg:px-7 py-6 space-y-5"} max-w-[1200px] mx-auto`}>
@@ -525,6 +531,44 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
           <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">{firstUpcoming ? `${firstUpcoming.days.split(" · ")[0]} · ${firstUpcoming.amount}` : "No included events in the next 30 days."}</p>
         </div>
       </div>}
+
+      {view === "dashboard" && data.preferences.showSpendingHistory && (
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-mono">Recent spending context</p>
+              <h3 className="mt-1 text-sm font-semibold">Last four weeks: {money(data.spendingHistory.recentFourWeeksCents)}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">{spendingChangeLabel}</p>
+            </div>
+            <Link href="/app/transactions?type=money_out" className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline">
+              Review spending <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+          {data.spendingHistory.transactionCount > 0 ? (
+            <div className="mt-5 grid h-24 grid-cols-8 items-end gap-2" aria-label="Weekly spending over the last eight weeks">
+              {data.spendingHistory.weeks.map((week) => {
+                const height = Math.max(6, Math.round((week.spendingCents / maxWeeklySpendingCents) * 72))
+                const label = new Date(`${week.startDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                return (
+                  <div key={week.startDate} className="flex min-w-0 flex-col items-center justify-end gap-1.5">
+                    <div
+                      className="w-full rounded-t-md bg-primary/35 transition-colors hover:bg-primary/55"
+                      style={{ height }}
+                      title={`${label}: ${money(week.spendingCents)}`}
+                    />
+                    <span className="hidden text-[9px] text-muted-foreground sm:block">{label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="mt-4 rounded-xl bg-muted/50 px-4 py-5 text-sm text-muted-foreground">
+              Add or import spending transactions to see recent weekly context here.
+            </div>
+          )}
+          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">This is backward-looking context only. It does not create a budget or change your forecast assumptions.</p>
+        </section>
+      )}
 
       {/* Main grid */}
       <div className={`grid gap-5 ${view === "forecast" ? "lg:grid-cols-[1fr_320px]" : ""}`}>
@@ -675,6 +719,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
             </div>
             <div className="border-t border-border mt-5 pt-4 relative">
               {showWorkOpen && <div className="mt-4"><p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-2">Today’s opening balance</p>{data.balanceRollForward.map((item) => <div key={item.accountName} className="rounded-lg border border-border p-2 mb-2 text-xs"><p className="font-medium mb-1">{item.accountName}</p><p className="text-muted-foreground">{money(item.anchorBalanceCents)} as of {new Date(`${item.anchorDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} {item.activityCents >= 0 ? "+" : "−"} {money(Math.abs(item.activityCents))} later activity = <span className="text-foreground font-mono">{money(item.openingBalanceCents)}</span></p></div>)}</div>}
+              {showWorkOpen && data.safetyBufferConfigured && effectiveBufferCents > 0 && <div className="mb-4 rounded-xl border border-primary/15 bg-primary/[0.04] p-3 text-xs leading-relaxed text-muted-foreground">{data.forecast.lowestBalanceCents > 0 ? <>Before protecting your <span className="font-mono text-foreground">{money(effectiveBufferCents)}</span> safety buffer, up to <span className="font-mono text-foreground">{money(data.forecast.lowestBalanceCents)}</span> remains above $0. After protecting it, your Safe to Spend is <span className="font-mono text-primary">{money(previewSafeToSpendCents)}</span>.</> : <>Your projected low is already at or below $0, so there is nothing available before protecting your <span className="font-mono text-foreground">{money(effectiveBufferCents)}</span> safety buffer.</>}</div>}
               <button type="button" className="w-full flex items-center justify-between text-sm font-medium hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded" onClick={() => setShowWorkOpen((open) => !open)} aria-expanded={showWorkOpen} aria-controls="safe-to-spend-work"><span>Show your work</span><ChevronRight className={`h-4 w-4 transition-transform ${showWorkOpen ? "rotate-90" : ""}`} /></button>
               {showWorkOpen && <div id="safe-to-spend-work" className="mt-4 space-y-4"><p className="text-xs text-muted-foreground leading-relaxed">Safe to Spend uses the lowest balance in your 30-day forecast, then protects your safety buffer.</p><div className="rounded-xl bg-muted/50 p-3 space-y-2"><div className="flex justify-between text-xs"><span className="text-muted-foreground">Lowest projected balance</span><span className="font-mono">{money(data.forecast.lowestBalanceCents)}</span></div><div className="flex justify-between text-xs"><span className="text-muted-foreground">Protected safety buffer</span><span className="font-mono">−{money(effectiveBufferCents)}</span></div><div className="border-t border-border pt-2 flex justify-between text-xs font-semibold"><span>Safe to Spend</span><span className="font-mono text-primary">{money(previewSafeToSpendCents)}</span></div></div><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-2">Included events</p><div className="grid grid-cols-2 gap-2"><div className="rounded-lg border border-border p-2"><p className="text-lg font-bold font-mono">{confirmedEventCount}</p><p className="text-[10px] text-muted-foreground"><LabelWithInfo label="Confirmed" explanation="The amount and date have been reviewed or explicitly provided." /></p></div><div className="rounded-lg border border-border p-2"><p className="text-lg font-bold font-mono">{estimatedEventCount}</p><p className="text-[10px] text-muted-foreground"><LabelWithInfo label="Estimated" explanation="The amount, date, or both may change." /></p></div></div></div>{data.cardPayments.length > 0 && <div><p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-2">Credit card cash timing</p><div className="space-y-2">{data.cardPayments.map((payment) => <div key={`${payment.cardName}-${payment.dueDate}`} className="rounded-lg border border-border p-3 text-xs"><div className="flex justify-between gap-3"><span className="font-medium">{payment.cardName} payment</span><span className="font-mono">−{money(payment.expectedPaymentCents)}</span></div><p className="mt-1 text-muted-foreground">{payment.strategy} · due {new Date(`${payment.dueDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} from {payment.paymentAccountName}.</p></div>)}</div><p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">Credit card purchases explain what you spent. The card payment is when cash actually leaves your account.</p></div>}{data.excludedEvents.length > 0 && <div><p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-2">Excluded or skipped</p>{data.excludedEvents.map((event) => <div key={`${event.name}-${event.date}`} className="flex justify-between gap-2 text-xs py-1"><span className="text-muted-foreground truncate">{event.name} · {new Date(`${event.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span><span className="font-mono">{money(Math.abs(event.amountCents))}</span></div>)}</div>}<div className={`rounded-lg p-3 text-xs ${data.freshness.status === "stale" ? "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]" : "bg-muted/50 text-muted-foreground"}`}><p className="font-medium text-foreground">Data freshness: {data.freshness.status === "fresh" ? "Fresh" : data.freshness.status === "aging" ? "Getting older" : "Update needed"}</p><p className="mt-1">{data.freshness.status === "stale" ? `Your balance was last updated ${balanceAgeDays} ${balanceAgeDays === 1 ? "day" : "days"} ago. Refresh it before relying on Safe to Spend.` : `Balance dated ${new Date(`${data.currentBalanceDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}${balanceAgeDays > 0 ? ` · ${balanceAgeDays} days ago` : " · today"}.`}</p>{data.freshness.status === "stale" && <Link href="/app/accounts" className="inline-flex mt-2 text-foreground underline underline-offset-2">Update account balance</Link>}</div></div>}
             </div>
@@ -757,7 +802,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
                   {selectedDay.events.map((event) => (
                     <button key={event.id} type="button" onClick={() => editForecastEvent(event)} className="w-full rounded-xl border border-border p-4 flex items-start gap-3 text-left hover:border-primary/30 hover:bg-primary/[0.04] transition-colors">
                       <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${amountDotClass(event.amountCents >= 0 ? "income" : "spending")}`} />
-                      <div className="flex-1 min-w-0"><p className="font-medium truncate">{event.name}</p><p className="text-xs text-muted-foreground mt-1 capitalize">{event.confidence} · {event.recurring ? "Recurring" : event.source}</p>{event.confidence === "estimated" && event.estimateEvidence && <p className="text-[11px] text-muted-foreground mt-1">Based on {event.estimateEvidence.occurrenceCount} occurrences ranging {money(Math.min(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}–{money(Math.max(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}.</p>}</div>
+                      <div className="flex-1 min-w-0"><p className="font-medium truncate">{event.name}</p><p className="text-xs text-muted-foreground mt-1">{event.confidence === "confirmed" ? "Confirmed" : event.amountEstimated ? "Estimated" : "Confirmed amount · Estimated date"} · {event.recurring ? "Recurring" : event.source}</p>{event.confidence === "estimated" && event.estimateEvidence && <p className="text-[11px] text-muted-foreground mt-1">Based on {event.estimateEvidence.occurrenceCount} occurrences ranging {money(Math.min(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}–{money(Math.max(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}.</p>}</div>
                       <div className="text-right"><span className={`font-semibold font-mono ${amountColorClass(event.amountCents >= 0 ? "income" : "spending")}`}>{event.amountCents >= 0 ? "+" : "−"}{money(Math.abs(event.amountCents))}</span><p className="text-[10px] text-muted-foreground mt-1">{event.recurring ? "Manage recurring" : "Edit"}</p></div>
                     </button>
                   ))}

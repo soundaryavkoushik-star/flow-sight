@@ -41,6 +41,7 @@ export function generateRecurringEvents(
           accountId: rule.accountId,
           recurring: true,
           confidence: rule.confidence ?? "confirmed",
+          amountEstimated: rule.amountEstimated,
           estimateEvidence: rule.estimateEvidence,
         })
       }

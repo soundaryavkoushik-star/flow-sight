@@ -26,6 +26,7 @@ export interface ManagedRecurringItem {
   minAmountCents: number | null
   maxAmountCents: number | null
   occurrenceCount: number | null
+  incomeConfidence?: string | null
 }
 
 interface AccountOption { id: string; name: string; type: string }
@@ -84,6 +85,8 @@ function RecurringGroup({ title, items, workingId, onEdit, onToggle, onRemove }:
     <h3 className="mb-2 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{title} · {items.length}</h3>
     <div className="rounded-2xl border border-border bg-card divide-y divide-border">
       {items.map((item) => {
+        const amountEstimated = item.incomeConfidence !== null || (item.minAmountCents !== null && item.maxAmountCents !== null && item.minAmountCents !== item.maxAmountCents)
+        const dateOnlyEstimate = item.confidence === "estimated" && !amountEstimated
         const ItemIcon = item.type === "income" ? Landmark : item.confidence === "estimated" ? CalendarClock : ReceiptText
         const iconTone = item.type === "income"
           ? "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]"
@@ -95,14 +98,16 @@ function RecurringGroup({ title, items, workingId, onEdit, onToggle, onRemove }:
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="font-medium truncate">{item.name}</p>
-            <ConfidencePill confidence={item.confidence} />
+            {dateOnlyEstimate
+              ? <span className="inline-flex rounded-full bg-[hsl(var(--fs-amber-bg))] px-2 py-0.5 text-[10px] font-medium text-[hsl(var(--fs-amber))]">Confirmed amount · Estimated date</span>
+              : <ConfidencePill confidence={item.confidence} />}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{item.type === "income" ? "Income" : "Bill"} · {recurringFrequencyLabel(item.frequency)} · Next {item.nextExpected ? new Date(`${item.nextExpected}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "date not set"}</p>
           <p className="text-[11px] text-muted-foreground/75 mt-1">{item.accountName ?? "No account assigned"} · {item.source}</p>
           {item.accountType === "credit_card" && item.type === "bill" && <p className="text-[11px] text-muted-foreground mt-1">Tracked on this card · its cash impact is reflected in the card payment.</p>}
           {item.confidence === "estimated" && item.occurrenceCount && item.minAmountCents !== null && item.maxAmountCents !== null && <p className="text-[11px] text-muted-foreground mt-1">Estimated from {item.occurrenceCount} occurrences ranging {money(Math.min(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)))}–{money(Math.max(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)))}.</p>}
         </div>
-        <p className={`font-mono text-[15px] font-medium tabular-nums ${amountColorClass(item.type === "income" ? "income" : "spending")}`}>{item.confidence === "estimated" ? "~" : ""}{item.amountCents >= 0 ? "+" : "−"}{money(item.amountCents)}</p>
+        <p className={`font-mono text-[15px] font-medium tabular-nums ${amountColorClass(item.type === "income" ? "income" : "spending")}`}>{amountEstimated ? "~" : ""}{item.amountCents >= 0 ? "+" : "−"}{money(item.amountCents)}</p>
         <div className="flex gap-1">
           <Button size="icon" variant="ghost" disabled={workingId === item.id} onClick={() => onEdit(item)} aria-label={`Edit ${item.name}`}><Pencil className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" disabled={workingId === item.id} onClick={() => onToggle(item)} aria-label={item.status === "confirmed" ? `Pause ${item.name}` : `Resume ${item.name}`}>{item.status === "confirmed" ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}</Button>

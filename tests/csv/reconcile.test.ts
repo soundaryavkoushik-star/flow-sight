@@ -44,6 +44,23 @@ describe("reconcileRecurringSuggestions", () => {
     expect(result[0].existing[0].id).toBe("rent")
   })
 
+  it("flags an exact amount and cadence match for review even when payroll descriptions differ", () => {
+    const result = reconcileRecurringSuggestions(
+      [suggestion({ id: "payroll", name: "PAYROLL DIRECT DEPOSIT - MERIDIAN CORP", amountCents: 195000, frequency: "biweekly", nextExpected: "2026-07-31", type: "income" })],
+      [existing({ id: "salary", name: "Salary paycheck", amountCents: 195000, frequency: "biweekly", nextExpected: "2026-08-14", type: "income" })],
+    )
+    expect(result[0].status).toBe("needs_review")
+    expect(result[0].existing[0].id).toBe("salary")
+  })
+
+  it("does not reconcile equal recurring amounts assigned to different accounts", () => {
+    const result = reconcileRecurringSuggestions(
+      [suggestion({ id: "card-one", accountId: "card-a" })],
+      [existing({ id: "card-two", accountId: "card-b" })],
+    )
+    expect(result[0].status).toBe("new")
+  })
+
   it("groups a broad manual estimate with several CSV patterns", () => {
     const result = reconcileRecurringSuggestions(
       [

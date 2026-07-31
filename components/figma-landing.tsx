@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceDot,
 } from "recharts";
@@ -123,12 +122,15 @@ function CausalAhaForecast() {
   useEffect(() => {
     if (!entered) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setPhase(4);
-      return;
+      const frame = window.requestAnimationFrame(() => setPhase(4));
+      return () => window.cancelAnimationFrame(frame);
     }
-    setPhase(0);
+    const resetFrame = window.requestAnimationFrame(() => setPhase(0));
     const timers = [700, 1450, 2200, 3000].map((delay, index) => window.setTimeout(() => setPhase(index + 1), delay));
-    return () => timers.forEach(window.clearTimeout);
+    return () => {
+      window.cancelAnimationFrame(resetFrame);
+      timers.forEach(window.clearTimeout);
+    };
   }, [entered, run]);
 
   const eventPhase = Math.min(phase, 3);
@@ -401,8 +403,8 @@ function ForecastStoryChart({ activeStory, onStoryChange }: { activeStory: numbe
     const from = animatedBalancesRef.current;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       animatedBalancesRef.current = target;
-      setAnimatedBalances(target);
-      return;
+      const reducedMotionFrame = window.requestAnimationFrame(() => setAnimatedBalances(target));
+      return () => window.cancelAnimationFrame(reducedMotionFrame);
     }
     let frame = 0;
     const started = performance.now();
@@ -456,10 +458,6 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
   const navigate = router.push;
   const primaryHref = isSignedIn ? "/app/dashboard" : "/sign-up";
   const primaryLabel = isSignedIn ? "Open dashboard" : "Join Beta";
-  const useAnotherAccount = async () => {
-    await createClient().auth.signOut();
-    window.location.assign("/sign-up");
-  };
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scenario, setScenario] = useState(0);
@@ -509,8 +507,8 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     if (heroHighlight !== 0) {
-      setHeroShowWork(false);
-      return;
+      const hideFrame = window.requestAnimationFrame(() => setHeroShowWork(false));
+      return () => window.cancelAnimationFrame(hideFrame);
     }
     const revealTimer = window.setTimeout(() => setHeroShowWork(true), 420);
     return () => window.clearTimeout(revealTimer);
@@ -521,9 +519,11 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
     if (!node) return;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reducedMotion) {
-      setFeatureGridVisible(true);
-      setFeatureGridResolved(true);
-      return;
+      const reducedMotionFrame = window.requestAnimationFrame(() => {
+        setFeatureGridVisible(true);
+        setFeatureGridResolved(true);
+      });
+      return () => window.cancelAnimationFrame(reducedMotionFrame);
     }
     let resolveTimer = 0;
     const observer = new IntersectionObserver(([entry]) => {
@@ -678,7 +678,7 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
             ))}
           </div>
           <div className="hidden md:flex items-center gap-3">
-            {isSignedIn ? <button onClick={useAnotherAccount} className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5">Use another account</button> : <button onClick={() => navigate("/sign-in")} className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5">Sign in</button>}
+            {!isSignedIn && <button onClick={() => navigate("/sign-in")} className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5">Sign in</button>}
             <Magnetic><button onClick={() => navigate(primaryHref)} className="fs-brand-action text-sm px-4 py-2 rounded-xl font-medium">{primaryLabel}</button></Magnetic>
           </div>
           <button className="md:hidden text-muted-foreground p-1" onClick={() => setMobileOpen(!mobileOpen)}>
@@ -690,7 +690,7 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
             {["Features", "Security", "FAQ"].map((l) => (
               <a key={l} href={`#${l.toLowerCase().replace(/\s+/g, "-")}`} className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>{l}</a>
             ))}
-            {isSignedIn && <button onClick={useAnotherAccount} className="text-sm text-muted-foreground text-left">Use another account</button>}
+            {!isSignedIn && <button onClick={() => navigate("/sign-in")} className="text-sm text-muted-foreground text-left">Sign in</button>}
             <button onClick={() => navigate(primaryHref)} className="fs-brand-action text-sm px-4 py-2.5 rounded-xl font-medium">{primaryLabel}</button>
           </div>
         )}

@@ -31,6 +31,7 @@ export interface TransactionRow {
   amountCents: number
   source: string | null
   transferStatus: string | null
+  unmatchedCardPayment?: boolean
   estimated?: boolean
 }
 
@@ -91,7 +92,7 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
   const [bulkCategory, setBulkCategory] = useState("Other")
   const [saving, setSaving] = useState(false)
   const expenseIds = transactions.filter((transaction) => transaction.amountCents < 0 && transaction.transferStatus !== "confirmed").map((transaction) => transaction.id)
-  const reviewCount = transactions.filter((transaction) => transaction.transferStatus !== "confirmed" && transaction.amountCents > 0 && (transaction.categoryName ?? suggestTransactionCategory(transaction.description, transaction.amountCents)) === "Income — needs review").length
+  const reviewCount = transactions.filter((transaction) => !transaction.unmatchedCardPayment && transaction.transferStatus !== "confirmed" && transaction.amountCents > 0 && (transaction.categoryName ?? suggestTransactionCategory(transaction.description, transaction.amountCents)) === "Income — needs review").length
 
   const toggle = (id: string, checked: boolean) => setSelected((current) => {
     const next = new Set(current)
@@ -103,10 +104,11 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
   const detailsFor = (transaction: TransactionRow) => {
     const category = transaction.categoryName ?? suggestTransactionCategory(transaction.description, transaction.amountCents)
     const transfer = transaction.transferStatus === "confirmed"
-    const review = !transfer && transaction.amountCents > 0 && category === "Income — needs review"
+    const cardPayment = Boolean(transaction.unmatchedCardPayment) && !transfer
+    const review = !transfer && !cardPayment && transaction.amountCents > 0 && category === "Income — needs review"
     const selectedRow = selected.has(transaction.id)
     const income = transaction.amountCents > 0 && isForecastIncomeCategory(category)
-    const amountClass = amountColorClass(transfer ? "transfer" : income ? "income" : "spending")
+    const amountClass = amountColorClass(transfer || cardPayment ? "transfer" : income ? "income" : "spending")
     const rowClass = review
       ? "bg-[hsl(var(--fs-amber-bg))]/85"
       : selectedRow
@@ -114,11 +116,13 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
         : "bg-card hover:bg-muted/25"
     const date = new Date(`${transaction.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
     const amount = `${transaction.estimated ? "~" : ""}${transaction.amountCents >= 0 ? "+" : "−"}${money(transaction.amountCents)}`
-    return { category, transfer, review, selectedRow, amountClass, rowClass, date, amount }
+    return { category, transfer, cardPayment, review, selectedRow, amountClass, rowClass, date, amount }
   }
 
-  const categoryControl = (transaction: TransactionRow, transfer: boolean) => transfer
+  const categoryControl = (transaction: TransactionRow, transfer: boolean, cardPayment: boolean) => transfer
     ? <span className="inline-flex rounded-lg bg-[#F0EEE9] px-2.5 py-1.5 text-xs font-medium text-muted-foreground">Between accounts</span>
+    : cardPayment
+      ? <span className="inline-flex rounded-lg bg-[#F0EEE9] px-2.5 py-1.5 text-xs font-medium text-muted-foreground">Card payment · Source not matched</span>
     : <TransactionCategorySelect transactionId={transaction.id} description={transaction.description} amountCents={transaction.amountCents} currentCategory={transaction.categoryName} />
 
   return <>
@@ -163,14 +167,14 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
               <td className="px-4 py-4 text-center"><input type="checkbox" aria-label={`Select ${transaction.description}`} disabled={transaction.amountCents >= 0 || details.transfer} checked={details.selectedRow} onChange={(event) => toggle(transaction.id, event.target.checked)} /></td>
               <td className="px-3 py-4">
                 <div className="flex min-w-0 items-center gap-3">
-                  <CategoryIcon category={details.category} transfer={details.transfer} review={details.review} estimated={Boolean(transaction.estimated)} />
+                  <CategoryIcon category={details.category} transfer={details.transfer || details.cardPayment} review={details.review} estimated={Boolean(transaction.estimated)} />
                   <div className="min-w-0">
                     <p className="truncate font-medium text-foreground">{transaction.description}</p>
-                    <p className={`mt-0.5 text-xs ${details.review ? "font-medium text-[hsl(var(--fs-amber))]" : "text-muted-foreground"}`}>{details.date}{transaction.estimated ? " · estimated" : details.review ? " · needs review" : ""}</p>
+                    <p className={`mt-0.5 text-xs ${details.review ? "font-medium text-[hsl(var(--fs-amber))]" : "text-muted-foreground"}`}>{details.date}{transaction.estimated ? " · estimated" : details.cardPayment ? " · card payment" : details.review ? " · needs review" : ""}</p>
                   </div>
                 </div>
               </td>
-              <td className="px-3 py-4">{categoryControl(transaction, details.transfer)}</td>
+              <td className="px-3 py-4">{categoryControl(transaction, details.transfer, details.cardPayment)}</td>
               <td className={`px-3 py-4 text-right font-mono text-[15px] font-medium tabular-nums ${details.amountClass}`}>{details.amount}</td>
               <td className="px-5 py-4 text-right"><p className="text-xs text-muted-foreground">{transaction.accountName ?? "Unassigned"}</p><p className="mt-0.5 max-w-36 truncate text-[11px] text-muted-foreground/65">{transaction.source ?? "Manual"}</p></td>
             </tr>
@@ -185,13 +189,13 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
         return <div key={transaction.id} className={`p-4 transition-colors ${details.rowClass}`}>
           <div className="flex items-start gap-3">
             <input className="mt-3" type="checkbox" aria-label={`Select ${transaction.description}`} disabled={transaction.amountCents >= 0 || details.transfer} checked={details.selectedRow} onChange={(event) => toggle(transaction.id, event.target.checked)} />
-            <CategoryIcon category={details.category} transfer={details.transfer} review={details.review} estimated={Boolean(transaction.estimated)} />
+            <CategoryIcon category={details.category} transfer={details.transfer || details.cardPayment} review={details.review} estimated={Boolean(transaction.estimated)} />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0"><p className="truncate text-sm font-medium">{transaction.description}</p><p className={`mt-0.5 text-xs ${details.review ? "text-[hsl(var(--fs-amber))]" : "text-muted-foreground"}`}>{details.date}{transaction.estimated ? " · estimated" : details.review ? " · needs review" : ""}</p></div>
+                <div className="min-w-0"><p className="truncate text-sm font-medium">{transaction.description}</p><p className={`mt-0.5 text-xs ${details.review ? "text-[hsl(var(--fs-amber))]" : "text-muted-foreground"}`}>{details.date}{transaction.estimated ? " · estimated" : details.cardPayment ? " · card payment" : details.review ? " · needs review" : ""}</p></div>
                 <span className={`shrink-0 font-mono text-sm font-medium ${details.amountClass}`}>{details.amount}</span>
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">{categoryControl(transaction, details.transfer)}<span className="text-xs text-muted-foreground">{transaction.accountName ?? "Unassigned"}</span></div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">{categoryControl(transaction, details.transfer, details.cardPayment)}<span className="text-xs text-muted-foreground">{transaction.accountName ?? "Unassigned"}</span></div>
             </div>
           </div>
         </div>

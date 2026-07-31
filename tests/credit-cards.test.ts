@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { buildKnownCardPayment, expectedCardPaymentCents, isMatchingCardPayment, nextCardPaymentDate, suggestCardPaymentFromHistory } from "../lib/forecast/credit-cards"
-import { detectTransferSuggestions } from "../lib/transfers/detect"
+import { detectTransferSuggestions, isUnmatchedCardPayment } from "../lib/transfers/detect"
 
 describe("credit card payment planning", () => {
   it("uses the configured payment strategy", () => {
@@ -121,6 +121,12 @@ describe("credit card payment planning", () => {
 })
 
 describe("owned-account transfer detection", () => {
+  it("recognizes a card payment credit before its cash-side match is available", () => {
+    expect(isUnmatchedCardPayment("Payment Received - Thank You", 120000, "credit_card")).toBe(true)
+    expect(isUnmatchedCardPayment("Client payment received", 120000, "checking")).toBe(false)
+    expect(isUnmatchedCardPayment("Merchant refund", 120000, "credit_card")).toBe(false)
+  })
+
   it("makes a credit-card payment a high-confidence reversible suggestion", () => {
     const suggestions = detectTransferSuggestions([
       { id: "cash-out", accountId: "checking", accountType: "checking", accountName: "Everyday", date: new Date("2027-03-12T00:00:00.000Z"), amountCents: -142500, description: "CHASE PAYMENT" },

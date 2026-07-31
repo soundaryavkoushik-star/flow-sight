@@ -25,7 +25,7 @@ export interface OnboardingRecurringItem {
 export interface OnboardingPayload {
   accountName: string
   balanceCents: number
-  safetyBufferCents: number
+  safetyBufferCents: number | null
   income: OnboardingRecurringItem[]
   bills: OnboardingRecurringItem[]
   incomePattern: "regular" | "variable" | "mixed"
@@ -82,7 +82,7 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
   const todayKey = financialDateKey(new Date(), timezone)
   const today = new Date(`${todayKey}T00:00:00.000Z`)
   const items = [...payload.income, ...payload.bills]
-  if (!isMoney(payload.balanceCents) || !isMoney(payload.safetyBufferCents)) {
+  if (!isMoney(payload.balanceCents) || (payload.safetyBufferCents !== null && !isMoney(payload.safetyBufferCents))) {
     return { ok: false, message: "Balance and safety buffer must be valid amounts." }
   }
   if (!["regular", "variable", "mixed"].includes(payload.incomePattern)) return { ok: false, message: "Choose how money usually comes in." }
@@ -105,8 +105,26 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
     await prisma.$transaction(async (tx) => {
       await tx.userProfile.upsert({
         where: { userId: user.id },
-        update: { safetyBufferCents: payload.safetyBufferCents, safetyBufferConfiguredAt: new Date(), safetyBufferPromptDismissedAt: null, incomePattern: payload.incomePattern, incomePatternSource: "onboarding", incomePatternUpdatedAt: new Date(), timezone },
-        create: { userId: user.id, safetyBufferCents: payload.safetyBufferCents, safetyBufferConfiguredAt: new Date(), incomePattern: payload.incomePattern, incomePatternSource: "onboarding", incomePatternUpdatedAt: new Date(), timezone },
+        update: {
+          incomePattern: payload.incomePattern,
+          incomePatternSource: "onboarding",
+          incomePatternUpdatedAt: new Date(),
+          timezone,
+          ...(payload.safetyBufferCents === null ? {} : {
+            safetyBufferCents: payload.safetyBufferCents,
+            safetyBufferConfiguredAt: new Date(),
+            safetyBufferPromptDismissedAt: null,
+          }),
+        },
+        create: {
+          userId: user.id,
+          safetyBufferCents: payload.safetyBufferCents ?? 0,
+          safetyBufferConfiguredAt: payload.safetyBufferCents === null ? null : new Date(),
+          incomePattern: payload.incomePattern,
+          incomePatternSource: "onboarding",
+          incomePatternUpdatedAt: new Date(),
+          timezone,
+        },
       })
 
       const existingAccount = await tx.account.findFirst({
@@ -175,7 +193,7 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
     if (!dashboard) return { ok: false, message: "We saved your setup, but couldn’t prepare the forecast. Refresh the dashboard to try again." }
     const included = dashboard.forecast.days.flatMap((day) => day.events)
     revalidatePath("/app/dashboard")
-    return { ok: true, forecast: { safeToSpendCents: dashboard.forecast.safeToSpendCents, lowestBalanceCents: dashboard.forecast.lowestBalanceCents, lowestBalanceDate: dashboard.forecast.lowestBalanceDate, condition: determineForecastCondition(dashboard.forecast, payload.safetyBufferCents, dashboard.freshness.status), confirmedEventCount: included.filter((event) => event.confidence === "confirmed").length, estimatedEventCount: included.filter((event) => event.confidence === "estimated").length } }
+    return { ok: true, forecast: { safeToSpendCents: dashboard.forecast.safeToSpendCents, lowestBalanceCents: dashboard.forecast.lowestBalanceCents, lowestBalanceDate: dashboard.forecast.lowestBalanceDate, condition: determineForecastCondition(dashboard.forecast, dashboard.safetyBufferCents, dashboard.freshness.status), confirmedEventCount: included.filter((event) => event.confidence === "confirmed").length, estimatedEventCount: included.filter((event) => event.confidence === "estimated").length } }
   } catch (error) {
     console.error("Failed to save onboarding", error)
     return { ok: false, message: "We couldn't save your forecast setup. Please try again." }

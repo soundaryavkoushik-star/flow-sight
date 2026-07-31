@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import {
   TrendingUp, ArrowRight, Building2, PenLine, DollarSign,
   Plus, Trash2, CheckCircle, Sparkles, Shield,
-  Wallet, Upload,
+  Upload,
 } from "lucide-react";
 import { saveOnboarding, type OnboardingForecastSummary } from "@/app/app/onboarding/actions";
+import { updateSafetyBuffer } from "@/app/app/forecast/actions";
 import { AmountReveal } from "@/components/financial-display";
 
 const display: React.CSSProperties = { fontFamily: "'Bricolage Grotesque', sans-serif" };
@@ -19,8 +20,7 @@ type IncomePatternValue = "regular" | "variable" | "mixed";
 type PeriodicFrequencyValue = "weekly" | "biweekly" | "monthly" | "annual";
 type FrequencyValue = PeriodicFrequencyValue | "irregular";
 interface IncomeItem { id: number; name: string; amount: string; frequency: FrequencyValue; nextDate: string | null; kind: "regular" | "variable"; earliestDate?: string | null; latestDate?: string | null; confidence?: "certain" | "likely" | "possible" }
-interface BillItem   { id: number; name: string; amount: string; frequency: PeriodicFrequencyValue; nextDate: string | null; accountId: string | null }
-interface CreditCardOption { id: string; name: string }
+interface BillItem   { id: number; name: string; amount: string; frequency: PeriodicFrequencyValue; nextDate: string | null }
 const FREQUENCY_OPTIONS: Array<{ value: PeriodicFrequencyValue; label: string }> = [
   { value: "weekly", label: "Weekly" },
   { value: "biweekly", label: "Every two weeks" },
@@ -32,7 +32,7 @@ const frequencyLabel = (value: FrequencyValue) => FREQUENCY_OPTIONS.find((option
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 7;
 
 function ProgressBar({ step }: { step: number }) {
   const pct = Math.round((step / (TOTAL_STEPS - 1)) * 100);
@@ -501,31 +501,51 @@ function RecurringIncome({
 
 // 4 — Recurring bills
 function RecurringBills({
-  items, creditCards, primaryAccountName, onAdd, onRemove, onNext,
+  items, onAdd, onUpdate, onRemove, onNext, saving, error,
 }: {
   items: BillItem[];
-  creditCards: CreditCardOption[];
-  primaryAccountName: string;
   onAdd: (item: BillItem) => void;
+  onUpdate: (item: BillItem) => void;
   onRemove: (id: number) => void;
-  onNext: () => void;
+  onNext: () => void | Promise<void>;
+  saving: boolean;
+  error: string | null;
 }) {
   const [name, setName] = useState("Rent");
   const [amount, setAmount] = useState("");
   const [freq, setFreq] = useState<PeriodicFrequencyValue>("monthly");
   const [nextDate, setNextDate] = useState("");
-  const [accountId, setAccountId] = useState<string | null>(null);
   const [adding, setAdding] = useState(items.length === 0);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const suggestions = ["Rent", "Netflix", "Spotify", "Internet", "Phone", "Gym"];
 
   const handleAdd = () => {
     if (!name || !amount) return;
-    onAdd({ id: Date.now(), name, amount, frequency: freq, nextDate: nextDate || null, accountId });
+    const item = { id: editingId ?? Date.now(), name, amount, frequency: freq, nextDate: nextDate || null };
+    if (editingId === null) onAdd(item);
+    else onUpdate(item);
     setName("");
     setAmount("");
     setNextDate("");
-    setAccountId(null);
+    setEditingId(null);
+    setAdding(false);
+  };
+
+  const handleEdit = (item: BillItem) => {
+    setName(item.name);
+    setAmount(item.amount);
+    setFreq(item.frequency);
+    setNextDate(item.nextDate ?? "");
+    setEditingId(item.id);
+    setAdding(true);
+  };
+
+  const closeForm = () => {
+    setName("");
+    setAmount("");
+    setNextDate("");
+    setEditingId(null);
     setAdding(false);
   };
 
@@ -566,11 +586,14 @@ function RecurringBills({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                <p className="text-xs text-muted-foreground">{frequencyLabel(item.frequency)} · {item.nextDate ? `Next ${new Date(`${item.nextDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Date estimated"} · Paid with {creditCards.find((card) => card.id === item.accountId)?.name ?? primaryAccountName}</p>
+                <p className="text-xs text-muted-foreground">{frequencyLabel(item.frequency)} · {item.nextDate ? `Next ${new Date(`${item.nextDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Date estimated"}</p>
               </div>
               <span className="text-sm font-semibold text-destructive shrink-0" style={mono}>
                 –${parseFloat(item.amount).toLocaleString()}
               </span>
+              <button onClick={() => handleEdit(item)} className="text-muted-foreground/60 hover:text-foreground transition-colors shrink-0" aria-label={`Edit ${item.name}`}>
+                <PenLine size={13} />
+              </button>
               <button onClick={() => onRemove(item.id)} className="text-muted-foreground/50 hover:text-destructive transition-colors shrink-0">
                 <Trash2 size={13} />
               </button>
@@ -622,29 +645,16 @@ function RecurringBills({
             />
             <p className="text-[11px] text-muted-foreground mt-1.5">Don’t know your Netflix date? Leave this blank; the forecast will treat it as estimated.</p>
           </div>
-          {creditCards.length > 0 && <div>
-            <label className="text-xs text-muted-foreground block mb-1.5" htmlFor="bill-paid-with">Paid with</label>
-            <select
-              id="bill-paid-with"
-              value={accountId ?? ""}
-              onChange={(e) => setAccountId(e.target.value || null)}
-              className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/40 transition-colors"
-            >
-              <option value="">{primaryAccountName}</option>
-              {creditCards.map((card) => <option key={card.id} value={card.id}>{card.name} · credit card</option>)}
-            </select>
-            <p className="text-[11px] text-muted-foreground mt-1.5">Card-funded bills count as spending now. Cash leaves checking only with the card payment.</p>
-          </div>}
           <div className="flex gap-2">
             <button
               onClick={handleAdd}
               disabled={!name || !amount}
               className="flex-1 bg-primary/15 text-primary py-2.5 rounded-xl text-sm font-medium hover:bg-primary/20 transition-colors disabled:opacity-40"
             >
-              Add bill
+              {editingId === null ? "Add bill" : "Save changes"}
             </button>
             {items.length > 0 && (
-              <button onClick={() => setAdding(false)} className="px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={closeForm} className="px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Cancel
               </button>
             )}
@@ -659,88 +669,16 @@ function RecurringBills({
         </button>
       )}
 
-      <PrimaryButton onClick={onNext}>
-        Continue <ArrowRight size={15} />
+      <p className="rounded-xl bg-muted/40 px-4 py-3 text-xs leading-relaxed text-muted-foreground">Bills are added to your checking account for now. If any are charged to a credit card, you can assign the card later from Recurring.</p>
+      {error && <p className="text-sm text-destructive text-center" role="alert">{error}</p>}
+      <PrimaryButton onClick={onNext} loading={saving}>
+        Build my forecast <ArrowRight size={15} />
       </PrimaryButton>
       {items.length === 0 && (
         <button onClick={onNext} className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-1">
           Skip for now
         </button>
       )}
-    </div>
-  );
-}
-
-// 5 — Safety buffer
-function SafetyBuffer({
-  value, onChange, onNext, saving, error,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  onNext: () => void | Promise<void>;
-  saving: boolean;
-  error: string | null;
-}) {
-  const presets = [
-    { amount: 0, label: "No buffer", desc: "Only protect against a negative balance" },
-    { amount: 200, label: "Minimal", desc: "Just enough to avoid fees" },
-    { amount: 500, label: "Standard", desc: "A small cushion for surprises" },
-    { amount: 1000, label: "Comfortable", desc: "Recommended for most people" },
-    { amount: 2000, label: "Conservative", desc: "Extra peace of mind" },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-xs text-muted-foreground uppercase tracking-[0.15em] mb-2" style={mono}>Step 6 of 7</p>
-        <h2 className="text-[30px] font-medium tracking-tight mb-2" style={display}>
-          Set your safety buffer.
-        </h2>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          FlowSight will alert you if your balance is forecast to drop below this amount. You can change this anytime.
-        </p>
-      </div>
-
-      <div className="space-y-2.5">
-        {presets.map(({ amount, label, desc }) => (
-          <button
-            key={amount}
-            onClick={() => onChange(amount)}
-            className={`w-full text-left px-5 py-4 rounded-2xl border transition-all duration-150 flex items-center justify-between ${
-              value === amount
-                ? "border-primary/40 bg-primary/8"
-                : "border-border hover:border-border/60"
-            }`}
-          >
-            <div>
-              <p className="text-sm font-semibold text-foreground">{label}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-bold text-foreground" style={mono}>
-                ${amount.toLocaleString()}
-              </span>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${value === amount ? "border-primary" : "border-border"}`}>
-                {value === amount && <span className="w-2.5 h-2.5 rounded-full bg-primary" />}
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      <div className="bg-muted/40 rounded-xl px-4 py-3 flex items-start gap-2.5">
-        <Wallet size={13} className="text-primary shrink-0 mt-0.5" />
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          {value === 0
-            ? "Choose $0 if you only want FlowSight to protect against a negative balance."
-            : "Your “safe to spend” amount will always reflect this buffer — so you’re never caught off guard."}
-        </p>
-      </div>
-
-      {error && <p className="text-sm text-destructive text-center" role="alert">{error}</p>}
-      <PrimaryButton onClick={onNext} loading={saving}>
-        Build my forecast <ArrowRight size={15} />
-      </PrimaryButton>
     </div>
   );
 }
@@ -754,6 +692,22 @@ function ForecastReady({
 }) {
   const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
   const conditionLabel = forecast.condition === "update_needed" ? "Update Needed" : forecast.condition[0].toUpperCase() + forecast.condition.slice(1);
+  const [bufferOpen, setBufferOpen] = useState(false);
+  const [bufferAmount, setBufferAmount] = useState(500);
+  const [savingBuffer, setSavingBuffer] = useState(false);
+  const [bufferError, setBufferError] = useState<string | null>(null);
+
+  const saveBuffer = async () => {
+    setSavingBuffer(true);
+    setBufferError(null);
+    const result = await updateSafetyBuffer(bufferAmount * 100);
+    setSavingBuffer(false);
+    if (!result.ok) {
+      setBufferError(result.message);
+      return;
+    }
+    onDashboard();
+  };
 
   return (
     <div className="space-y-7">
@@ -777,7 +731,7 @@ function ForecastReady({
         {[
           { label: "Safe to spend", value: money(forecast.safeToSpendCents), color: "text-[hsl(var(--fs-green))]", note: "from your 30-day forecast" },
           { label: "Lowest projected balance", value: money(forecast.lowestBalanceCents), color: "text-foreground", note: new Date(`${forecast.lowestBalanceDate}T00:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric" }) },
-          { label: "Condition", value: conditionLabel, color: forecast.condition === "clear" ? "text-[hsl(var(--fs-green))]" : forecast.condition === "watch" ? "text-[hsl(var(--fs-amber))]" : forecast.condition === "tight" ? "text-destructive" : "text-muted-foreground", note: "based on your buffer and upcoming activity" },
+          { label: "Condition", value: conditionLabel, color: forecast.condition === "clear" ? "text-[hsl(var(--fs-green))]" : forecast.condition === "watch" ? "text-[hsl(var(--fs-amber))]" : forecast.condition === "tight" ? "text-destructive" : "text-muted-foreground", note: "based on upcoming activity; no safety buffer set yet" },
         ].map(({ label, value, color, note }) => (
           <div key={label} className="px-5 py-3.5 flex items-center justify-between">
             <div>
@@ -797,10 +751,22 @@ function ForecastReady({
       </div>
 
       <p className="text-xs text-muted-foreground text-center">Your forecast updates as you add transactions or refresh your balance.</p>
-      <div>
-        <PrimaryButton onClick={onDashboard}>
-          Go to my dashboard <ArrowRight size={15} />
-        </PrimaryButton>
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <p className="text-sm font-medium">Want FlowSight to protect an amount you prefer to keep available?</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">This is optional. Without one, Safe to Spend only protects against going below $0.</p>
+        {bufferOpen ? <div className="mt-4 space-y-3">
+          <div className="grid grid-cols-4 gap-2">
+            {[200, 500, 1000, 2000].map((amount) => <button key={amount} type="button" onClick={() => setBufferAmount(amount)} className={`rounded-lg border px-2 py-2 text-xs font-medium ${bufferAmount === amount ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>${amount.toLocaleString()}</button>)}
+          </div>
+          {bufferError && <p className="text-xs text-destructive" role="alert">{bufferError}</p>}
+          <div className="flex gap-2">
+            <button type="button" disabled={savingBuffer} onClick={saveBuffer} className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50">{savingBuffer ? "Saving…" : "Save buffer and continue"}</button>
+            <button type="button" onClick={() => setBufferOpen(false)} className="rounded-xl border border-border px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground">Cancel</button>
+          </div>
+        </div> : <div className="mt-4 flex gap-2">
+          <button type="button" onClick={() => setBufferOpen(true)} className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground">Add a safety buffer</button>
+          <button type="button" onClick={onDashboard} className="rounded-xl border border-border px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground">Not now</button>
+        </div>}
       </div>
     </div>
   );
@@ -808,7 +774,7 @@ function ForecastReady({
 
 // ── ORCHESTRATOR ─────────────────────────────────────────────────────────────
 
-export default function Onboarding({ creditCards = [] }: { creditCards?: CreditCardOption[] }) {
+export default function Onboarding() {
   const router = useRouter();
   const navigate = router.push;
   const [step, setStep] = useState(0);
@@ -819,7 +785,6 @@ export default function Onboarding({ creditCards = [] }: { creditCards?: CreditC
   const [accountName, setAccountName] = useState("Primary checking");
   const [income, setIncome] = useState<IncomeItem[]>([]);
   const [bills, setBills] = useState<BillItem[]>([]);
-  const [buffer, setBuffer] = useState(1000);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [forecastSummary, setForecastSummary] = useState<OnboardingForecastSummary | null>(null);
@@ -838,7 +803,7 @@ export default function Onboarding({ creditCards = [] }: { creditCards?: CreditC
     const result = await saveOnboarding({
       accountName,
       balanceCents: Math.round(balanceNum * 100),
-      safetyBufferCents: Math.round(buffer * 100),
+      safetyBufferCents: null,
       income: income.map((item) => ({
         name: item.name,
         amountCents: Math.round(parseFloat(item.amount) * 100),
@@ -854,7 +819,6 @@ export default function Onboarding({ creditCards = [] }: { creditCards?: CreditC
         amountCents: Math.round(parseFloat(item.amount) * 100),
         frequency: item.frequency,
         nextDate: item.nextDate,
-        accountId: item.accountId,
       })),
       incomePattern: incomePattern ?? "regular",
       timezone: timezoneRef.current,
@@ -886,15 +850,15 @@ export default function Onboarding({ creditCards = [] }: { creditCards?: CreditC
       case 5: return (
         <RecurringBills
           items={bills}
-          creditCards={creditCards}
-          primaryAccountName={accountName}
           onAdd={(item) => setBills((p) => [...p, item])}
+          onUpdate={(item) => setBills((previous) => previous.map((bill) => bill.id === item.id ? item : bill))}
           onRemove={(id) => setBills((p) => p.filter((b) => b.id !== id))}
-          onNext={next}
+          onNext={persistAndContinue}
+          saving={saving}
+          error={saveError}
         />
       );
-      case 6: return <SafetyBuffer value={buffer} onChange={setBuffer} onNext={persistAndContinue} saving={saving} error={saveError} />;
-      case 7: return forecastSummary ? (
+      case 6: return forecastSummary ? (
         <ForecastReady
           forecast={forecastSummary}
           onDashboard={() => navigate("/app/dashboard")}

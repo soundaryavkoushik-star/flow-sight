@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/data/prisma"
 import { normalizeMerchant, suggestRecurring } from "@/lib/csv/parse"
 import { suggestTransactionCategory } from "@/lib/analytics/categories"
-import { detectTransferSuggestions } from "@/lib/transfers/detect"
+import { detectTransferSuggestions, isUnmatchedCardPayment } from "@/lib/transfers/detect"
 import { recurringDisplayName } from "@/lib/financial/recurring-label"
 
 const PAGE_SIZE = 25
@@ -33,7 +33,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
     : { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }
 
   const [transactionPool, unfilteredTransactionCount, recurringHistory, confirmedRecurring, managedRecurring, accounts, profile, transferHistory, transferDecisions, recurringDecisions] = user ? await Promise.all([
-    prisma.transaction.findMany({ where, orderBy: { date: "desc" }, ...transactionPagination, include: { account: { select: { name: true } }, category: { select: { name: true } }, outgoingTransfer: { select: { status: true } }, incomingTransfer: { select: { status: true } } } }),
+    prisma.transaction.findMany({ where, orderBy: { date: "desc" }, ...transactionPagination, include: { account: { select: { name: true, type: true } }, category: { select: { name: true } }, outgoingTransfer: { select: { status: true } }, incomingTransfer: { select: { status: true } } } }),
     prisma.transaction.count({ where }),
     prisma.transaction.findMany({ where: { userId: user.id, accountId: { not: null } }, orderBy: { date: "asc" }, take: 2000 }),
     prisma.recurringSeries.findMany({ where: { userId: user.id, status: "confirmed" }, select: { id: true, name: true, amountCents: true, frequency: true, type: true, nextExpected: true, accountId: true, isManual: true, normalizedKey: true } }),
@@ -53,7 +53,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   ]) : [[], 0, [], [], [], [], null, [], [], []]
 
   const categoryMatches = query.category
-    ? transactionPool.filter((transaction) => (transaction.category?.name ?? suggestTransactionCategory(transaction.description, transaction.amountCents)) === query.category)
+    ? transactionPool.filter((transaction) => (transaction.category?.name ?? (isUnmatchedCardPayment(transaction.description, transaction.amountCents, transaction.account?.type) ? "Transfer in" : suggestTransactionCategory(transaction.description, transaction.amountCents))) === query.category)
     : transactionPool
   const transactionCount = query.category ? categoryMatches.length : unfilteredTransactionCount
   const transactions = query.category ? categoryMatches.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : categoryMatches
@@ -103,6 +103,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
       minAmountCents: item.minAmountCents,
       maxAmountCents: item.maxAmountCents,
       occurrenceCount: item.occurrenceCount,
+      incomeConfidence: item.incomeConfidence,
     }]
   })
   const decidedTransactionIds = new Set(transferDecisions.flatMap((decision) => [decision.outgoingTransactionId, decision.incomingTransactionId]))
@@ -159,7 +160,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
     {tab === "activity" ? <>
       <TransferReviewPanel suggestions={transferSuggestions} confirmed={confirmedTransfers} />
       {transactionCount > 0 || query.q || query.type || query.category ? <TransactionFilters query={query.q} type={query.type} category={query.category} /> : null}
-      {transactions.length === 0 ? <div className="flex flex-col items-center justify-center py-16 text-center rounded-2xl border border-border bg-card"><div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5"><ArrowLeftRight className="h-8 w-8 text-primary" /></div><h2 className="text-xl font-semibold mb-2">{transactionCount === 0 && !query.q && !query.type && !query.category ? "No transactions yet" : "No transactions match those filters"}</h2><p className="text-muted-foreground text-sm max-w-sm mb-6">{transactionCount === 0 && !query.q && !query.type && !query.category ? "Import a CSV from your bank or add transactions manually. FlowSight will detect patterns and build your forecast from the history." : "Try a broader search or clear one of those filters."}</p>{transactionCount === 0 && !query.q && !query.type && !query.category ? <div className="flex flex-wrap justify-center gap-3"><CsvImportPanel {...csvProps} /><ManualTransactionPanel accounts={accountOptions} variant="outline" /></div> : <Link href="/app/transactions" className="text-sm text-primary hover:underline">Clear filters</Link>}</div> : <div className="rounded-2xl border border-border bg-card overflow-hidden"><TransactionsTable transactions={transactions.map((transaction) => ({ id: transaction.id, date: transaction.date.toISOString().slice(0, 10), description: transaction.description, accountName: transaction.account?.name ?? null, categoryName: transaction.category?.name ?? null, amountCents: transaction.amountCents, source: transaction.source, transferStatus: transaction.outgoingTransfer?.status ?? transaction.incomingTransfer?.status ?? null }))} /></div>}
+      {transactions.length === 0 ? <div className="flex flex-col items-center justify-center py-16 text-center rounded-2xl border border-border bg-card"><div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5"><ArrowLeftRight className="h-8 w-8 text-primary" /></div><h2 className="text-xl font-semibold mb-2">{transactionCount === 0 && !query.q && !query.type && !query.category ? "No transactions yet" : "No transactions match those filters"}</h2><p className="text-muted-foreground text-sm max-w-sm mb-6">{transactionCount === 0 && !query.q && !query.type && !query.category ? "Import a CSV from your bank or add transactions manually. FlowSight will detect patterns and build your forecast from the history." : "Try a broader search or clear one of those filters."}</p>{transactionCount === 0 && !query.q && !query.type && !query.category ? <div className="flex flex-wrap justify-center gap-3"><CsvImportPanel {...csvProps} /><ManualTransactionPanel accounts={accountOptions} variant="outline" /></div> : <Link href="/app/transactions" className="text-sm text-primary hover:underline">Clear filters</Link>}</div> : <div className="rounded-2xl border border-border bg-card overflow-hidden"><TransactionsTable transactions={transactions.map((transaction) => ({ id: transaction.id, date: transaction.date.toISOString().slice(0, 10), description: transaction.description, accountName: transaction.account?.name ?? null, categoryName: transaction.category?.name ?? null, amountCents: transaction.amountCents, source: transaction.source, transferStatus: transaction.outgoingTransfer?.status ?? transaction.incomingTransfer?.status ?? null, unmatchedCardPayment: isUnmatchedCardPayment(transaction.description, transaction.amountCents, transaction.account?.type) }))} /></div>}
       {totalPages > 1 && <nav className="flex items-center justify-between mt-5 text-sm" aria-label="Transaction pages"><Link href={paramsFor(Math.max(1, page - 1))} aria-disabled={page === 1} className={`rounded-md border border-input px-3 py-2 ${page === 1 ? "pointer-events-none opacity-50" : "hover:bg-accent"}`}>Previous</Link><span className="text-muted-foreground">Page {Math.min(page, totalPages)} of {totalPages}</span><Link href={paramsFor(Math.min(totalPages, page + 1))} aria-disabled={page >= totalPages} className={`rounded-md border border-input px-3 py-2 ${page >= totalPages ? "pointer-events-none opacity-50" : "hover:bg-accent"}`}>Next</Link></nav>}
     </> : <div className="space-y-6">
       {recurringSuggestions.length > 0 && <RecurringReviewPanel suggestions={recurringSuggestions} />}

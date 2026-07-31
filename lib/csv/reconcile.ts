@@ -62,8 +62,10 @@ export function reconcileRecurringSuggestions(
       if (!compatibleType(suggestion, existing) || suggestion.frequency !== existing.frequency) continue
       const similarity = nameSimilarity(suggestion.name, existing.name)
       const closeAmount = amountClose(suggestion.amountCents, existing.amountCents)
+      const exactAmount = Math.abs(suggestion.amountCents) === Math.abs(existing.amountCents)
       const closeDate = daysApart(suggestion.nextExpected, existing.nextExpected) <= 4
-      if ((similarity >= 0.5 && closeAmount) || (closeAmount && closeDate)) {
+      const compatibleAccount = !suggestion.accountId || !existing.accountId || suggestion.accountId === existing.accountId
+      if (compatibleAccount && ((similarity >= 0.5 && closeAmount) || (closeAmount && closeDate) || exactAmount)) {
         edges.set(suggestion.id, new Set([...(edges.get(suggestion.id) ?? []), existing.id]))
         if (similarity >= 0.5 && closeAmount && closeDate) strongPairs.add(`${suggestion.id}:${existing.id}`)
       }

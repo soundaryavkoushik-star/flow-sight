@@ -11,7 +11,10 @@ export function AmountReveal({ cents, prefix = "", estimated = false, className 
   const [value, setValue] = useState(0)
   useEffect(() => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    if (reduceMotion) { setValue(cents); return }
+    if (reduceMotion) {
+      const frame = requestAnimationFrame(() => setValue(cents))
+      return () => cancelAnimationFrame(frame)
+    }
     const started = performance.now()
     let frame = 0
     const tick = (now: number) => {

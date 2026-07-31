@@ -14,6 +14,7 @@ export interface FinancialEvent {
   accountId?: string
   recurring?: boolean
   confidence: ForecastConfidence
+  amountEstimated?: boolean
   estimateEvidence?: { minAmountCents: number; maxAmountCents: number; occurrenceCount: number; startDate?: string; endDate?: string }
 }
 
@@ -27,6 +28,7 @@ export interface RecurringRule {
   estimateEvidence?: { minAmountCents: number; maxAmountCents: number; occurrenceCount: number; startDate?: string; endDate?: string }
   accountId?: string
   confidence?: ForecastConfidence
+  amountEstimated?: boolean
   exceptions?: Array<{ date: string; movedDate?: string }>
 }
 

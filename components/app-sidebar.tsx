@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
 import {
   TrendingUp, Wallet, ArrowLeftRight,
@@ -11,7 +11,6 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { createClient } from "@/lib/supabase/client"
 
 const NAV_ITEMS = [
   { href: "/app/dashboard",    label: "Dashboard",    Icon: LayoutDashboard, phase: 1 },
@@ -28,15 +27,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ user }: AppSidebarProps) {
   const pathname = usePathname()
-  const router = useRouter()
-  const supabase = createClient()
   const [collapsed, setCollapsed] = useState(false)
-
-  async function handleSignOut() {
-    await supabase.auth.signOut()
-    router.push("/sign-in")
-    router.refresh()
-  }
 
   const initials = (user.email ?? "?").slice(0, 2).toUpperCase()
 
@@ -111,15 +102,18 @@ export function AppSidebar({ user }: AppSidebarProps) {
           )}
         </div>
         <div className={cn("flex", collapsed ? "flex-col items-center gap-1" : "items-center gap-1 px-1")}>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={handleSignOut}
-            title="Sign out"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <form action="/api/auth/sign-out" method="post">
+            <Button
+              type="submit"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </form>
+          {!collapsed && <p className="text-[10px] leading-snug text-muted-foreground">Sign out when using a shared device.</p>}
         </div>
       </div>
     </aside>

@@ -16,6 +16,11 @@ export interface TransferSuggestion {
 }
 
 const transferLanguage = /\b(transfer|payment|autopay|card payment|credit card)\b/i
+const receivedCardPaymentLanguage = /\b(payment received|payment.*thank you|thank you.*payment|autopay payment|online payment)\b/i
+
+export function isUnmatchedCardPayment(description: string, amountCents: number, accountType: string | null | undefined) {
+  return accountType === "credit_card" && amountCents > 0 && receivedCardPaymentLanguage.test(description)
+}
 const issuerPatterns = [
   { key: "american_express", pattern: /\b(american express|amex)\b/i },
   { key: "chase", pattern: /\bchase\b/i },

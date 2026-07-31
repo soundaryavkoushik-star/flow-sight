@@ -149,6 +149,14 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     .filter((transfer) => !transfer.outgoingTransaction.account?.isLiability && transfer.incomingTransaction.account?.isLiability)
     .map((transfer) => transfer.outgoingTransactionId))
   const cardPayments = creditCards.flatMap((card) => {
+    const cardTransactions = transactions
+      .filter((transaction) => transaction.accountId === card.account.id && !confirmedTransferTransactionIds.has(transaction.id))
+      .map((transaction) => ({
+        date: transaction.date,
+        description: transaction.description,
+        amountCents: transaction.amountCents,
+      }))
+    const coldStartBalanceCents = cardTransactions.length === 0 ? card.statementBalanceCents : 0
     const cardRecurring = recurring.filter((item) =>
       item.accountId === card.account.id
       && item.type === "bill"
@@ -191,21 +199,15 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
       start,
       card.statementClosingDay,
       card.paymentDueDay,
-      card.statementBalanceCents,
-      transactions
-        .filter((transaction) => transaction.accountId === card.account.id && !confirmedTransferTransactionIds.has(transaction.id))
-        .map((transaction) => ({
-          date: transaction.date,
-          description: transaction.description,
-          amountCents: transaction.amountCents,
-        })),
+      coldStartBalanceCents,
+      cardTransactions,
       upcomingCardCharges,
     )
     if (payment.expectedPaymentCents <= 0 || new Date(`${payment.dueDate}T00:00:00.000Z`) >= end) return []
     return [{
       cardName: card.account.name,
       paymentAccountName: card.paymentAccount?.name ?? "an account FlowSight will identify",
-      statementBalanceCents: card.statementBalanceCents,
+      statementBalanceCents: coldStartBalanceCents,
       knownCycleChargesCents: payment.knownCycleChargesCents,
       expectedPaymentCents: payment.expectedPaymentCents,
       chargeCount: payment.chargeCount,
@@ -216,7 +218,7 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
       dueDate: payment.dueDate,
       strategy: payment.usesFallback
         ? "Cold-start estimate — no card purchases are available for this cycle yet"
-        : `Based on ${payment.postedChargeCount} posted ${payment.postedChargeCount === 1 ? "charge" : "charges"}${payment.upcomingChargeCount > 0 ? ` and ${payment.upcomingChargeCount} known upcoming ${payment.upcomingChargeCount === 1 ? "bill" : "bills"}` : ""}: ${shortMoney(card.statementBalanceCents)} unpaid statement + ${shortMoney(payment.knownCycleChargesCents)} current-cycle activity. More spending before ${shortDate(payment.cycleCloseDate)} will increase this payment`,
+        : `Based on ${payment.postedChargeCount} posted ${payment.postedChargeCount === 1 ? "charge" : "charges"}${payment.upcomingChargeCount > 0 ? ` and ${payment.upcomingChargeCount} known upcoming ${payment.upcomingChargeCount === 1 ? "bill" : "bills"}` : ""}: ${shortMoney(payment.knownCycleChargesCents)} in recorded cycle activity. More spending before ${shortDate(payment.cycleCloseDate)} will increase this payment`,
       paymentAccountId: card.paymentAccount?.id ?? null,
       cardAccountId: card.account.id,
       settingsId: card.id,
@@ -245,7 +247,7 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     name: transaction.description,
     accountId: transaction.accountId ?? undefined,
     confidence: "confirmed" as const,
-  })), ...recurring.filter((item) => item.frequency === "irregular" && item.nextExpected && !creditCardAccountIds.has(item.accountId ?? "")).map((item) => ({ id: item.id, date: dateKey(item.nextExpected!), amountCents: item.amountCents, type: "income" as const, source: "manual" as const, name: recurringDisplayName(item.name, item.type), accountId: item.accountId ?? undefined, confidence: item.dateConfidence === "confirmed" ? "confirmed" as const : "estimated" as const })),
+  })), ...recurring.filter((item) => item.frequency === "irregular" && item.nextExpected && !creditCardAccountIds.has(item.accountId ?? "")).map((item) => ({ id: item.id, date: dateKey(item.nextExpected!), amountCents: item.amountCents, type: "income" as const, source: "manual" as const, name: recurringDisplayName(item.name, item.type), accountId: item.accountId ?? undefined, confidence: item.dateConfidence === "confirmed" ? "confirmed" as const : "estimated" as const, amountEstimated: item.incomeConfidence !== null })),
   ...plannedCardPayments.map((payment) => ({
     id: `credit-card-payment:${payment.settingsId}`,
     date: payment.dueDate,
@@ -255,6 +257,7 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     name: `${payment.cardName} payment`,
     accountId: payment.paymentAccountId ?? undefined,
     confidence: "estimated" as const,
+    amountEstimated: true,
   }))]
 
   const recurringRules: RecurringRule[] = recurring.filter((item) => item.frequency !== "irregular" && !creditCardAccountIds.has(item.accountId ?? "")).map((item) => ({
@@ -266,6 +269,7 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     anchorDayOfMonth: item.anchorDayOfMonth ?? undefined,
     accountId: item.accountId ?? undefined,
     confidence: item.dateConfidence === "confirmed" ? "confirmed" : "estimated",
+    amountEstimated: item.incomeConfidence !== null || (item.minAmountCents !== null && item.maxAmountCents !== null && item.minAmountCents !== item.maxAmountCents),
     estimateEvidence: item.minAmountCents !== null && item.maxAmountCents !== null && item.occurrenceCount !== null ? { minAmountCents: item.minAmountCents, maxAmountCents: item.maxAmountCents, occurrenceCount: item.occurrenceCount, startDate: item.evidenceStartDate ? dateKey(item.evidenceStartDate) : undefined, endDate: item.evidenceEndDate ? dateKey(item.evidenceEndDate) : undefined } : undefined,
     exceptions: item.exceptions.map((exception) => ({ date: dateKey(exception.originalDate), movedDate: exception.movedDate ? dateKey(exception.movedDate) : undefined })),
   }))
