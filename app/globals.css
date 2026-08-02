@@ -5,42 +5,42 @@
 @layer base {
   :root {
     /* Light mode */
-    --background: 0 0% 100%;
-    --foreground: 220 59% 14%;
+    --background: 216 45% 97%;
+    --foreground: 218 41% 14%;
     --card: 0 0% 100%;
     --card-foreground: 220 59% 14%;
-    --primary: 18 61% 56%;
-    --primary-foreground: 220 59% 14%;
-    --secondary: 42 42% 95%;
+    --primary: 18 55% 51%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 216 43% 94%;
     --secondary-foreground: 220 59% 14%;
-    --muted: 42 42% 95%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 18 61% 56%;
-    --accent-foreground: 220 59% 14%;
+    --muted: 216 43% 94%;
+    --muted-foreground: 218 13% 46%;
+    --accent: 18 55% 51%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 350 45% 49%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 18% 90%;
-    --input: 220 18% 90%;
-    --ring: 18 61% 56%;
+    --border: 215 29% 88%;
+    --input: 215 29% 85%;
+    --ring: 18 55% 51%;
     --radius: 0.875rem;
 
     /* Flowsight semantic tokens — light */
     --fs-surface: 0 0% 100%;
-    --fs-surface-raised: 42 42% 95%;
-    --fs-surface-overlay: 42 42% 95%;
-    --fs-ink: 224 71% 4%;
-    --fs-ink-muted: 220 9% 46%;
-    --fs-ink-faint: 220 9% 70%;
-    --fs-border: 220 13% 91%;
+    --fs-surface-raised: 216 45% 97%;
+    --fs-surface-overlay: 216 43% 94%;
+    --fs-ink: 218 41% 14%;
+    --fs-ink-muted: 218 13% 46%;
+    --fs-ink-faint: 216 12% 67%;
+    --fs-border: 215 29% 88%;
     --fs-green: 148 51% 36%;
     --fs-green-bg: 148 51% 95%;
     --fs-red: 350 45% 49%;
     --fs-red-bg: 350 45% 96%;
     --fs-amber: 40 96% 40%;
     --fs-amber-bg: 40 96% 95%;
-    --fs-brand: 18 61% 56%;
-    --fs-heading: 220 59% 14%;
-    --fs-body: 215 28% 27%;
+    --fs-brand: 18 55% 51%;
+    --fs-heading: 218 41% 14%;
+    --fs-body: 218 17% 32%;
     --fs-update: 220 9% 46%;
     --fs-dark-section: 218 54% 10%;
   }
@@ -87,6 +87,10 @@
 
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(circle at 12% -8%, hsl(210 70% 93% / 0.72), transparent 34rem),
+      linear-gradient(180deg, hsl(214 56% 98%) 0%, hsl(var(--background)) 34rem);
+    background-attachment: fixed;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
@@ -98,15 +102,15 @@
 @layer components {
   .fs-warm-section-transition {
     background:
-      radial-gradient(circle at 10% 42%, rgb(212 117 74 / 0.045), transparent 32%),
+      radial-gradient(circle at 14% 38%, rgb(201 99 59 / 0.045), transparent 28%),
       linear-gradient(
         180deg,
-        #fff 0%,
-        var(--fs-tint-soft, #fdfbf8) 12%,
-        var(--fs-tint, #fbf7f1) 32%,
-        var(--fs-tint, #fbf7f1) 68%,
-        var(--fs-tint-soft, #fdfbf8) 88%,
-        #fff 100%
+        #ffffff 0%,
+        #fbf9f4 14%,
+        #f8f5ee 34%,
+        #f8f5ee 66%,
+        #fbf9f4 86%,
+        #ffffff 100%
       );
   }
 
@@ -161,19 +165,19 @@
   }
 
   .fs-landing .fs-brand-action {
-    background: #d4754a;
-    color: #0f1d3a;
+    background: #c9633b;
+    color: #ffffff;
     box-shadow: 0 1px 2px rgba(15, 29, 58, 0.08);
   }
 
   .fs-landing .fs-brand-action:hover {
-    background: #bf6943;
+    background: #b75532;
     box-shadow: 0 2px 8px rgba(15, 29, 58, 0.06);
     transform: translateY(-1px);
   }
 
   .fs-landing .fs-brand-action:active {
-    background: #b4633f;
+    background: #a94e2e;
     transform: scale(0.98);
   }
 
@@ -320,6 +324,87 @@
     50% { opacity: 1; stroke-width: 2.2; }
   }
 
+  .fs-landing .fs-engine-list-row,
+  .fs-landing .fs-engine-charge {
+    animation: fs-engine-row-in 430ms cubic-bezier(0.19, 1, 0.22, 1) both;
+  }
+
+  .fs-landing .fs-engine-converge-arrow {
+    animation: fs-engine-arrow 520ms cubic-bezier(0.19, 1, 0.22, 1) 360ms both;
+  }
+
+  .fs-landing .fs-engine-resolve-card,
+  .fs-landing .fs-engine-payment-total {
+    animation: fs-engine-resolve 520ms cubic-bezier(0.19, 1, 0.22, 1) 520ms both;
+  }
+
+  .fs-landing .fs-engine-classify-confirmed {
+    animation: fs-engine-classify-confirmed 520ms ease-out 120ms both;
+  }
+
+  .fs-landing .fs-engine-classify-estimated {
+    animation: fs-engine-classify-estimated 560ms ease-out 360ms both;
+  }
+
+  .fs-landing .fs-engine-transfer-beam {
+    transform-origin: center;
+    animation: fs-engine-beam-draw 380ms ease-out 220ms both;
+  }
+
+  .fs-landing .fs-engine-transfer-pulse {
+    animation: fs-engine-beam-travel 620ms cubic-bezier(0.19, 1, 0.22, 1) 300ms both;
+  }
+
+  .fs-landing .fs-engine-transfer-link {
+    animation: fs-engine-link-settle 420ms cubic-bezier(0.19, 1, 0.22, 1) 760ms both;
+  }
+
+  @keyframes fs-engine-row-in {
+    from { opacity: 0; transform: translateY(12px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes fs-engine-arrow {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(4px); }
+  }
+
+  @keyframes fs-engine-resolve {
+    0% { opacity: 0; transform: translateY(12px) scale(0.97); }
+    68% { opacity: 1; transform: translateY(-2px) scale(1.015); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes fs-engine-classify-confirmed {
+    0% { opacity: 0; transform: translateX(-10px); border-color: hsl(var(--border)); }
+    70% { opacity: 1; transform: translateX(0); border-color: hsl(var(--fs-green) / 0.45); }
+    100% { opacity: 1; transform: translateX(0); border-color: hsl(var(--border)); }
+  }
+
+  @keyframes fs-engine-classify-estimated {
+    0% { opacity: 0; transform: translateX(10px); }
+    55% { opacity: 1; transform: translateX(0); box-shadow: 0 0 0 4px hsl(var(--fs-amber) / 0.10); }
+    100% { opacity: 1; transform: translateX(0); box-shadow: none; }
+  }
+
+  @keyframes fs-engine-beam-draw {
+    from { opacity: 0; transform: translate(-50%, -50%) scaleX(0); }
+    to { opacity: 1; transform: translate(-50%, -50%) scaleX(1); }
+  }
+
+  @keyframes fs-engine-beam-travel {
+    0% { opacity: 0; left: 0; transform: scale(0.5); }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; left: calc(100% - 8px); transform: scale(1); }
+  }
+
+  @keyframes fs-engine-link-settle {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.65); }
+    65% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .fs-safe-recalculated,
     .fs-transfer-link-path,
@@ -340,13 +425,63 @@
       animation: none;
     }
 
-    .fs-landing :is(.fs-income-arrival, .fs-income-range, .fs-scenario-marker, .fs-scenario-condition, .fs-scenario-low-point, .fs-scenario-buffer, .fs-faq-chevron-open, .fs-contrast-check, .fs-contrast-payoff) {
+    .fs-landing :is(.fs-income-arrival, .fs-income-range, .fs-scenario-marker, .fs-scenario-condition, .fs-scenario-low-point, .fs-scenario-buffer, .fs-faq-chevron-open, .fs-contrast-check, .fs-contrast-payoff, .fs-engine-list-row, .fs-engine-charge, .fs-engine-converge-arrow, .fs-engine-resolve-card, .fs-engine-payment-total, .fs-engine-classify-confirmed, .fs-engine-classify-estimated, .fs-engine-transfer-beam, .fs-engine-transfer-pulse, .fs-engine-transfer-link) {
       animation: none;
+      opacity: 1;
     }
 
     .fs-landing .fs-contrast-old::after {
       animation: none;
       transform: scaleX(1);
+    }
+  }
+
+  .fs-hero-sample-rise {
+    animation: fs-hero-sample-rise 720ms cubic-bezier(0.19, 1, 0.22, 1) both;
+  }
+
+  .fs-hero-sample-line {
+    stroke-dasharray: 720;
+    stroke-dashoffset: 720;
+    animation: fs-hero-sample-line 1100ms ease-out 260ms forwards;
+  }
+
+  .fs-hero-sample-point {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: fs-hero-sample-point 420ms ease-out 1050ms both;
+  }
+
+  .fs-hero-sample-event {
+    animation: fs-hero-sample-event 420ms cubic-bezier(0.19, 1, 0.22, 1) both;
+  }
+
+  @keyframes fs-hero-sample-rise {
+    from { opacity: 0; transform: translateY(22px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes fs-hero-sample-line { to { stroke-dashoffset: 0; } }
+
+  @keyframes fs-hero-sample-point {
+    0% { opacity: 0; transform: scale(0.3); }
+    62% { opacity: 1; transform: scale(1.55); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes fs-hero-sample-event {
+    from { opacity: 0; transform: translateY(9px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fs-hero-sample-rise,
+    .fs-hero-sample-line,
+    .fs-hero-sample-point,
+    .fs-hero-sample-event {
+      animation: none;
+      opacity: 1;
+      stroke-dashoffset: 0;
     }
   }
 }

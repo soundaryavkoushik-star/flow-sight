@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { CalendarClock, Landmark, Pause, Pencil, Play, Plus, ReceiptText, Trash2, X } from "lucide-react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { deleteRecurringSeries, saveRecurringSeries, setRecurringSeriesActive, type RecurringSeriesInput } from "@/app/app/transactions/actions"
 import { amountColorClass } from "@/lib/financial/amount-style"
@@ -101,6 +102,7 @@ function RecurringGroup({ title, items, workingId, onEdit, onToggle, onRemove }:
             {dateOnlyEstimate
               ? <span className="inline-flex rounded-full bg-[hsl(var(--fs-amber-bg))] px-2 py-0.5 text-[10px] font-medium text-[hsl(var(--fs-amber))]">Confirmed amount · Estimated date</span>
               : <ConfidencePill confidence={item.confidence} />}
+            {item.confidence === "estimated" && <Link href="/learn/forecast#confirmed-and-estimated" className="text-[10px] text-primary hover:underline">Learn why</Link>}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{item.type === "income" ? "Income" : "Bill"} · {recurringFrequencyLabel(item.frequency)} · Next {item.nextExpected ? new Date(`${item.nextExpected}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "date not set"}</p>
           <p className="text-[11px] text-muted-foreground/75 mt-1">{item.accountName ?? "No account assigned"} · {item.source}</p>
