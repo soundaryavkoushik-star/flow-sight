@@ -1,4 +1,5 @@
 import DesignSampleLanding from "@/components/design-sample-landing"
+import { requireDevelopmentRoute } from "@/lib/development-route"
 
 export const metadata = {
   title: "Design sample",
@@ -6,5 +7,6 @@ export const metadata = {
 }
 
 export default function DesignSamplePage() {
+  requireDevelopmentRoute()
   return <DesignSampleLanding />
 }

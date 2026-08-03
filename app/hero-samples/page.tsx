@@ -1,4 +1,5 @@
 import HeroDirectionSamples from "@/components/hero-direction-samples"
+import { requireDevelopmentRoute } from "@/lib/development-route"
 
 export const metadata = {
   title: "Hero direction samples",
@@ -6,5 +7,6 @@ export const metadata = {
 }
 
 export default function HeroSamplesPage() {
+  requireDevelopmentRoute()
   return <HeroDirectionSamples />
 }
