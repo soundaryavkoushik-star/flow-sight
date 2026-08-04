@@ -436,11 +436,12 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
         { label: `${lowPointEvents.length - 3} earlier events`, day: lowPointEvents.at(-4)?.day ?? data.input.settings.startDate, amountCents: lowPointEvents.slice(0, -3).reduce((sum, event) => sum + event.amountCents, 0), confidence: lowPointEvents.slice(0, -3).some((event) => event.confidence === "estimated") ? "estimated" as const : "confirmed" as const },
         ...lowPointEvents.slice(-3).map((event) => ({ label: event.name, day: event.day, amountCents: event.amountCents, confidence: event.confidence })),
       ]
-  let cascadeRunningBalance = data.forecast.days[0]?.openingBalanceCents ?? data.currentBalanceCents
-  const cascadeSteps = cascadeEvents.map((event) => {
-    cascadeRunningBalance += event.amountCents
-    return { ...event, resultingBalanceCents: cascadeRunningBalance }
-  })
+  const cascadeSteps = cascadeEvents.reduce<Array<(typeof cascadeEvents)[number] & { resultingBalanceCents: number }>>((steps, event) => {
+    const previousBalance = steps.at(-1)?.resultingBalanceCents
+      ?? data.forecast.days[0]?.openingBalanceCents
+      ?? data.currentBalanceCents
+    return [...steps, { ...event, resultingBalanceCents: previousBalance + event.amountCents }]
+  }, [])
 
   return (
     <div className={`${data.preferences.dashboardDensity === "compact" ? "px-4 lg:px-6 py-4 space-y-3" : "px-5 lg:px-7 py-6 space-y-5"} max-w-[1200px] mx-auto`}>
