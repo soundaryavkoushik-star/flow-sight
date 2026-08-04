@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { TrendingUp, Eye, EyeOff, ArrowRight } from "lucide-react"
+import { Eye, EyeOff, ArrowRight } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
 export default function SignInPage() {
@@ -38,18 +39,13 @@ export default function SignInPage() {
           <div className="absolute bottom-1/3 right-1/4 w-48 h-48 bg-primary/[0.08] rounded-full blur-3xl" />
         </div>
 
-        <div className="relative flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
-            <TrendingUp className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <Link href="/" className="font-semibold">FlowSight</Link>
-        </div>
+        <Link href="/" className="relative w-fit" aria-label="FlowSight home"><Image src="/flowsight-logo.svg" alt="FlowSight" width={170} height={36} loading="eager" className="h-9 w-auto" /></Link>
 
         <div className="relative space-y-8">
           <div className="bg-background/60 backdrop-blur-sm border border-border rounded-2xl p-6">
             <div className="flex items-center gap-3 mb-5">
-              <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                <TrendingUp className="h-4 w-4 text-primary" />
+              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <FlowSightMark className="h-5 w-6 text-primary" />
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-0.5 font-mono">Cash Flow</p>
@@ -86,12 +82,7 @@ export default function SignInPage() {
 
       {/* Right panel — form */}
       <div className="flex-1 flex flex-col items-center justify-center px-5 py-12">
-        <div className="lg:hidden flex items-center gap-2 mb-10">
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-            <TrendingUp className="h-3.5 w-3.5 text-primary-foreground" />
-          </div>
-          <span className="font-semibold text-sm">FlowSight</span>
-        </div>
+        <Link href="/" className="mb-10 lg:hidden" aria-label="FlowSight home"><Image src="/flowsight-logo.svg" alt="FlowSight" width={170} height={36} loading="eager" className="h-9 w-auto" /></Link>
 
         <div className="w-full max-w-[380px]">
           <h1 className="text-[32px] font-extrabold tracking-tight mb-1.5">Welcome back</h1>
@@ -142,4 +133,8 @@ export default function SignInPage() {
       </div>
     </div>
   )
+}
+
+function FlowSightMark({ className }: { className?: string }) {
+  return <svg viewBox="-3 0 62 50" className={className} aria-hidden="true"><g fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"><rect x="0" y="34" width="24" height="10" rx="2" /><rect x="8" y="19" width="32" height="10" rx="2" /><rect x="16" y="4" width="40" height="10" rx="2" /></g></svg>
 }

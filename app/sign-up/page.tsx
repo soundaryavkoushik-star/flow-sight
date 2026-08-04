@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { TrendingUp, Eye, EyeOff, ArrowRight, CheckCircle } from "lucide-react"
+import { Eye, EyeOff, ArrowRight, CheckCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
 
@@ -78,7 +79,7 @@ export default function SignUpPage() {
         <Card className="w-full max-w-md text-center">
           <CardHeader>
             <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-              <TrendingUp className="h-6 w-6 text-primary" />
+              <FlowSightMark className="h-7 w-8 text-primary" />
             </div>
             <CardTitle>Check your email</CardTitle>
             <CardDescription>
@@ -112,12 +113,7 @@ export default function SignUpPage() {
           <div className="absolute bottom-1/4 left-1/4 w-56 h-56 bg-primary/10 rounded-full blur-3xl" />
         </div>
 
-        <div className="relative flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
-            <TrendingUp className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <Link href="/" className="font-semibold">FlowSight</Link>
-        </div>
+        <Link href="/" className="relative w-fit" aria-label="FlowSight home"><Image src="/flowsight-logo.svg" alt="FlowSight" width={170} height={36} loading="eager" className="h-9 w-auto" /></Link>
 
         <div className="relative space-y-6">
           <div>
@@ -141,7 +137,7 @@ export default function SignUpPage() {
           <div className="bg-background/60 backdrop-blur-sm border border-border rounded-2xl p-5">
             <div className="flex items-center gap-1 mb-3">
               {[...Array(5)].map((_, i) => (
-                <svg key={i} width="14" height="14" fill="#D4754A" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                <svg key={i} width="14" height="14" fill="#BB6C43" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
               ))}
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed mb-3">
@@ -156,12 +152,7 @@ export default function SignUpPage() {
 
       {/* Right panel — form */}
       <div className="flex-1 flex flex-col items-center justify-center px-5 py-12">
-        <div className="lg:hidden flex items-center gap-2 mb-10">
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-            <TrendingUp className="h-3.5 w-3.5 text-primary-foreground" />
-          </div>
-          <span className="font-semibold text-sm">FlowSight</span>
-        </div>
+        <Link href="/" className="mb-10 lg:hidden" aria-label="FlowSight home"><Image src="/flowsight-logo.svg" alt="FlowSight" width={170} height={36} loading="eager" className="h-9 w-auto" /></Link>
 
         <div className="w-full max-w-[380px]">
           <div className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 text-primary text-xs font-medium px-3 py-1.5 rounded-full mb-5">
@@ -247,4 +238,8 @@ export default function SignUpPage() {
       </div>
     </div>
   )
+}
+
+function FlowSightMark({ className }: { className?: string }) {
+  return <svg viewBox="-3 0 62 50" className={className} aria-hidden="true"><g fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"><rect x="0" y="34" width="24" height="10" rx="2" /><rect x="8" y="19" width="32" height="10" rx="2" /><rect x="16" y="4" width="40" height="10" rx="2" /></g></svg>
 }

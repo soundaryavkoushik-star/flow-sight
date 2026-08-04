@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
@@ -34,27 +35,24 @@ export function AppSidebar({ user }: AppSidebarProps) {
   return (
     <aside
       className={cn(
-        "flex flex-col h-full border-r border-border bg-card transition-[width] duration-200 shrink-0",
-        collapsed ? "w-[60px]" : "w-[220px]"
+        "flex h-full shrink-0 flex-col bg-card/80 shadow-[8px_0_30px_rgba(74,65,60,0.035)] backdrop-blur-sm transition-[width] duration-200",
+        collapsed ? "w-[60px]" : "w-[232px]"
       )}
     >
       {/* Logo */}
       <div className={cn(
-        "flex items-center h-14 px-4 border-b border-border",
+        "flex h-16 items-center px-3",
         collapsed ? "justify-center" : "justify-between"
       )}>
         {!collapsed && (
-          <Link href="/app/dashboard" className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-primary flex items-center justify-center flex-shrink-0 shadow-sm shadow-primary/25">
-              <TrendingUp className="h-3.5 w-3.5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-sm">FlowSight</span>
+          <Link href="/app/dashboard" className="flex min-w-0 items-center rounded-lg px-1.5 py-1">
+            <Image src="/flowsight-logo.svg" alt="FlowSight" width={151} height={32} loading="eager" className="h-8 w-auto" />
           </Link>
         )}
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 shrink-0"
+          className="h-8 w-8 shrink-0 rounded-xl text-muted-foreground hover:bg-muted/70 hover:text-foreground"
           onClick={() => setCollapsed(v => !v)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
@@ -66,7 +64,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-2.5 py-2">
         {NAV_ITEMS.map(({ href, label, Icon }) => {
           const active = pathname.startsWith(href)
           return (
@@ -75,11 +73,11 @@ export function AppSidebar({ user }: AppSidebarProps) {
               href={href}
               title={collapsed ? label : undefined}
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-[color,background-color,box-shadow] duration-150",
                 collapsed && "justify-center px-2",
                 active
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  ? "bg-primary/10 font-medium text-primary shadow-[inset_0_0_0_1px_rgba(187,108,67,0.08)]"
+                  : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
@@ -90,7 +88,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
       </nav>
 
       {/* Bottom */}
-      <div className="border-t border-border p-2 space-y-1">
+      <div className="mx-2 mb-2 space-y-1 rounded-2xl bg-muted/45 p-2">
         <div className={cn("flex items-center", collapsed ? "justify-center" : "gap-2 px-2 py-1")}>
           <div className="w-7 h-7 rounded-full bg-primary/15 text-primary text-xs font-semibold flex items-center justify-center shrink-0">
             {initials}

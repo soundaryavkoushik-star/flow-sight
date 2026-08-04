@@ -47,11 +47,13 @@ module.exports = {
         },
         // Flowsight brand tokens
         flow: {
-          green: "#22c55e",
-          "green-dim": "#16a34a",
-          teal: "#14b8a6",
-          amber: "#f59e0b",
-          red: "#ef4444",
+          green: "#1F8E55",
+          "green-dim": "#187343",
+          teal: "#3D8171",
+          amber: "#E6A100",
+          red: "#D23A57",
+          estimate: "#557CC5",
+          transfer: "#238ACF",
         }
       },
       borderRadius: {

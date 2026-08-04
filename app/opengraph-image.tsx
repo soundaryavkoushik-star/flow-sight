@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og"
 
-export const alt = "FlowSight — See what’s next for your money"
+export const alt = "FlowSight — Personal Cash Flow Forecast | Safe to Spend & Upcoming Bills"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 
@@ -34,10 +34,10 @@ export default function OpenGraphImage() {
                 See what&apos;s next
                 <span style={{ color: "#C96B43" }}>for your money.</span>
               </div>
-              <div style={{ marginTop: 24, color: "#4B5563", fontSize: 24, lineHeight: 1.45 }}>Know the tight days, upcoming commitments, and what remains safe to spend—before you make the next decision.</div>
+              <div style={{ marginTop: 24, color: "#625852", fontSize: 24, lineHeight: 1.45 }}>Know the tight days, upcoming commitments, and what remains safe to spend—before you make the next decision.</div>
             </div>
 
-            <div style={{ display: "flex", width: 405, height: 288, flexDirection: "column", border: "1px solid #E7DDD1", borderRadius: 28, background: "#FFFFFF", padding: "26px 28px", boxShadow: "0 24px 60px rgba(28,28,34,0.10)" }}>
+            <div style={{ display: "flex", width: 405, height: 288, flexDirection: "column", border: "1px solid #DCCBBA", borderRadius: 28, background: "#FFFFFF", padding: "26px 28px", boxShadow: "0 24px 60px rgba(28,28,34,0.10)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ color: "#73766F", fontSize: 15 }}>Projected balance</div>
                 <div style={{ padding: "7px 12px", borderRadius: 999, background: "#F8EFD9", color: "#B7791F", fontSize: 14 }}>Watch · Aug 3</div>

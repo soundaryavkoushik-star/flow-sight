@@ -337,21 +337,21 @@ export default function Dashboard() {
                     <AreaChart data={forecastData} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
                       <defs>
                         <linearGradient id="dForecastActual" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#D4754A" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#D4754A" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#BB6C43" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#BB6C43" stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="dForecastProj" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#D4754A" stopOpacity={0.2} />
-                          <stop offset="95%" stopColor="#D4754A" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#BB6C43" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#BB6C43" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,29,58,0.08)" vertical={false} />
-                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#6B7280", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} interval={2} />
-                      <YAxis tick={{ fontSize: 10, fill: "#6B7280", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#625852", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} interval={2} />
+                      <YAxis tick={{ fontSize: 10, fill: "#625852", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
                       <Tooltip content={<CustomTooltip />} />
                       <ReferenceLine x="Dec 15" stroke="#CA8A04" strokeDasharray="4 3" strokeWidth={1.5} />
-                      <Area type="monotone" dataKey="balance" stroke="#6B7280" strokeWidth={2} fill="url(#dForecastActual)" dot={false} connectNulls={false} />
-                      <Area type="monotone" dataKey="projected" stroke="#D4754A" strokeWidth={2} strokeDasharray="5 3" fill="url(#dForecastProj)" dot={false} connectNulls={false} />
+                      <Area type="monotone" dataKey="balance" stroke="#625852" strokeWidth={2} fill="url(#dForecastActual)" dot={false} connectNulls={false} />
+                      <Area type="monotone" dataKey="projected" stroke="#BB6C43" strokeWidth={2} strokeDasharray="5 3" fill="url(#dForecastProj)" dot={false} connectNulls={false} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -370,10 +370,10 @@ export default function Dashboard() {
                   <ResponsiveContainer width="100%" height={120}>
                     <BarChart data={spendingData} margin={{ top: 0, right: 0, left: -28, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,29,58,0.08)" vertical={false} />
-                      <XAxis dataKey="week" tick={{ fontSize: 10, fill: "#6B7280", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: "#6B7280", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
+                      <XAxis dataKey="week" tick={{ fontSize: 10, fill: "#625852", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: "#625852", fontFamily: "DM Mono, monospace" }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="amount" fill="#D4754A" fillOpacity={0.7} radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="amount" fill="#BB6C43" fillOpacity={0.7} radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

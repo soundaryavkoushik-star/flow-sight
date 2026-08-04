@@ -5,44 +5,48 @@
 @layer base {
   :root {
     /* Light mode */
-    --background: 216 45% 97%;
-    --foreground: 218 41% 14%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 59% 14%;
-    --primary: 18 55% 51%;
+    --background: 36 45% 94%;
+    --foreground: 26 9% 15%;
+    --card: 20 100% 99%;
+    --card-foreground: 26 9% 15%;
+    --primary: 21 46% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 216 20% 95%;
-    --secondary-foreground: 220 59% 14%;
-    --muted: 216 20% 95%;
-    --muted-foreground: 218 13% 46%;
-    --accent: 18 55% 51%;
+    --secondary: 34 39% 89%;
+    --secondary-foreground: 26 9% 15%;
+    --muted: 34 39% 89%;
+    --muted-foreground: 24 8% 35%;
+    --accent: 21 46% 50%;
     --accent-foreground: 0 0% 100%;
     --destructive: 350 45% 49%;
     --destructive-foreground: 0 0% 100%;
-    --border: 215 14% 87%;
-    --input: 215 14% 84%;
-    --ring: 18 55% 51%;
+    --border: 31 29% 80%;
+    --input: 31 29% 76%;
+    --ring: 21 46% 50%;
     --radius: 0.875rem;
 
     /* Flowsight semantic tokens — light */
-    --fs-surface: 0 0% 100%;
-    --fs-surface-raised: 216 45% 97%;
-    --fs-surface-overlay: 216 43% 94%;
-    --fs-ink: 218 41% 14%;
-    --fs-ink-muted: 218 13% 46%;
-    --fs-ink-faint: 216 12% 67%;
-    --fs-border: 215 29% 88%;
-    --fs-green: 148 51% 36%;
-    --fs-green-bg: 148 51% 95%;
-    --fs-red: 350 45% 49%;
-    --fs-red-bg: 350 45% 96%;
-    --fs-amber: 40 96% 40%;
-    --fs-amber-bg: 40 96% 95%;
-    --fs-brand: 18 55% 51%;
-    --fs-heading: 218 41% 14%;
-    --fs-body: 218 17% 32%;
-    --fs-update: 220 9% 46%;
-    --fs-dark-section: 218 54% 10%;
+    --fs-surface: 36 45% 94%;
+    --fs-surface-raised: 20 100% 99%;
+    --fs-surface-overlay: 34 39% 89%;
+    --fs-ink: 26 9% 15%;
+    --fs-ink-muted: 24 8% 35%;
+    --fs-ink-faint: 23 9% 60%;
+    --fs-border: 31 29% 80%;
+    --fs-green: 148 64% 34%;
+    --fs-green-bg: 148 68% 94%;
+    --fs-red: 350 64% 51%;
+    --fs-red-bg: 350 76% 95%;
+    --fs-amber: 42 100% 44%;
+    --fs-amber-bg: 43 100% 93%;
+    --fs-estimate: 220 55% 55%;
+    --fs-estimate-bg: 220 68% 95%;
+    --fs-transfer: 205 72% 47%;
+    --fs-transfer-bg: 205 78% 94%;
+    --fs-brand: 21 46% 50%;
+    --fs-heading: 26 9% 15%;
+    --fs-body: 24 8% 35%;
+    --fs-update: 23 9% 42%;
+    --fs-dark-section: 25 12% 18%;
   }
 
   .dark {
@@ -51,19 +55,19 @@
     --foreground: 222 52% 93%;
     --card: 222 38% 9%;
     --card-foreground: 222 52% 93%;
-    --primary: 18 61% 56%;
-    --primary-foreground: 220 59% 14%;
+    --primary: 21 46% 50%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 225 42% 13%;
     --secondary-foreground: 226 38% 85%;
     --muted: 222 41% 13%;
     --muted-foreground: 220 20% 45%;
-    --accent: 18 61% 56%;
-    --accent-foreground: 220 59% 14%;
+    --accent: 21 46% 50%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 350 45% 49%;
     --destructive-foreground: 0 0% 100%;
     --border: 0 0% 100% / 0.07;
     --input: 222 41% 13%;
-    --ring: 18 61% 56%;
+    --ring: 21 46% 50%;
 
     /* Flowsight semantic tokens — dark */
     --fs-surface: 224 39% 8%;
@@ -73,12 +77,16 @@
     --fs-ink-muted: 215 20% 55%;
     --fs-ink-faint: 215 20% 35%;
     --fs-border: 217 33% 16%;
-    --fs-green: 148 51% 36%;
+    --fs-green: 148 66% 48%;
     --fs-green-bg: 148 35% 12%;
-    --fs-red: 350 45% 49%;
+    --fs-red: 350 70% 62%;
     --fs-red-bg: 350 35% 12%;
-    --fs-amber: 40 96% 40%;
+    --fs-amber: 42 100% 57%;
     --fs-amber-bg: 40 55% 12%;
+    --fs-estimate: 220 70% 68%;
+    --fs-estimate-bg: 220 38% 15%;
+    --fs-transfer: 205 80% 62%;
+    --fs-transfer-bg: 205 40% 14%;
   }
 
   * {
@@ -88,8 +96,8 @@
   body {
     @apply bg-background text-foreground;
     background-image:
-      radial-gradient(circle at 12% -8%, hsl(210 70% 93% / 0.72), transparent 34rem),
-      linear-gradient(180deg, hsl(214 56% 98%) 0%, hsl(var(--background)) 34rem);
+      radial-gradient(circle at 82% -8%, rgb(200 144 109 / 0.12), transparent 34rem),
+      linear-gradient(180deg, #fffaf4 0%, hsl(var(--background)) 34rem);
     background-attachment: fixed;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
@@ -102,15 +110,15 @@
 @layer components {
   .fs-warm-section-transition {
     background:
-      radial-gradient(circle at 14% 38%, rgb(148 163 184 / 0.06), transparent 28%),
+      radial-gradient(circle at 14% 38%, rgb(200 144 109 / 0.07), transparent 28%),
       linear-gradient(
         180deg,
-        #ffffff 0%,
-        #f7f8fa 14%,
-        #f5f6f8 34%,
-        #f5f6f8 66%,
-        #f7f8fa 86%,
-        #ffffff 100%
+        #fffdfc 0%,
+        #f7f2ea 14%,
+        #efe5d8 34%,
+        #efe5d8 66%,
+        #f7f2ea 86%,
+        #fffdfc 100%
       );
   }
 
@@ -127,6 +135,21 @@
 
   .fs-transfer-linking {
     animation: fs-transfer-link-settle 620ms ease-out both;
+  }
+
+  .fs-runway-line {
+    transform-origin: left center;
+    animation: fs-runway-draw-x 720ms cubic-bezier(0.19, 1, 0.22, 1) both;
+  }
+
+  .fs-runway-line-y {
+    transform-origin: center top;
+    animation: fs-runway-draw-y 720ms cubic-bezier(0.19, 1, 0.22, 1) both;
+  }
+
+  .fs-runway-low {
+    transform-origin: center;
+    animation: fs-runway-low-arrive 420ms ease-out 620ms both;
   }
 
   @keyframes fs-safe-recalculated {
@@ -153,6 +176,22 @@
     0% { opacity: 1; }
     70% { opacity: 1; }
     100% { opacity: 0.78; }
+  }
+
+  @keyframes fs-runway-draw-x {
+    from { opacity: 0; transform: scaleX(0); }
+    to { opacity: 1; transform: scaleX(1); }
+  }
+
+  @keyframes fs-runway-draw-y {
+    from { opacity: 0; transform: scaleY(0); }
+    to { opacity: 1; transform: scaleY(1); }
+  }
+
+  @keyframes fs-runway-low-arrive {
+    0% { opacity: 0; transform: scale(0.75); }
+    65% { opacity: 1; transform: scale(1.12); }
+    100% { opacity: 1; transform: scale(1); }
   }
 
   .fs-landing :is(button, a, input, summary) {
@@ -391,7 +430,10 @@
   @media (prefers-reduced-motion: reduce) {
     .fs-safe-recalculated,
     .fs-transfer-link-path,
-    .fs-transfer-linking {
+    .fs-transfer-linking,
+    .fs-runway-line,
+    .fs-runway-line-y,
+    .fs-runway-low {
       animation: none;
     }
 

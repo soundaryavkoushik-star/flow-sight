@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { CalendarClock, Landmark, Pause, Pencil, Play, Plus, ReceiptText, Trash2, X } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { CalendarClock, Landmark, List, Pause, Pencil, Play, Plus, ReceiptText, Trash2, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import { amountColorClass } from "@/lib/financial/amount-style"
 import { ConfidencePill } from "@/components/financial-display"
 import { ActionToast } from "@/components/ui/toast"
 import { recurringFrequencyLabel } from "@/lib/financial/recurring-label"
+import { FinancialCalendar, type CalendarEvent } from "@/components/financial-calendar"
 
 export interface ManagedRecurringItem {
   id: string
@@ -41,8 +42,43 @@ export function RecurringManager({ items, accounts, editId }: { items: ManagedRe
   const [editing, setEditing] = useState<ManagedRecurringItem | "new" | null>(() => items.find((item) => item.id === editId) ?? null)
   const [workingId, setWorkingId] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
-  const active = items.filter((item) => item.status === "confirmed")
-  const paused = items.filter((item) => item.status === "dismissed")
+  const [display, setDisplay] = useState<"list" | "calendar">("list")
+  const active = useMemo(() => items.filter((item) => item.status === "confirmed"), [items])
+  const paused = useMemo(() => items.filter((item) => item.status === "dismissed"), [items])
+  const calendarEvents = useMemo(() => active.flatMap((item) => recurringCalendarEvents(item, 100)), [active])
+  const [highlightedDate, setHighlightedDate] = useState<string | null>(null)
+  const highlightedItemIds = useMemo(() => new Set<string>(calendarEvents.flatMap((event) => event.date === highlightedDate && event.recurringItemId ? [event.recurringItemId] : [])), [calendarEvents, highlightedDate])
+  const nextThirtyDays = calendarEvents.filter((event) => {
+    const start = new Date()
+    const end = new Date()
+    end.setDate(end.getDate() + 30)
+    const eventDate = new Date(`${event.date}T00:00:00`)
+    return eventDate >= new Date(start.getFullYear(), start.getMonth(), start.getDate()) && eventDate <= end
+  })
+  const nextThirtyNet = nextThirtyDays.reduce((sum, event) => sum + event.amountCents, 0)
+  const nextThirtyIncomeDates = new Set(nextThirtyDays.filter((event) => event.amountCents > 0).map((event) => event.date)).size
+  const nextThirtyBillCount = nextThirtyDays.filter((event) => event.amountCents < 0).length
+
+  useEffect(() => {
+    if (display !== "list" || highlightedItemIds.size === 0) return
+    const firstId = [...highlightedItemIds][0]
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    const frame = window.requestAnimationFrame(() => document.querySelector(`[data-recurring-id="${CSS.escape(firstId)}"]`)?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" }))
+    const clear = () => setHighlightedDate(null)
+    const clearOnOutsideClick = (event: PointerEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest("[data-recurring-id]")) clear()
+    }
+    const scrollListenerDelay = window.setTimeout(() => window.addEventListener("scroll", clear, { once: true, passive: true }), reduceMotion ? 50 : 750)
+    const fadeTimer = window.setTimeout(clear, 2600)
+    document.addEventListener("pointerdown", clearOnOutsideClick)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(scrollListenerDelay)
+      window.clearTimeout(fadeTimer)
+      window.removeEventListener("scroll", clear)
+      document.removeEventListener("pointerdown", clearOnOutsideClick)
+    }
+  }, [display, highlightedItemIds])
 
   async function toggle(item: ManagedRecurringItem) {
     setWorkingId(item.id)
@@ -62,12 +98,12 @@ export function RecurringManager({ items, accounts, editId }: { items: ManagedRe
   }
 
   return <div className="space-y-5">
-    <div className="flex items-start justify-between gap-4">
+    <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
       <div>
         <h2 className="text-lg font-semibold">Recurring items</h2>
         <p className="text-sm text-muted-foreground mt-1">Income and bills FlowSight expects to happen again.</p>
       </div>
-      <Button size="sm" onClick={() => setEditing("new")}><Plus className="h-4 w-4" /> Add recurring</Button>
+      <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start"><div className="inline-flex rounded-lg border border-border bg-muted/50 p-0.5" aria-label="Recurring view"><button type="button" onClick={() => { setHighlightedDate(null); setDisplay("list") }} className={`flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-xs ${display === "list" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`} aria-label="List view"><List className="h-4 w-4" /><span>List</span></button><button type="button" onClick={() => { setHighlightedDate(null); setDisplay("calendar") }} className={`flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-xs ${display === "calendar" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`} aria-label="Calendar view"><CalendarClock className="h-4 w-4" /><span>Calendar</span></button></div><Button size="sm" onClick={() => setEditing("new")}><Plus className="h-4 w-4" /> Add recurring</Button></div>
     </div>
     {message && <ActionToast message={message} tone="error" onDismiss={() => setMessage(null)} />}
     {items.length === 0 && <div className="rounded-2xl border border-border bg-card py-14 text-center">
@@ -75,13 +111,45 @@ export function RecurringManager({ items, accounts, editId }: { items: ManagedRe
       <h3 className="font-medium">No recurring items yet</h3>
       <p className="text-sm text-muted-foreground mt-1">Import transaction history or add one manually.</p>
     </div>}
-    {active.length > 0 && <RecurringGroup title="Included in forecast" items={active} workingId={workingId} onEdit={setEditing} onToggle={toggle} onRemove={remove} />}
-    {paused.length > 0 && <RecurringGroup title="Paused" items={paused} workingId={workingId} onEdit={setEditing} onToggle={toggle} onRemove={remove} />}
+    {display === "calendar" && active.length > 0 && <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+      <div className="border-b border-border bg-[linear-gradient(120deg,hsl(var(--primary)/.09),transparent_58%)] px-5 py-5 sm:px-6">
+        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-primary">Your recurring rhythm</p>
+        <div className="mt-2 flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><h3 className="text-xl font-semibold tracking-tight">What lands when</h3><p className="mt-1 text-sm text-muted-foreground">See paydays, predictable bills, and crowded weeks in one place.</p></div><div className="flex flex-wrap gap-2 text-[11px]"><span className="rounded-full border border-border bg-card px-3 py-1.5">{nextThirtyIncomeDates} income {nextThirtyIncomeDates === 1 ? "date" : "dates"}</span><span className="rounded-full border border-border bg-card px-3 py-1.5">{nextThirtyBillCount} bills</span><span className={`rounded-full border border-border bg-card px-3 py-1.5 font-mono ${nextThirtyNet >= 0 ? "text-[hsl(var(--fs-green))]" : "text-foreground"}`}>{nextThirtyNet >= 0 ? "+" : "−"}{money(nextThirtyNet)} net · next 30d</span></div></div>
+      </div>
+      <div className="min-w-0 p-4 sm:p-6"><FinancialCalendar events={calendarEvents} initialDate={calendarEvents[0]?.date} onSelectDate={(date) => { setHighlightedDate(date); setDisplay("list") }} /></div>
+      <p className="border-t border-border px-5 py-3 text-[11px] text-muted-foreground">Dates are projected from each recurring item’s current frequency. Estimated items use blue, a clock icon, and a dashed edge so they never rely on color alone.</p>
+    </section>}
+    {display === "list" && active.length > 0 && <RecurringGroup title="Included in forecast" items={active} highlightedIds={highlightedItemIds} workingId={workingId} onEdit={setEditing} onToggle={toggle} onRemove={remove} />}
+    {display === "list" && paused.length > 0 && <RecurringGroup title="Paused" items={paused} highlightedIds={new Set()} workingId={workingId} onEdit={setEditing} onToggle={toggle} onRemove={remove} />}
     {editing && <RecurringEditor item={editing === "new" ? null : editing} accounts={accounts} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); router.refresh() }} />}
   </div>
 }
 
-function RecurringGroup({ title, items, workingId, onEdit, onToggle, onRemove }: { title: string; items: ManagedRecurringItem[]; workingId: string | null; onEdit: (item: ManagedRecurringItem) => void; onToggle: (item: ManagedRecurringItem) => void; onRemove: (item: ManagedRecurringItem) => void }) {
+function recurringCalendarEvents(item: ManagedRecurringItem, horizonDays: number): CalendarEvent[] {
+  if (!item.nextExpected) return []
+  const result: CalendarEvent[] = []
+  let cursor = new Date(`${item.nextExpected}T00:00:00`)
+  const anchorDay = cursor.getDate()
+  const end = new Date()
+  end.setDate(end.getDate() + horizonDays)
+  for (let occurrence = 0; cursor <= end && occurrence < 20; occurrence += 1) {
+    result.push({ id: `${item.id}:${occurrence}`, recurringItemId: item.id, date: localDateKey(cursor), name: item.name, amountCents: item.type === "income" ? Math.abs(item.amountCents) : -Math.abs(item.amountCents), confidence: item.confidence })
+    if (item.frequency === "weekly" || item.frequency === "biweekly") cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + (item.frequency === "weekly" ? 7 : 14))
+    else if (item.frequency === "annual") cursor = new Date(cursor.getFullYear() + 1, cursor.getMonth(), anchorDay)
+    else {
+      const targetMonth = cursor.getMonth() + 1
+      const lastDay = new Date(cursor.getFullYear(), targetMonth + 1, 0).getDate()
+      cursor = new Date(cursor.getFullYear(), targetMonth, Math.min(anchorDay, lastDay))
+    }
+  }
+  return result
+}
+
+function localDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+}
+
+function RecurringGroup({ title, items, highlightedIds, workingId, onEdit, onToggle, onRemove }: { title: string; items: ManagedRecurringItem[]; highlightedIds: Set<string>; workingId: string | null; onEdit: (item: ManagedRecurringItem) => void; onToggle: (item: ManagedRecurringItem) => void; onRemove: (item: ManagedRecurringItem) => void }) {
   return <section>
     <h3 className="mb-2 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{title} · {items.length}</h3>
     <div className="rounded-2xl border border-border bg-card divide-y divide-border">
@@ -92,15 +160,15 @@ function RecurringGroup({ title, items, workingId, onEdit, onToggle, onRemove }:
         const iconTone = item.type === "income"
           ? "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]"
           : item.confidence === "estimated"
-            ? "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]"
-            : "bg-[#F0F1F3] text-[#6B7280]"
-        return <div key={item.id} className={`flex flex-col gap-3 p-4 transition-colors hover:bg-muted/25 sm:flex-row sm:items-center ${item.confidence === "estimated" ? "border-l-2 border-dashed border-l-[hsl(var(--fs-amber))]/45" : ""} ${item.status === "dismissed" ? "opacity-70" : ""}`}>
+            ? "bg-[hsl(var(--fs-estimate-bg))] text-[hsl(var(--fs-estimate))]"
+            : "bg-[#F0F1F3] text-[#625852]"
+        return <div key={item.id} data-recurring-id={item.id} className={`flex flex-col gap-3 p-4 transition-[background-color,box-shadow] duration-700 hover:bg-muted/25 sm:flex-row sm:items-center ${item.confidence === "estimated" ? "border-l-2 border-dashed border-l-[hsl(var(--fs-estimate))]/50" : ""} ${item.status === "dismissed" ? "opacity-70" : ""} ${highlightedIds.has(item.id) ? "relative z-10 bg-primary/[0.11] shadow-[inset_3px_0_0_hsl(var(--primary)),0_0_0_1px_hsl(var(--primary)/.3),0_8px_24px_hsl(var(--primary)/.1)]" : ""}`}>
         <div className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconTone}`}><ItemIcon className="h-[18px] w-[18px]" strokeWidth={2} /></div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="font-medium truncate">{item.name}</p>
             {dateOnlyEstimate
-              ? <span className="inline-flex rounded-full bg-[hsl(var(--fs-amber-bg))] px-2 py-0.5 text-[10px] font-medium text-[hsl(var(--fs-amber))]">Confirmed amount · Estimated date</span>
+              ? <span className="inline-flex rounded-full bg-[hsl(var(--fs-estimate-bg))] px-2 py-0.5 text-[10px] font-medium text-[hsl(var(--fs-estimate))]">Confirmed amount · Estimated date</span>
               : <ConfidencePill confidence={item.confidence} />}
             {item.confidence === "estimated" && <Link href="/learn/forecast#confirmed-and-estimated" className="text-[10px] text-primary hover:underline">Learn why</Link>}
           </div>

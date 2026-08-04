@@ -10,21 +10,29 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "FlowSight — See what's next for your money",
+    default: "FlowSight — Personal Cash Flow Forecast | Safe to Spend & Upcoming Bills",
     template: "%s · FlowSight",
   },
   description: "See your next 30 days, understand upcoming tight spots, and know what remains safe to spend.",
   applicationName: "FlowSight",
+  icons: {
+    icon: [
+      { url: "/favicon.ico?v=4", sizes: "32x32" },
+      { url: "/icon.svg?v=4", type: "image/svg+xml" },
+    ],
+    shortcut: "/favicon.ico?v=4",
+    apple: "/apple-icon?v=4",
+  },
   keywords: ["cash flow forecast", "personal finance", "safe to spend", "upcoming bills"],
   openGraph: {
     type: "website",
     siteName: "FlowSight",
-    title: "FlowSight — See what's next for your money",
+    title: "FlowSight — Personal Cash Flow Forecast | Safe to Spend & Upcoming Bills",
     description: "See your next 30 days, understand upcoming tight spots, and know what remains safe to spend.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "FlowSight — See what's next for your money",
+    title: "FlowSight — Personal Cash Flow Forecast | Safe to Spend & Upcoming Bills",
     description: "See your next 30 days, understand upcoming tight spots, and know what remains safe to spend.",
   },
 }

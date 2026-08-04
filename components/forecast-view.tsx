@@ -9,13 +9,13 @@ import {
 } from "recharts"
 import {
   TrendingUp, Plus, Upload, AlertTriangle,
-  CheckCircle, ChevronRight, X,
-  Sparkles, CalendarDays, Pencil, GitBranch,
-  Info,
+  ChevronRight, X,
+  CalendarDays, Pencil, GitBranch,
+  Info, WalletCards, ReceiptText, Landmark, ArrowRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { DashboardForecast } from "@/lib/data/forecast"
-import { confirmForecastEstimate, deleteForecastTransaction, dismissSafetyBufferPrompt, recordForecastVisit, skipForecastOccurrence, stopRecurringEvent, updateForecastEvent, updateSafetyBuffer, type ForecastEventUpdate } from "@/app/app/forecast/actions"
+import { confirmForecastEstimate, deleteForecastTransaction, recordForecastVisit, skipForecastOccurrence, stopRecurringEvent, updateForecastEvent, updateSafetyBuffer, type ForecastEventUpdate } from "@/app/app/forecast/actions"
 import { runScenario } from "@/lib/forecast/scenarios"
 import { determineForecastCondition } from "@/lib/forecast/condition"
 import { amountColorClass, amountDotClass } from "@/lib/financial/amount-style"
@@ -147,8 +147,6 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
   initialSelectedDate?: string | null
 }) {
   const router = useRouter()
-  const [dismissedAlerts, setDismissedAlerts] = useState<number[]>([])
-  const [exitingAlerts, setExitingAlerts] = useState<number[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(initialSelectedDate)
   const [editingEventId, setEditingEventId] = useState<string | null>(null)
   const [eventSaveError, setEventSaveError] = useState<string | null>(null)
@@ -163,8 +161,6 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
   const [eventActionMessage, setEventActionMessage] = useState<string | null>(null)
   const [showWorkOpen, setShowWorkOpen] = useState(false)
   const [safeToSpendPulse, setSafeToSpendPulse] = useState(false)
-  const [bufferPromptHidden, setBufferPromptHidden] = useState(false)
-  const [bufferPromptError, setBufferPromptError] = useState<string | null>(null)
   const previousSafeToSpend = useRef(
     data ? Math.max(0, data.forecast.lowestBalanceCents - (bufferPreviewCents ?? data.safetyBufferCents)) : null,
   )
@@ -237,25 +233,6 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
     setEventSaveError(null)
   }
 
-  async function resolveBufferPrompt(action: Promise<{ ok: true } | { ok: false; message: string }>) {
-    setBufferPromptError(null)
-    const result = await action
-    if (!result.ok) {
-      setBufferPromptError(result.message)
-      return
-    }
-    setBufferPromptHidden(true)
-    router.refresh()
-  }
-
-  function dismissAlert(index: number) {
-    setExitingAlerts((current) => [...current, index])
-    window.setTimeout(() => {
-      setDismissedAlerts((current) => [...current, index])
-      setExitingAlerts((current) => current.filter((item) => item !== index))
-    }, 200)
-  }
-
   if (!data) {
     return (
       <div className="p-6 max-w-5xl mx-auto">
@@ -315,9 +292,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
     ...riskAlerts,
     ...(data.preferences.alertStaleBalance && balanceAgeDays >= 7 ? [{ msg: `Your balance was last updated ${balanceAgeDays} days ago. Refresh it before relying on Safe to Spend.`, type: "info" }] : []),
   ]
-  const visibleAlerts = alerts
-    .map((alert, index) => ({ ...alert, index }))
-    .filter((alert) => !dismissedAlerts.includes(alert.index))
+  const visibleAlerts = alerts.map((alert, index) => ({ ...alert, index }))
   const lowestDate = new Date(`${data.forecast.lowestBalanceDate}T00:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric" })
   const condition = determineForecastCondition(data.forecast, data.safetyBufferCents, data.freshness.status)
   const conditionStyle = condition === "clear"
@@ -337,6 +312,20 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
   const scopedConditionLabel = view === "dashboard" && condition === "clear"
     ? `Clear · Next ${horizonDays} days`
     : conditionLabel
+  const dashboardConditionLabel = condition === "update_needed"
+    ? "Update needed"
+    : condition === "tight"
+      ? "Tight"
+      : condition === "watch"
+        ? "Watch"
+        : "Clear"
+  const dashboardConditionTone = condition === "tight"
+    ? "text-[hsl(var(--fs-red))]"
+    : condition === "watch"
+      ? "text-[hsl(var(--fs-amber))]"
+      : condition === "clear"
+        ? "text-[hsl(var(--fs-green))]"
+        : "text-muted-foreground"
   const resultTitle = condition === "update_needed"
     ? "Update your balance before relying on this forecast."
     : condition === "tight"
@@ -375,22 +364,17 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
       days: `${new Date(`${event.day}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}${event.confidence === "estimated" ? event.amountEstimated ? " · estimated" : " · date estimated" : ""}`,
       color: event.amountCents > 0 ? "text-[hsl(var(--fs-green))]" : "text-foreground",
       dot: event.confidence === "estimated"
-        ? "bg-[hsl(var(--fs-amber))]"
+        ? "bg-[hsl(var(--fs-estimate))]"
         : event.amountCents > 0
           ? "bg-[hsl(var(--fs-green))]"
           : "bg-foreground/65",
       rowTone: event.confidence === "estimated"
-        ? "hover:bg-[hsl(var(--fs-amber-bg))]/65"
+        ? "hover:bg-[hsl(var(--fs-estimate-bg))]/70"
         : event.amountCents > 0
           ? "hover:bg-[hsl(var(--fs-green-bg))]/65"
           : "hover:bg-muted/50",
     }))
   const firstUpcoming = upcoming[0]
-  const dashboardContext = data.preferences.dashboardEmphasis === "calendar" && firstUpcoming
-    ? `Next: ${firstUpcoming.name} on ${firstUpcoming.days.split(" · ")[0]}.`
-    : data.preferences.dashboardEmphasis === "decision"
-      ? `${money(data.forecast.safeToSpendCents)} is currently safe to spend after known commitments and your buffer.`
-      : `${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} · Here’s your financial picture.`
   const safeToSpendChange = data.previousForecast.safeToSpendCents === null ? null : data.forecast.safeToSpendCents - data.previousForecast.safeToSpendCents
   const lowestBalanceChange = data.previousForecast.lowestBalanceCents === null ? null : data.forecast.lowestBalanceCents - data.previousForecast.lowestBalanceCents
   const briefingChanges: string[] = []
@@ -399,22 +383,64 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
   if (data.previousForecast.viewedAt !== null && addedAccountCount > 0) briefingChanges.push(`${addedAccountCount} ${addedAccountCount === 1 ? "account is" : "accounts are"} now included in this forecast.`)
   if (safeToSpendChange !== null && safeToSpendChange !== 0) briefingChanges.push(`Safe to Spend ${safeToSpendChange > 0 ? "increased" : "decreased"} by ${money(Math.abs(safeToSpendChange))}.`)
   if (lowestBalanceChange !== null && lowestBalanceChange !== 0) briefingChanges.push(`Your projected low is ${money(Math.abs(lowestBalanceChange))} ${lowestBalanceChange > 0 ? "higher" : "lower"}.`)
-  const changeSummary = data.previousForecast.viewedAt === null
-    ? "This is your first saved forecast briefing."
-    : briefingChanges.length === 0
-      ? "No meaningful forecast changes since your last visit."
-      : briefingChanges.join(" ")
-  const primaryAction = condition === "update_needed"
-    ? { href: "/app/accounts", label: "Refresh balance" }
-    : condition === "tight" || condition === "watch"
-      ? { href: `/app/forecast?date=${encodeURIComponent(data.forecast.lowestBalanceDate)}&detail=1`, label: "Review low point" }
-      : { href: "/app/scenarios", label: "Test a decision" }
   const maxWeeklySpendingCents = Math.max(1, ...data.spendingHistory.weeks.map((week) => week.spendingCents))
   const spendingChangeLabel = data.spendingHistory.changePercent === null
     ? "Not enough earlier history for a comparison."
     : data.spendingHistory.changePercent === 0
       ? "About the same as the previous four weeks."
       : `${Math.abs(data.spendingHistory.changePercent)}% ${data.spendingHistory.changePercent > 0 ? "more" : "less"} than the previous four weeks.`
+
+  const lowPointIndex = Math.max(0, data.forecast.days.findIndex((day) => day.date === data.forecast.lowestBalanceDate))
+  const daysThroughLow = data.forecast.days.slice(0, lowPointIndex + 1)
+  const billWindow = daysThroughLow.reduce<{ start: number; end: number; totalCents: number; count: number } | null>((best, _, start) => {
+    const windowDays = daysThroughLow.slice(start, Math.min(daysThroughLow.length, start + 7))
+    const bills = windowDays.flatMap((day) => day.events).filter((event) => event.amountCents < 0)
+    const candidate = { start, end: start + Math.max(0, windowDays.length - 1), totalCents: Math.abs(bills.reduce((sum, event) => sum + event.amountCents, 0)), count: bills.length }
+    return !best || candidate.totalCents > best.totalCents ? candidate : best
+  }, null)
+  const nextPaydayDay = data.forecast.days.slice(lowPointIndex + 1).find((day) => day.events.some((event) => event.amountCents > 0)) ?? null
+  const recoveryDay = data.forecast.days.slice(lowPointIndex + 1).find((day) => day.endingBalanceCents >= data.currentBalanceCents)
+    ?? data.forecast.days.at(-1)
+    ?? null
+  const runwayDate = (date?: string | null) => date
+    ? new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    : "—"
+  const billWindowStart = billWindow ? daysThroughLow[billWindow.start]?.date : null
+  const billWindowEnd = billWindow ? daysThroughLow[billWindow.end]?.date : null
+  const billWindowDates = billWindowStart
+    ? `${runwayDate(billWindowStart)}${billWindowEnd && billWindowEnd !== billWindowStart ? `–${runwayDate(billWindowEnd)}` : ""}`
+    : "No cluster ahead"
+  const recoveryLabel = recoveryDay?.endingBalanceCents !== undefined && recoveryDay.endingBalanceCents >= data.currentBalanceCents
+    ? "Recovers"
+    : "End of outlook"
+  const runwayPoints = [
+    { key: "today", label: "Today", value: money(data.currentBalanceCents), detail: runwayDate(data.forecast.days[0]?.date) },
+    { key: "bills", label: billWindow && billWindow.count > 1 ? `${billWindow.count} bills cluster` : billWindow?.count === 1 ? "Next bill" : "No bill cluster", value: billWindow ? `−${money(billWindow.totalCents)}` : "Nothing due", detail: billWindowDates },
+    { key: "low", label: "Lowest point", value: money(data.forecast.lowestBalanceCents), detail: runwayDate(data.forecast.lowestBalanceDate) },
+    { key: "recovery", label: recoveryLabel, value: recoveryDay ? money(recoveryDay.endingBalanceCents) : money(data.forecast.lowestBalanceCents), detail: runwayDate(recoveryDay?.date) },
+  ]
+  const runwayCaption = billWindow && billWindow.count > 0 && nextPaydayDay
+    ? `${billWindow.count === 1 ? "One bill lands" : `${billWindow.count} bills land`} before ${nextPaydayDay.events.find((event) => event.amountCents > 0)?.name ?? "your next income"} on ${runwayDate(nextPaydayDay.date)}.`
+    : "See the events and timing behind your projected low point."
+  const bufferStatus = !data.safetyBufferConfigured
+    ? { label: "Not set", tone: "text-muted-foreground" }
+    : data.forecast.lowestBalanceCents < 0
+      ? { label: "Breached", tone: "text-[hsl(var(--fs-red))]" }
+      : data.forecast.lowestBalanceCents < data.safetyBufferCents
+        ? { label: "Partially used", tone: "text-[hsl(var(--fs-amber))]" }
+        : { label: "Intact", tone: "text-[hsl(var(--fs-green))]" }
+  const lowPointEvents = daysThroughLow.flatMap((day) => day.events.map((event) => ({ ...event, day: day.date })))
+  const cascadeEvents = lowPointEvents.length <= 4
+    ? lowPointEvents.map((event) => ({ label: event.name, day: event.day, amountCents: event.amountCents, confidence: event.confidence }))
+    : [
+        { label: `${lowPointEvents.length - 3} earlier events`, day: lowPointEvents.at(-4)?.day ?? data.input.settings.startDate, amountCents: lowPointEvents.slice(0, -3).reduce((sum, event) => sum + event.amountCents, 0), confidence: lowPointEvents.slice(0, -3).some((event) => event.confidence === "estimated") ? "estimated" as const : "confirmed" as const },
+        ...lowPointEvents.slice(-3).map((event) => ({ label: event.name, day: event.day, amountCents: event.amountCents, confidence: event.confidence })),
+      ]
+  let cascadeRunningBalance = data.forecast.days[0]?.openingBalanceCents ?? data.currentBalanceCents
+  const cascadeSteps = cascadeEvents.map((event) => {
+    cascadeRunningBalance += event.amountCents
+    return { ...event, resultingBalanceCents: cascadeRunningBalance }
+  })
 
   return (
     <div className={`${data.preferences.dashboardDensity === "compact" ? "px-4 lg:px-6 py-4 space-y-3" : "px-5 lg:px-7 py-6 space-y-5"} max-w-[1200px] mx-auto`}>
@@ -426,88 +452,33 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
             {view === "dashboard"
-              ? dashboardContext
+              ? new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
               : "Explore exactly what happens to your balance and why."}
           </p>
         </div>
-        <div className="hidden sm:flex items-center gap-1.5 bg-primary/10 border border-primary/20 text-primary text-xs px-3 py-1.5 rounded-full">
-          <Sparkles className="h-2.5 w-2.5" />
-          <span>Calculated from your latest details</span>
-        </div>
       </div>
-
-      {view === "dashboard" && !data.safetyBufferConfigured && !data.safetyBufferPromptDismissed && !bufferPromptHidden && (
-        <section className="rounded-2xl border border-[hsl(var(--fs-amber))]/25 bg-[hsl(var(--fs-amber-bg))]/55 p-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-sm font-semibold text-foreground">Add a safety buffer when you’re ready</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">You haven’t set a safety buffer yet. For now, Safe to Spend only protects against your balance going below $0.</p>
-              <Link href="/learn/safe-to-spend#no-buffer" className="mt-2 inline-flex text-xs font-medium text-primary hover:underline">Learn why</Link>
-              {bufferPromptError && <p className="mt-2 text-xs text-destructive">{bufferPromptError}</p>}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button asChild size="sm" variant="outline"><Link href="/app/settings">Set a buffer</Link></Button>
-              <Button size="sm" variant="outline" onClick={() => void resolveBufferPrompt(updateSafetyBuffer(0))}>Keep using $0</Button>
-              <Button size="sm" variant="ghost" onClick={() => void resolveBufferPrompt(dismissSafetyBufferPrompt())}>Dismiss</Button>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Primary forecast result */}
       <section className={`rounded-2xl border p-5 transition-[background-color,border-color,color] duration-300 ${conditionStyle}`}>
         <div className="max-w-3xl">
-          <span className="inline-flex items-center rounded-full border border-current/20 py-0.5 pl-2.5 pr-0.5 text-[10px] font-semibold uppercase tracking-wider mb-3">
+          {view === "forecast" && <span className="inline-flex items-center rounded-full border border-current/20 py-0.5 pl-2.5 pr-0.5 text-[10px] font-semibold uppercase tracking-wider mb-3">
             <LabelWithInfo
               label={scopedConditionLabel}
               explanation="Your condition is based on the lowest projected balance, your safety buffer, and the confirmed or estimated events included in this forecast."
             />
-          </span>
-          <p className="text-[10px] uppercase tracking-[0.14em] opacity-70 font-mono mb-2">Your forecast result</p>
+          </span>}
+          <p className={`mb-2 font-mono text-[10px] uppercase tracking-[0.14em] ${view === "dashboard" ? dashboardConditionTone : "opacity-70"}`}>{view === "dashboard" ? dashboardConditionLabel : "Your forecast result"}</p>
           <h3 className="text-xl font-semibold tracking-tight text-foreground">{resultTitle}</h3>
           {resultExplanation
             ? <p className="text-sm text-muted-foreground mt-2">{resultExplanation}</p>
             : <p className="text-sm text-muted-foreground mt-2">Your lowest projected balance is {money(data.forecast.lowestBalanceCents)} on {lowestDate}.</p>}
-          {view === "dashboard" && (
-            <div className="mt-4 flex justify-start border-t border-border/60 pt-4">
-              <Button asChild size="sm"><Link href={primaryAction.href}>{primaryAction.label}<ChevronRight className="h-3.5 w-3.5" /></Link></Button>
-            </div>
-          )}
+          {view === "dashboard" && <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+            <span className={data.freshness.status === "stale" ? "font-medium text-[hsl(var(--fs-amber))]" : ""}>Based on balances updated {new Date(`${data.currentBalanceDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{data.freshness.status === "stale" ? " · update needed" : ""}</span>
+            {briefingChanges.length > 0 && <><span aria-hidden="true">·</span><span>{briefingChanges[0]}</span></>}
+            {data.freshness.status === "stale" && <Link href="/app/accounts" className="font-medium text-foreground underline underline-offset-2">Refresh balance</Link>}
+          </div>}
         </div>
       </section>
-
-      {/* Alerts */}
-      {view === "dashboard" && visibleAlerts.length > 0 && (
-        <div className="space-y-2">
-          {visibleAlerts.map((alert) => (
-            <div
-              key={alert.index}
-              className={`flex items-start gap-3 overflow-hidden px-4 py-3 rounded-xl border text-sm transition-[opacity,transform,max-height,padding,margin,border-width] duration-200 ${
-                exitingAlerts.includes(alert.index) ? "max-h-0 -translate-x-2 border-0 py-0 opacity-0" : "max-h-32 translate-x-0 opacity-100"
-              } ${
-                alert.type === "warn"
-                  ? "bg-[hsl(var(--fs-amber-bg))] border-[hsl(var(--fs-amber))]/25"
-                  : alert.type === "ok"
-                  ? "bg-primary/[0.08] border-primary/20"
-                  : "bg-muted/50 border-border"
-              }`}
-            >
-              {alert.type === "ok"
-                ? <CheckCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
-                : <AlertTriangle className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${alert.type === "warn" ? "text-[hsl(var(--fs-amber))]" : "text-primary"}`} />
-              }
-              <p className="text-muted-foreground flex-1 leading-relaxed">{alert.msg}</p>
-              <button
-                onClick={() => dismissAlert(alert.index)}
-                className="text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0"
-                aria-label="Dismiss alert"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Stat cards */}
       {view === "dashboard" && <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -522,9 +493,10 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
           <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">Protects your plan through {endDate}.</p>
         </div>
         <div className="bg-card border border-border rounded-2xl px-4 py-4">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-mono">Lowest projected balance</p>
-          <p className="text-xl font-bold text-foreground leading-none font-mono">{money(data.forecast.lowestBalanceCents)}</p>
-          <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">{lowestDate}</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-mono">Safety buffer</p>
+          <p className={`text-lg font-semibold leading-none ${bufferStatus.tone}`}>{bufferStatus.label}</p>
+          <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">{data.safetyBufferConfigured ? `${money(data.safetyBufferCents)} protected` : "Protecting against $0 only"}</p>
+          <Link href="/app/settings" className="mt-2 inline-flex items-center gap-0.5 text-[11px] font-medium text-primary hover:underline">{data.safetyBufferConfigured ? "Adjust" : "Set buffer"}<ChevronRight className="h-3 w-3" /></Link>
         </div>
         <div className="bg-card border border-border rounded-2xl px-4 py-4">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-mono">Next important event</p>
@@ -532,6 +504,65 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
           <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">{firstUpcoming ? `${firstUpcoming.days.split(" · ")[0]} · ${firstUpcoming.amount}` : "No included events in the next 30 days."}</p>
         </div>
       </div>}
+
+      {view === "dashboard" && <section className="overflow-hidden rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-primary">Cash-flow runway</p>
+          <h3 className="mt-1 text-sm font-semibold">The moments shaping your next 30 days</h3>
+        </div>
+
+        <div className="relative mt-10 hidden pb-2 pt-3 sm:block">
+          <div className="fs-runway-line absolute left-[6%] right-[6%] top-[22px] h-1 rounded-full" style={{ background: "linear-gradient(90deg, hsl(var(--fs-green)) 0 22%, hsl(var(--fs-amber)) 22% 60%, hsl(var(--fs-red)) 60% 70%, hsl(var(--fs-green)) 70% 100%)" }} />
+          <div className="relative grid grid-cols-4">
+            {runwayPoints.map((point) => {
+              const isLow = point.key === "low"
+              const content = <>
+                <span style={point.key === "today" ? { backgroundColor: "#0F1D3A" } : undefined} className={`relative block rounded-full border-[3px] border-card ${isLow ? "fs-runway-low h-6 w-6 bg-[hsl(var(--fs-red))]" : point.key === "bills" ? "mt-1 h-4 w-4 bg-[hsl(var(--fs-amber))]" : point.key === "recovery" ? "mt-1 h-4 w-4 bg-[hsl(var(--fs-green))]" : "mt-1 h-4 w-4"}`} />
+                <span className={`mt-3 block text-xs ${isLow ? "font-semibold text-foreground" : "font-medium text-muted-foreground"}`}>{point.label}</span>
+                <span className={`mt-0.5 block font-mono ${isLow ? "text-2xl font-semibold leading-none text-foreground" : "text-[15px] font-medium text-foreground"}`}>{point.value}</span>
+                <span className="mt-0.5 block text-[10px] text-muted-foreground">{point.detail}</span>
+              </>
+              return isLow
+                ? <Link key={point.key} href={`/app/forecast?date=${encodeURIComponent(data.forecast.lowestBalanceDate)}&detail=1`} className="group flex min-w-0 flex-col items-center text-center outline-none focus-visible:rounded-xl focus-visible:ring-2 focus-visible:ring-primary/30" aria-label={`Explore lowest point of ${point.value} on ${point.detail} in Forecast`}>{content}</Link>
+                : <div key={point.key} className="flex min-w-0 flex-col items-center text-center">{content}</div>
+            })}
+          </div>
+        </div>
+
+        <div className="relative mt-7 sm:hidden">
+          <div className="fs-runway-line-y absolute bottom-5 left-[10px] top-5 w-1 rounded-full" style={{ background: "linear-gradient(180deg, hsl(var(--fs-green)) 0 22%, hsl(var(--fs-amber)) 22% 60%, hsl(var(--fs-red)) 60% 70%, hsl(var(--fs-green)) 70% 100%)" }} />
+          <div className="relative space-y-6">
+            {runwayPoints.map((point) => {
+              const isLow = point.key === "low"
+              const row = <>
+                <span style={point.key === "today" ? { backgroundColor: "#0F1D3A" } : undefined} className={`relative mt-0.5 block shrink-0 rounded-full border-[3px] border-card ${isLow ? "fs-runway-low h-6 w-6 bg-[hsl(var(--fs-red))]" : point.key === "bills" ? "ml-1 h-4 w-4 bg-[hsl(var(--fs-amber))]" : point.key === "recovery" ? "ml-1 h-4 w-4 bg-[hsl(var(--fs-green))]" : "ml-1 h-4 w-4"}`} />
+                <span className="min-w-0 flex-1">
+                  <span className={`block text-xs ${isLow ? "font-semibold text-foreground" : "font-medium text-muted-foreground"}`}>{point.label}</span>
+                  <span className={`mt-0.5 block font-mono ${isLow ? "text-2xl font-semibold leading-none" : "text-[15px] font-medium"}`}>{point.value}</span>
+                  <span className="mt-0.5 block text-[10px] text-muted-foreground">{point.detail}</span>
+                </span>
+              </>
+              return isLow
+                ? <Link key={point.key} href={`/app/forecast?date=${encodeURIComponent(data.forecast.lowestBalanceDate)}&detail=1`} className="flex gap-4 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/30" aria-label={`Explore lowest point of ${point.value} on ${point.detail} in Forecast`}>{row}</Link>
+                : <div key={point.key} className="flex gap-4">{row}</div>
+            })}
+          </div>
+        </div>
+
+        <div className="mt-7 border-t border-border pt-4">
+          <div className="max-w-3xl text-xs text-muted-foreground">
+            {visibleAlerts.length > 0 ? <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[hsl(var(--fs-amber))]" />
+              <p><span className="font-medium text-foreground">Needs attention:</span> {visibleAlerts[0].msg}{visibleAlerts.length > 1 && <Link href="/app/alerts" className="ml-1 font-medium text-primary hover:underline">+{visibleAlerts.length - 1} more</Link>}</p>
+            </div> : <p>{runwayCaption}</p>}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+            {(condition === "tight" || condition === "watch") && <Link href={`/app/forecast?date=${encodeURIComponent(data.forecast.lowestBalanceDate)}&detail=1`} className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:underline">Review low point <ChevronRight className="h-3 w-3" /></Link>}
+            {condition === "update_needed" && <Link href="/app/accounts" className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:underline">Refresh balance <ChevronRight className="h-3 w-3" /></Link>}
+            <Link href="/app/scenarios" className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:underline">Test a decision <ChevronRight className="h-3 w-3" /></Link>
+          </div>
+        </div>
+      </section>}
 
       {view === "dashboard" && data.preferences.showSpendingHistory && (
         <section className="rounded-2xl border border-border bg-card p-5">
@@ -576,13 +607,13 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
         {/* Left column */}
         <div className="space-y-5">
           {/* Forecast chart */}
-          <div className="bg-card border border-border rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-5">
+          {view === "forecast" && <div className="bg-card border border-border rounded-2xl p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
               <div>
                 <h3 className="text-sm font-semibold">Cash Flow Forecast</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Projected through {endDate}</p>
               </div>
-              {view === "forecast" ? <div className="inline-flex rounded-lg border border-border bg-muted/50 p-0.5" aria-label="Forecast horizon">{[30, 60, 90].map((range) => <Link key={range} href={`/app/forecast?range=${range}`} className={`rounded-md px-2 py-1 text-[11px] font-mono transition-colors ${horizonDays === range ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{range}d</Link>)}</div> : <span className="text-xs px-2.5 py-1 rounded-md bg-muted text-muted-foreground font-mono">30 days</span>}
+              <div className="inline-flex rounded-lg border border-border bg-muted/50 p-0.5" aria-label="Forecast horizon">{[30, 60, 90].map((range) => <Link key={range} href={`/app/forecast?range=${range}`} className={`rounded-md px-2 py-1 text-[11px] font-mono transition-colors ${horizonDays === range ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{range}d</Link>)}</div>
             </div>
 
             <div className="flex items-center gap-4 mb-4">
@@ -594,53 +625,41 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
               </span>
             </div>
 
-            <ResponsiveContainer width="100%" height={view === "forecast" ? 320 : 200}>
+            <ResponsiveContainer width="100%" height={320}>
               <AreaChart
                 data={forecastData}
                 margin={{ top: 5, right: 5, left: -18, bottom: 0 }}
-                className={view === "forecast" ? "cursor-pointer" : undefined}
-                onClick={view === "forecast" ? (state) => {
+                className="cursor-pointer"
+                onClick={(state) => {
                   const label = state?.activeLabel
                   const matched = forecastData.find((item) => item.day === label)
                   if (matched) setSelectedDate(matched.date)
-                } : undefined}
+                }}
               >
                 <defs>
                   <linearGradient id="dashGrad1" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#D4754A" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#D4754A" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#BB6C43" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#BB6C43" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="dashGrad2" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#D4754A" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#D4754A" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#BB6C43" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#BB6C43" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,29,58,0.08)" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#6B7280" }} tickLine={false} axisLine={false} interval={2} />
-                <YAxis tick={{ fontSize: 10, fill: "#6B7280" }} tickLine={false} axisLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#625852" }} tickLine={false} axisLine={false} interval={2} />
+                <YAxis tick={{ fontSize: 10, fill: "#625852" }} tickLine={false} axisLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
                 <Tooltip
                   content={<ChartTooltip />}
-                  cursor={{ stroke: "#D4754A", strokeWidth: 1, strokeDasharray: "3 3", opacity: 0.65 }}
+                  cursor={{ stroke: "#BB6C43", strokeWidth: 1, strokeDasharray: "3 3", opacity: 0.65 }}
                   animationDuration={180}
                 />
                 <ReferenceLine x={forecastData[0]?.day} stroke="#CA8A04" strokeDasharray="4 3" strokeWidth={1.5} />
-                {selectedDay && <ReferenceDot x={new Date(`${selectedDay.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} y={selectedDay.endingBalanceCents / 100} r={5} fill="#D4754A" stroke="#FFFFFF" strokeWidth={2} />}
-                <Area type="monotone" dataKey="projected" stroke="#D4754A" strokeWidth={2} strokeDasharray="5 3" fill="url(#dashGrad2)" dot={false} connectNulls={false} />
+                {selectedDay && <ReferenceDot x={new Date(`${selectedDay.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} y={selectedDay.endingBalanceCents / 100} r={5} fill="#BB6C43" stroke="#FFFFFF" strokeWidth={2} />}
+                <Area type="monotone" dataKey="projected" stroke="#BB6C43" strokeWidth={2} strokeDasharray="5 3" fill="url(#dashGrad2)" dot={false} connectNulls={false} />
               </AreaChart>
             </ResponsiveContainer>
-            {view === "dashboard" && (
-              <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4 text-xs sm:flex-row sm:items-center sm:justify-between">
-                <p className="leading-relaxed text-muted-foreground">
-                  <span className="text-foreground">{changeSummary}</span>{" "}
-                  <span aria-hidden="true">·</span>{" "}
-                  Forecast based on {confirmedEventCount} confirmed {confirmedEventCount === 1 ? "event" : "events"} and {estimatedEventCount} {estimatedEventCount === 1 ? "estimate" : "estimates"}.
-                </p>
-                <Link href="/app/forecast?range=60" className="inline-flex shrink-0 items-center gap-1 font-medium text-primary hover:underline">
-                  Explore 60- or 90-day outlook <ChevronRight className="h-3 w-3" />
-                </Link>
-              </div>
-            )}
-          </div>
+          </div>}
 
           {view === "forecast" && (
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -667,7 +686,17 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
             </div>
           )}
 
-          {view === "forecast" && <div className="bg-card border border-border rounded-2xl p-5"><h3 className="text-sm font-semibold mb-3">How the forecast works</h3><p className="text-sm text-muted-foreground leading-relaxed">Each day begins with the previous day’s projected balance. FlowSight then adds confirmed and estimated income, subtracts known bills and spending, and carries the result into the next day. Temporary scenarios are kept separate until you decide to save a real change.</p></div>}
+          {view === "forecast" && <section className="overflow-hidden rounded-2xl border border-border bg-card p-5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><p className="font-mono text-[10px] uppercase tracking-[0.14em] text-primary">Show your work</p><h3 className="mt-1 text-sm font-semibold">What creates the projected low</h3><p className="mt-1 text-xs text-muted-foreground">Every step reconciles to {money(data.forecast.lowestBalanceCents)} on {lowestDate}.</p></div><button type="button" onClick={() => setSelectedDate(data.forecast.lowestBalanceDate)} className="self-start text-xs font-medium text-primary hover:underline">Review low-point day</button></div>
+            <div className="mt-5 overflow-x-auto pb-2">
+              <div className="flex min-w-max items-stretch">
+                <div className="w-36 rounded-2xl border border-border bg-muted/35 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-muted text-foreground"><WalletCards className="h-4 w-4" /></span><p className="mt-3 text-xs font-medium">Opening balance</p><p className="mt-1 font-mono text-sm font-semibold">{money(data.forecast.days[0]?.openingBalanceCents ?? data.currentBalanceCents)}</p><p className="mt-1 text-[10px] text-muted-foreground">{new Date(`${data.forecast.days[0]?.date ?? data.input.settings.startDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p></div>
+                {cascadeSteps.map((step, index) => <div key={`${step.label}:${index}`} className="flex items-center"><ArrowRight className="mx-2 h-4 w-4 shrink-0 text-primary/45" /><button type="button" onClick={() => setSelectedDate(step.day)} className={`w-40 rounded-2xl border p-3 text-left transition-colors hover:border-primary/40 ${step.confidence === "estimated" ? "border-dashed border-[hsl(var(--fs-estimate))]/40 bg-[hsl(var(--fs-estimate-bg))]/65" : step.amountCents > 0 ? "border-[hsl(var(--fs-green))]/25 bg-[hsl(var(--fs-green-bg))]/55" : "border-primary/25 bg-primary/[0.055]"}`}><span className={`flex h-8 w-8 items-center justify-center rounded-xl ${step.confidence === "estimated" ? "bg-[hsl(var(--fs-estimate-bg))] text-[hsl(var(--fs-estimate))]" : step.amountCents > 0 ? "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]" : "bg-primary/[0.10] text-primary"}`}>{step.amountCents > 0 ? <Landmark className="h-4 w-4" /> : <ReceiptText className="h-4 w-4" />}</span><p className="mt-3 truncate text-xs font-medium" title={step.label}>{step.label}</p><p className={`mt-1 font-mono text-sm font-semibold ${step.amountCents > 0 ? "text-[hsl(var(--fs-green))]" : "text-primary"}`}>{step.confidence === "estimated" ? "~" : ""}{step.amountCents >= 0 ? "+" : "−"}{money(Math.abs(step.amountCents))}</p><p className="mt-1 text-[10px] text-muted-foreground">Balance {money(step.resultingBalanceCents)}</p></button></div>)}
+              </div>
+            </div>
+            {lowPointEvents.length === 0 && <p className="mt-4 rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">No included events occur before the low point; it begins at the forecast’s opening balance.</p>}
+            {lowPointEvents.length > 4 && <p className="mt-2 text-[11px] text-muted-foreground">Earlier activity is grouped to keep this explanation readable. Its net amount is included, so the final balance still reconciles exactly.</p>}
+          </section>}
         </div>
 
         {/* Right column */}

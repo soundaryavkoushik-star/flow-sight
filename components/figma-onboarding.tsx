@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
-  TrendingUp, ArrowRight, Building2, PenLine, DollarSign,
+  ArrowRight, Building2, PenLine, DollarSign,
   Plus, Trash2, CheckCircle, Sparkles, Shield,
   Upload,
 } from "lucide-react";
@@ -59,12 +60,7 @@ function StepShell({
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Top bar */}
       <header className="px-5 py-4 flex items-center justify-between max-w-xl mx-auto w-full">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
-            <TrendingUp size={11} className="text-primary-foreground" />
-          </div>
-          <span className="font-semibold text-sm" style={display}>FlowSight</span>
-        </div>
+        <Image src="/flowsight-logo.svg" alt="FlowSight" width={170} height={36} loading="eager" className="h-9 w-auto" />
         <button
           onClick={() => navigate("/app/dashboard")}
           className="text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -132,7 +128,13 @@ function Welcome({ onNext }: { onNext: () => void }) {
         <div className="relative">
           <div className="absolute inset-0 bg-primary/20 rounded-3xl blur-2xl" />
           <div className="relative w-20 h-20 rounded-3xl bg-card border border-border flex items-center justify-center shadow-2xl">
-            <TrendingUp size={32} className="text-primary" />
+            <svg viewBox="-3 0 62 50" className="h-11 w-14 text-primary" aria-hidden="true">
+              <g fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round">
+                <rect x="0" y="34" width="24" height="10" rx="2" />
+                <rect x="8" y="19" width="32" height="10" rx="2" />
+                <rect x="16" y="4" width="40" height="10" rx="2" />
+              </g>
+            </svg>
           </div>
         </div>
       </div>

@@ -19,9 +19,9 @@ export const MONEY_IN_CATEGORIES = [
   { name: "Investment income", color: "#0891B2", keywords: ["dividend", "interest payment", "capital gain"] },
   { name: "Benefits", color: "#2563EB", keywords: ["social security", "unemployment", "government benefit"] },
   { name: "Refund / Reimbursement", color: "#CA8A04", keywords: ["refund", "reimbursement", "rebate", "cashback"] },
-  { name: "Gift", color: "#D4754A", keywords: ["gift", "birthday", "wedding"] },
-  { name: "Transfer in", color: "#6B7280", keywords: ["transfer", "venmo transfer", "zelle transfer"] },
-  { name: "Income — needs review", color: "#64748B", keywords: [] },
+  { name: "Gift", color: "#BB6C43", keywords: ["gift", "birthday", "wedding"] },
+  { name: "Transfer in", color: "#625852", keywords: ["transfer", "venmo transfer", "zelle transfer"] },
+  { name: "Income — needs review", color: "#625852", keywords: [] },
 ] as const
 
 export const TRANSACTION_CATEGORIES = [...SPENDING_CATEGORIES, ...MONEY_IN_CATEGORIES] as const
