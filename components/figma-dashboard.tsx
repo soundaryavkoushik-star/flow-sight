@@ -52,14 +52,14 @@ const transactions = [
   { id: 3, name: "Chipotle", category: "Dining", amount: -14.75, date: "Yesterday, 7:32 PM", icon: Utensils, color: "bg-orange-500/15 text-orange-400" },
   { id: 4, name: "Stripe Inc.", category: "Income", amount: 5400.00, date: "Dec 13, 9:00 AM", icon: ArrowUpRight, color: "bg-accent/15 text-accent" },
   { id: 5, name: "Shell Gas Station", category: "Transport", amount: -58.40, date: "Dec 12, 6:45 PM", icon: Car, color: "bg-muted text-muted-foreground" },
-  { id: 6, name: "Amazon", category: "Shopping", amount: -127.99, date: "Dec 12, 2:10 PM", icon: ShoppingCart, color: "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]" },
-  { id: 7, name: "Rent — 1420 Oak St", category: "Housing", amount: -1650.00, date: "Dec 1, 12:00 AM", icon: Home, color: "bg-[hsl(var(--fs-red-bg))] text-destructive" },
+  { id: 6, name: "Amazon", category: "Shopping", amount: -127.99, date: "Dec 12, 2:10 PM", icon: ShoppingCart, color: "bg-[oklch(var(--fs-amber-bg))] text-[oklch(var(--fs-amber))]" },
+  { id: 7, name: "Rent — 1420 Oak St", category: "Housing", amount: -1650.00, date: "Dec 1, 12:00 AM", icon: Home, color: "bg-[oklch(var(--fs-red-bg))] text-destructive" },
 ];
 
 const upcoming = [
   { name: "Paycheck", amount: "+$5,400", days: "In 5 days", color: "text-accent", dot: "bg-accent", icon: ArrowUpRight },
   { name: "Rent", amount: "–$1,650", days: "In 15 days", color: "text-destructive", dot: "bg-destructive", icon: Home },
-  { name: "Electric bill", amount: "~–$95", days: "In 18 days", color: "text-muted-foreground", dot: "bg-[hsl(var(--fs-amber))]", icon: Wifi },
+  { name: "Electric bill", amount: "~–$95", days: "In 18 days", color: "text-muted-foreground", dot: "bg-[oklch(var(--fs-amber))]", icon: Wifi },
   { name: "Netflix", amount: "–$17", days: "In 22 days", color: "text-muted-foreground", dot: "bg-muted-foreground", icon: Wifi },
 ];
 
@@ -120,7 +120,7 @@ export default function Dashboard() {
           <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
             <TrendingUp size={13} className="text-primary-foreground" />
           </div>
-          <span className="font-semibold text-sm" style={display}>FlowSight</span>
+          <span className="font-semibold text-sm" style={display}>Cusp</span>
           <button className="lg:hidden ml-auto text-muted-foreground" onClick={() => setSidebarOpen(false)}>
             <X size={16} />
           </button>
@@ -252,13 +252,13 @@ export default function Dashboard() {
                     key={i}
                     className={`flex items-start gap-3 px-4 py-3 rounded-xl border text-sm ${
                       alert.type === "warn"
-                        ? "bg-[hsl(var(--fs-amber-bg))] border-[hsl(var(--fs-amber))]/20"
+                        ? "bg-[oklch(var(--fs-amber-bg))] border-[oklch(var(--fs-amber))]/20"
                         : alert.type === "ok"
                         ? "bg-accent/8 border-accent/20"
                         : "bg-primary/8 border-primary/20"
                     }`}
                   >
-                    <AlertTriangle size={14} className={`shrink-0 mt-0.5 ${alert.type === "warn" ? "text-[hsl(var(--fs-amber))]" : alert.type === "ok" ? "text-[hsl(var(--fs-green))]" : "text-primary"}`} />
+                    <AlertTriangle size={14} className={`shrink-0 mt-0.5 ${alert.type === "warn" ? "text-[oklch(var(--fs-amber))]" : alert.type === "ok" ? "text-[oklch(var(--fs-green))]" : "text-primary"}`} />
                     <p className="text-muted-foreground flex-1 leading-relaxed">{alert.msg}</p>
                     <button
                       onClick={() => setDismissedAlerts((p) => [...p, alerts.indexOf(alert)])}
@@ -329,7 +329,7 @@ export default function Dashboard() {
                       <span className="w-5 border-t border-dashed border-accent inline-block" />Projected
                     </span>
                     <span className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--fs-amber))] inline-block" />Today
+                      <span className="w-1.5 h-1.5 rounded-full bg-[oklch(var(--fs-amber))] inline-block" />Today
                     </span>
                   </div>
 
@@ -466,7 +466,7 @@ export default function Dashboard() {
                       { cat: "Groceries", pct: 25, amount: "$320", color: "bg-primary" },
                       { cat: "Dining", pct: 17, amount: "$218", color: "bg-orange-400" },
                       { cat: "Transport", pct: 11, amount: "$141", color: "bg-muted-foreground" },
-                      { cat: "Shopping", pct: 18, amount: "$231", color: "bg-[hsl(var(--fs-amber))]" },
+                      { cat: "Shopping", pct: 18, amount: "$231", color: "bg-[oklch(var(--fs-amber))]" },
                       { cat: "Other", pct: 29, amount: "$376", color: "bg-primary/60" },
                     ].map(({ cat, pct, amount, color }) => (
                       <div key={cat}>

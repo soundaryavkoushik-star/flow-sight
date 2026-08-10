@@ -206,7 +206,7 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     if (payment.expectedPaymentCents <= 0 || new Date(`${payment.dueDate}T00:00:00.000Z`) >= end) return []
     return [{
       cardName: card.account.name,
-      paymentAccountName: card.paymentAccount?.name ?? "an account FlowSight will identify",
+      paymentAccountName: card.paymentAccount?.name ?? "an account Cusp will identify",
       statementBalanceCents: coldStartBalanceCents,
       knownCycleChargesCents: payment.knownCycleChargesCents,
       expectedPaymentCents: payment.expectedPaymentCents,

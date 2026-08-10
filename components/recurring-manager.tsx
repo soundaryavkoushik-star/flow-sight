@@ -101,7 +101,7 @@ export function RecurringManager({ items, accounts, editId }: { items: ManagedRe
     <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
       <div>
         <h2 className="text-lg font-semibold">Recurring items</h2>
-        <p className="text-sm text-muted-foreground mt-1">Income and bills FlowSight expects to happen again.</p>
+        <p className="text-sm text-muted-foreground mt-1">Income and bills Cusp expects to happen again.</p>
       </div>
       <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start"><div className="inline-flex rounded-lg border border-border bg-muted/50 p-0.5" aria-label="Recurring view"><button type="button" onClick={() => { setHighlightedDate(null); setDisplay("list") }} className={`flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-xs ${display === "list" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`} aria-label="List view"><List className="h-4 w-4" /><span>List</span></button><button type="button" onClick={() => { setHighlightedDate(null); setDisplay("calendar") }} className={`flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-xs ${display === "calendar" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`} aria-label="Calendar view"><CalendarClock className="h-4 w-4" /><span>Calendar</span></button></div><Button size="sm" onClick={() => setEditing("new")}><Plus className="h-4 w-4" /> Add recurring</Button></div>
     </div>
@@ -112,9 +112,9 @@ export function RecurringManager({ items, accounts, editId }: { items: ManagedRe
       <p className="text-sm text-muted-foreground mt-1">Import transaction history or add one manually.</p>
     </div>}
     {display === "calendar" && active.length > 0 && <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
-      <div className="border-b border-border bg-[linear-gradient(120deg,hsl(var(--primary)/.09),transparent_58%)] px-5 py-5 sm:px-6">
+      <div className="border-b border-border bg-[linear-gradient(120deg,oklch(var(--primary)/.09),transparent_58%)] px-5 py-5 sm:px-6">
         <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-primary">Your recurring rhythm</p>
-        <div className="mt-2 flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><h3 className="text-xl font-semibold tracking-tight">What lands when</h3><p className="mt-1 text-sm text-muted-foreground">See paydays, predictable bills, and crowded weeks in one place.</p></div><div className="flex flex-wrap gap-2 text-[11px]"><span className="rounded-full border border-border bg-card px-3 py-1.5">{nextThirtyIncomeDates} income {nextThirtyIncomeDates === 1 ? "date" : "dates"}</span><span className="rounded-full border border-border bg-card px-3 py-1.5">{nextThirtyBillCount} bills</span><span className={`rounded-full border border-border bg-card px-3 py-1.5 font-mono ${nextThirtyNet >= 0 ? "text-[hsl(var(--fs-green))]" : "text-foreground"}`}>{nextThirtyNet >= 0 ? "+" : "−"}{money(nextThirtyNet)} net · next 30d</span></div></div>
+        <div className="mt-2 flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><h3 className="text-xl font-semibold tracking-tight">What lands when</h3><p className="mt-1 text-sm text-muted-foreground">See paydays, predictable bills, and crowded weeks in one place.</p></div><div className="flex flex-wrap gap-2 text-[11px]"><span className="rounded-full border border-border bg-card px-3 py-1.5">{nextThirtyIncomeDates} income {nextThirtyIncomeDates === 1 ? "date" : "dates"}</span><span className="rounded-full border border-border bg-card px-3 py-1.5">{nextThirtyBillCount} bills</span><span className={`rounded-full border border-border bg-card px-3 py-1.5 font-mono ${nextThirtyNet >= 0 ? "text-[oklch(var(--fs-green))]" : "text-foreground"}`}>{nextThirtyNet >= 0 ? "+" : "−"}{money(nextThirtyNet)} net · next 30d</span></div></div>
       </div>
       <div className="min-w-0 p-4 sm:p-6"><FinancialCalendar events={calendarEvents} initialDate={calendarEvents[0]?.date} onSelectDate={(date) => { setHighlightedDate(date); setDisplay("list") }} /></div>
       <p className="border-t border-border px-5 py-3 text-[11px] text-muted-foreground">Dates are projected from each recurring item’s current frequency. Estimated items use blue, a clock icon, and a dashed edge so they never rely on color alone.</p>
@@ -158,17 +158,17 @@ function RecurringGroup({ title, items, highlightedIds, workingId, onEdit, onTog
         const dateOnlyEstimate = item.confidence === "estimated" && !amountEstimated
         const ItemIcon = item.type === "income" ? Landmark : item.confidence === "estimated" ? CalendarClock : ReceiptText
         const iconTone = item.type === "income"
-          ? "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]"
+          ? "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]"
           : item.confidence === "estimated"
-            ? "bg-[hsl(var(--fs-estimate-bg))] text-[hsl(var(--fs-estimate))]"
+            ? "bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]"
             : "bg-[#F0F1F3] text-[#625852]"
-        return <div key={item.id} data-recurring-id={item.id} className={`flex flex-col gap-3 p-4 transition-[background-color,box-shadow] duration-700 hover:bg-muted/25 sm:flex-row sm:items-center ${item.confidence === "estimated" ? "border-l-2 border-dashed border-l-[hsl(var(--fs-estimate))]/50" : ""} ${item.status === "dismissed" ? "opacity-70" : ""} ${highlightedIds.has(item.id) ? "relative z-10 bg-primary/[0.11] shadow-[inset_3px_0_0_hsl(var(--primary)),0_0_0_1px_hsl(var(--primary)/.3),0_8px_24px_hsl(var(--primary)/.1)]" : ""}`}>
+        return <div key={item.id} data-recurring-id={item.id} className={`flex flex-col gap-3 p-4 transition-[background-color,box-shadow] duration-700 hover:bg-muted/25 sm:flex-row sm:items-center ${item.confidence === "estimated" ? "border-l-2 border-dashed border-l-[oklch(var(--fs-estimate))]/50" : ""} ${item.status === "dismissed" ? "opacity-70" : ""} ${highlightedIds.has(item.id) ? "relative z-10 bg-primary/[0.11] shadow-[inset_3px_0_0_oklch(var(--primary)),0_0_0_1px_oklch(var(--primary)/.3),0_8px_24px_oklch(var(--primary)/.1)]" : ""}`}>
         <div className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconTone}`}><ItemIcon className="h-[18px] w-[18px]" strokeWidth={2} /></div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="font-medium truncate">{item.name}</p>
             {dateOnlyEstimate
-              ? <span className="inline-flex rounded-full bg-[hsl(var(--fs-estimate-bg))] px-2 py-0.5 text-[10px] font-medium text-[hsl(var(--fs-estimate))]">Confirmed amount · Estimated date</span>
+              ? <span className="inline-flex rounded-full bg-[oklch(var(--fs-estimate-bg))] px-2 py-0.5 text-[10px] font-medium text-[oklch(var(--fs-estimate))]">Confirmed amount · Estimated date</span>
               : <ConfidencePill confidence={item.confidence} />}
             {item.confidence === "estimated" && <Link href="/learn/forecast#confirmed-and-estimated" className="text-[10px] text-primary hover:underline">Learn why</Link>}
           </div>

@@ -79,7 +79,7 @@ export default function SignUpPage() {
         <Card className="w-full max-w-md text-center">
           <CardHeader>
             <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-              <FlowSightMark className="h-7 w-8 text-primary" />
+              <CuspMark className="h-7 w-8 text-primary" />
             </div>
             <CardTitle>Check your email</CardTitle>
             <CardDescription>
@@ -90,13 +90,13 @@ export default function SignUpPage() {
           <CardContent>
             <div className="rounded-xl bg-muted/50 p-4 text-left mb-5">
               <p className="text-sm font-medium mb-1">You can explore while you wait</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">Return to the landing page to preview how FlowSight works.</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">Return to the landing page to preview how Cusp works.</p>
             </div>
             {resendMessage && <p className="text-xs text-muted-foreground mb-3">{resendMessage}</p>}
             <div className="flex flex-col gap-2 text-sm">
               <button onClick={resendConfirmation} className="text-primary hover:underline">Resend confirmation email</button>
               <button onClick={() => { setSuccess(false); setResendMessage("") }} className="text-muted-foreground hover:text-foreground">Use a different email</button>
-              <Link href="/" className="text-muted-foreground hover:text-foreground">Explore FlowSight</Link>
+              <Link href="/" className="text-muted-foreground hover:text-foreground">Explore Cusp</Link>
             </div>
           </CardContent>
         </Card>
@@ -113,7 +113,7 @@ export default function SignUpPage() {
           <div className="absolute bottom-1/4 left-1/4 w-56 h-56 bg-primary/10 rounded-full blur-3xl" />
         </div>
 
-        <Link href="/" className="relative w-fit" aria-label="FlowSight home"><Image src="/flowsight-logo.svg" alt="FlowSight" width={170} height={36} loading="eager" className="h-9 w-auto" /></Link>
+        <Link href="/" className="relative w-fit" aria-label="Cusp home"><Image src="/cusp-logo.svg?v=2" alt="Cusp" width={155} height={36} loading="eager" className="h-9 w-auto" /></Link>
 
         <div className="relative space-y-6">
           <div>
@@ -147,12 +147,12 @@ export default function SignUpPage() {
           </div>
         </div>
 
-        <p className="relative text-xs text-muted-foreground/50">© {new Date().getFullYear()} FlowSight, Inc.</p>
+        <p className="relative text-xs text-muted-foreground/50">© {new Date().getFullYear()} Cusp, Inc.</p>
       </div>
 
       {/* Right panel — form */}
       <div className="flex-1 flex flex-col items-center justify-center px-5 py-12">
-        <Link href="/" className="mb-10 lg:hidden" aria-label="FlowSight home"><Image src="/flowsight-logo.svg" alt="FlowSight" width={170} height={36} loading="eager" className="h-9 w-auto" /></Link>
+        <Link href="/" className="mb-10 lg:hidden" aria-label="Cusp home"><Image src="/cusp-logo.svg?v=2" alt="Cusp" width={155} height={36} loading="eager" className="h-9 w-auto" /></Link>
 
         <div className="w-full max-w-[380px]">
           <div className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 text-primary text-xs font-medium px-3 py-1.5 rounded-full mb-5">
@@ -193,7 +193,7 @@ export default function SignUpPage() {
                 <div className="mt-3 space-y-1.5">
                   <div className="flex gap-1 mb-2">
                     {[0, 1, 2].map(i => (
-                      <div key={i} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${i < pwStrength ? (pwStrength === 1 ? "bg-destructive" : pwStrength === 2 ? "bg-[hsl(var(--fs-amber))]" : "bg-[hsl(var(--fs-green))]") : "bg-muted"}`} />
+                      <div key={i} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${i < pwStrength ? (pwStrength === 1 ? "bg-destructive" : pwStrength === 2 ? "bg-[oklch(var(--fs-amber))]" : "bg-[oklch(var(--fs-green))]") : "bg-muted"}`} />
                     ))}
                   </div>
                   {passwordRules.map(({ label, test }) => (
@@ -240,6 +240,6 @@ export default function SignUpPage() {
   )
 }
 
-function FlowSightMark({ className }: { className?: string }) {
-  return <svg viewBox="-3 0 62 50" className={className} aria-hidden="true"><g fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"><rect x="0" y="34" width="24" height="10" rx="2" /><rect x="8" y="19" width="32" height="10" rx="2" /><rect x="16" y="4" width="40" height="10" rx="2" /></g></svg>
+function CuspMark({ className }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true"><path d="M19 9V7.5C19 6.11929 17.8807 5 16.5 5H7.5C6.11929 5 5 6.11929 5 7.5V16.5C5 17.8807 6.11929 19 7.5 19H16.5C17.8807 19 19 17.8807 19 16.5V15" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /><rect x="9" y="9" width="6" height="6" rx="0.8" stroke="currentColor" strokeWidth="1.75" /></svg>
 }

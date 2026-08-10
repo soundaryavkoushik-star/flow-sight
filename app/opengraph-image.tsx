@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og"
 
-export const alt = "FlowSight — Personal Cash Flow Forecast | Safe to Spend & Upcoming Bills"
+export const alt = "Cusp — Personal Cash Flow Forecast | Safe to Spend & Upcoming Bills"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 
@@ -24,7 +24,7 @@ export default function OpenGraphImage() {
         <div style={{ display: "flex", width: "100%", flexDirection: "column", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 26, fontWeight: 700 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 42, height: 42, borderRadius: 12, background: "#111827", color: "#FFFDFC", fontSize: 24 }}>↗</div>
-            FlowSight
+            Cusp
           </div>
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 62 }}>

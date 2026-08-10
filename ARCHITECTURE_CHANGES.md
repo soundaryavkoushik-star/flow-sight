@@ -1,4 +1,4 @@
-# FlowSight MVP Architecture — Foundation Pass
+# Cusp MVP Architecture — Foundation Pass
 
 ## Design source of truth
 - Figma Make remains the visual/UX source of truth.

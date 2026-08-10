@@ -46,7 +46,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
       )}>
         {!collapsed && (
           <Link href="/app/dashboard" className="flex min-w-0 items-center rounded-lg px-1.5 py-1">
-            <Image src="/flowsight-logo.svg" alt="FlowSight" width={151} height={32} loading="eager" className="h-8 w-auto" />
+            <Image src="/cusp-logo.svg?v=2" alt="Cusp" width={138} height={32} loading="eager" className="h-8 w-auto" />
           </Link>
         )}
         <Button
@@ -93,11 +93,6 @@ export function AppSidebar({ user }: AppSidebarProps) {
           <div className="w-7 h-7 rounded-full bg-primary/15 text-primary text-xs font-semibold flex items-center justify-center shrink-0">
             {initials}
           </div>
-          {!collapsed && (
-            <span className="text-xs text-muted-foreground truncate flex-1">
-              {user.email}
-            </span>
-          )}
         </div>
         <div className={cn("flex", collapsed ? "flex-col items-center gap-1" : "items-center gap-1 px-1")}>
           <form action="/api/auth/sign-out" method="post">

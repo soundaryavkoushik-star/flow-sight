@@ -127,6 +127,66 @@ describe("runScenario", () => {
     expect(comparison.lowestBalanceDeltaCents).toBe(-40_000)
     expect(comparison.baseline.days.flatMap((day) => day.events).some((event) => event.id === "laptop")).toBe(false)
   })
+
+  it("reconciles baseline room, scenario room, low point, and purchase impact", () => {
+    const input: ForecastInput = {
+      startingBalanceCents: 55_000,
+      events: [],
+      settings: { startDate: "2026-08-10", days: 30, safetyBufferCents: 50_000 },
+    }
+    const comparison = runScenario(input, [{
+      id: "scenario:purchase",
+      date: "2026-08-10",
+      amountCents: -300_000,
+      type: "expense",
+      source: "scenario",
+      name: "Purchase",
+      confidence: "confirmed",
+    }])
+
+    expect(comparison.baseline.lowestBalanceCents).toBe(55_000)
+    expect(comparison.baseline.safeToSpendCents).toBe(5_000)
+    expect(comparison.scenario.lowestBalanceCents).toBe(-245_000)
+    expect(comparison.scenario.safeToSpendCents).toBe(0)
+    expect(comparison.lowestBalanceDeltaCents).toBe(-300_000)
+  })
+
+  it("recalculates a future purchase against the post-purchase window", () => {
+    const input: ForecastInput = {
+      startingBalanceCents: 55_000,
+      settings: { startDate: "2026-08-06", days: 30, safetyBufferCents: 50_000 },
+      events: [
+        { id: "income", date: "2026-08-07", amountCents: 145_000, type: "income", source: "manual", name: "Income", confidence: "confirmed" },
+        { id: "bill", date: "2026-08-22", amountCents: -120_000, type: "expense", source: "manual", name: "Bill", confidence: "confirmed" },
+      ],
+    }
+    const comparison = runScenario(input, [{ id: "purchase", date: "2026-08-15", amountCents: -120_000, type: "expense", source: "scenario", name: "Purchase", confidence: "confirmed" }])
+
+    expect(comparison.baseline.lowestBalanceCents).toBe(55_000)
+    expect(comparison.baseline.lowestBalanceDate).toBe("2026-08-06")
+    expect(comparison.scenarioComparisonLowCents).toBe(-40_000)
+    expect(comparison.scenarioComparisonLowDate).toBe("2026-08-22")
+    expect(comparison.lowestBalanceDeltaCents).toBe(-120_000)
+  })
+
+  it("does not report zero impact for an $1,800 purchase after an earlier global low", () => {
+    const input: ForecastInput = {
+      startingBalanceCents: 55_000,
+      settings: { startDate: "2026-08-10", days: 30, safetyBufferCents: 50_000 },
+      events: [
+        { id: "income", date: "2026-08-11", amountCents: 245_000, type: "income", source: "manual", name: "Income", confidence: "confirmed" },
+        { id: "bill", date: "2026-08-22", amountCents: -50_000, type: "expense", source: "manual", name: "Bill", confidence: "confirmed" },
+      ],
+    }
+    const comparison = runScenario(input, [{ id: "purchase", date: "2026-08-12", amountCents: -180_000, type: "expense", source: "scenario", name: "Purchase", confidence: "confirmed" }])
+
+    expect(comparison.scenario.lowestBalanceCents).toBe(55_000)
+    expect(comparison.scenario.lowestBalanceDate).toBe("2026-08-10")
+    expect(comparison.baselineComparisonLowCents).toBe(250_000)
+    expect(comparison.scenarioComparisonLowCents).toBe(70_000)
+    expect(comparison.scenarioComparisonLowDate).toBe("2026-08-22")
+    expect(comparison.lowestBalanceDeltaCents).toBe(-180_000)
+  })
 })
 
 describe("forecast integrity", () => {

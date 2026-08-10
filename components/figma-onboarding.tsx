@@ -11,6 +11,7 @@ import {
 import { saveOnboarding, type OnboardingForecastSummary } from "@/app/app/onboarding/actions";
 import { updateSafetyBuffer } from "@/app/app/forecast/actions";
 import { AmountReveal } from "@/components/financial-display";
+import { safeToSpendTone } from "@/components/condition-banner";
 
 const display: React.CSSProperties = { fontFamily: "'Bricolage Grotesque', sans-serif" };
 const mono: React.CSSProperties = { fontFamily: "'DM Mono', monospace" };
@@ -60,7 +61,7 @@ function StepShell({
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Top bar */}
       <header className="px-5 py-4 flex items-center justify-between max-w-xl mx-auto w-full">
-        <Image src="/flowsight-logo.svg" alt="FlowSight" width={170} height={36} loading="eager" className="h-9 w-auto" />
+        <Image src="/cusp-logo.svg?v=2" alt="Cusp" width={155} height={36} loading="eager" className="h-9 w-auto" />
         <button
           onClick={() => navigate("/app/dashboard")}
           className="text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -128,12 +129,9 @@ function Welcome({ onNext }: { onNext: () => void }) {
         <div className="relative">
           <div className="absolute inset-0 bg-primary/20 rounded-3xl blur-2xl" />
           <div className="relative w-20 h-20 rounded-3xl bg-card border border-border flex items-center justify-center shadow-2xl">
-            <svg viewBox="-3 0 62 50" className="h-11 w-14 text-primary" aria-hidden="true">
-              <g fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round">
-                <rect x="0" y="34" width="24" height="10" rx="2" />
-                <rect x="8" y="19" width="32" height="10" rx="2" />
-                <rect x="16" y="4" width="40" height="10" rx="2" />
-              </g>
+            <svg viewBox="0 0 24 24" fill="none" className="h-11 w-11 text-primary" aria-hidden="true">
+              <path d="M19 9V7.5C19 6.11929 17.8807 5 16.5 5H7.5C6.11929 5 5 6.11929 5 7.5V16.5C5 17.8807 6.11929 19 7.5 19H16.5C17.8807 19 19 17.8807 19 16.5V15" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+              <rect x="9" y="9" width="6" height="6" rx="0.8" stroke="currentColor" strokeWidth="1.75" />
             </svg>
           </div>
         </div>
@@ -462,9 +460,9 @@ function RecurringIncome({
               onChange={(e) => setNextDate(e.target.value)}
               className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/40 transition-colors"
             />
-            <p className="text-[11px] text-muted-foreground mt-1.5">{freq === "irregular" ? "Required for one-off income. FlowSight includes it once and does not repeat it." : kind === "variable" ? "FlowSight uses the expected date and repeats the estimate at the cadence you selected." : "Not sure? Leave this blank and we’ll mark the timing as estimated."}</p>
+            <p className="text-[11px] text-muted-foreground mt-1.5">{freq === "irregular" ? "Required for one-off income. Cusp includes it once and does not repeat it." : kind === "variable" ? "Cusp uses the expected date and repeats the estimate at the cadence you selected." : "Not sure? Leave this blank and we’ll mark the timing as estimated."}</p>
           </div>
-          {kind === "variable" && <><div><label className="text-xs text-muted-foreground block mb-1.5" htmlFor="income-confidence">How confident are you?</label><select id="income-confidence" value={confidence} onChange={(event) => setConfidence(event.target.value as typeof confidence)} className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"><option value="certain">Certain</option><option value="likely">Likely</option><option value="possible">Possible</option></select></div><button type="button" onClick={() => setShowRange((open) => !open)} className="text-xs text-primary hover:underline">{showRange ? "Hide date range" : "Add date range"}</button>{showRange && <div className="rounded-xl bg-muted/60 p-3 space-y-3"><p className="text-[11px] text-muted-foreground">FlowSight uses the expected date for now. The range helps improve your forecast over time.</p><div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-muted-foreground block mb-1">Earliest likely date</label><input type="date" value={earliestDate} onChange={(event) => setEarliestDate(event.target.value)} className="w-full bg-white border border-border rounded-lg px-2 py-2 text-xs" /></div><div><label className="text-[10px] text-muted-foreground block mb-1">Latest likely date</label><input type="date" value={latestDate} onChange={(event) => setLatestDate(event.target.value)} className="w-full bg-white border border-border rounded-lg px-2 py-2 text-xs" /></div></div></div>}</>}
+          {kind === "variable" && <><div><label className="text-xs text-muted-foreground block mb-1.5" htmlFor="income-confidence">How confident are you?</label><select id="income-confidence" value={confidence} onChange={(event) => setConfidence(event.target.value as typeof confidence)} className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm"><option value="certain">Certain</option><option value="likely">Likely</option><option value="possible">Possible</option></select></div><button type="button" onClick={() => setShowRange((open) => !open)} className="text-xs text-primary hover:underline">{showRange ? "Hide date range" : "Add date range"}</button>{showRange && <div className="rounded-xl bg-muted/60 p-3 space-y-3"><p className="text-[11px] text-muted-foreground">Cusp uses the expected date for now. The range helps improve your forecast over time.</p><div className="grid grid-cols-2 gap-2"><div><label className="text-[10px] text-muted-foreground block mb-1">Earliest likely date</label><input type="date" value={earliestDate} onChange={(event) => setEarliestDate(event.target.value)} className="w-full bg-white border border-border rounded-lg px-2 py-2 text-xs" /></div><div><label className="text-[10px] text-muted-foreground block mb-1">Latest likely date</label><input type="date" value={latestDate} onChange={(event) => setLatestDate(event.target.value)} className="w-full bg-white border border-border rounded-lg px-2 py-2 text-xs" /></div></div></div>}</>}
           <div className="flex gap-2">
             <button
               onClick={handleAdd}
@@ -724,16 +722,16 @@ function ForecastReady({
           Your forecast is ready.
         </h2>
         <p className="text-sm text-muted-foreground">
-          Here&apos;s a preview of what FlowSight found.
+          Here&apos;s a preview of what Cusp found.
         </p>
       </div>
 
       {/* Key stats */}
       <div className="bg-card border border-border rounded-2xl divide-y divide-border">
         {[
-          { label: "Safe to spend", value: money(forecast.safeToSpendCents), color: "text-[hsl(var(--fs-green))]", note: "from your 30-day forecast" },
+          { label: "Safe to spend", value: money(forecast.safeToSpendCents), color: safeToSpendTone(forecast.condition, forecast.safeToSpendCents), note: "from your 30-day forecast" },
           { label: "Lowest projected balance", value: money(forecast.lowestBalanceCents), color: "text-foreground", note: new Date(`${forecast.lowestBalanceDate}T00:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric" }) },
-          { label: "Condition", value: conditionLabel, color: forecast.condition === "clear" ? "text-[hsl(var(--fs-green))]" : forecast.condition === "watch" ? "text-[hsl(var(--fs-amber))]" : forecast.condition === "tight" ? "text-destructive" : "text-muted-foreground", note: "based on upcoming activity; no safety buffer set yet" },
+          { label: "Condition", value: conditionLabel, color: forecast.condition === "clear" ? "text-[oklch(var(--fs-green))]" : forecast.condition === "watch" ? "text-[oklch(var(--fs-amber))]" : forecast.condition === "tight" ? "text-destructive" : "text-muted-foreground", note: "based on upcoming activity; no safety buffer set yet" },
         ].map(({ label, value, color, note }) => (
           <div key={label} className="px-5 py-3.5 flex items-center justify-between">
             <div>
@@ -754,7 +752,7 @@ function ForecastReady({
 
       <p className="text-xs text-muted-foreground text-center">Your forecast updates as you add transactions or refresh your balance.</p>
       <div className="rounded-2xl border border-border bg-card p-4">
-        <p className="text-sm font-medium">Want FlowSight to protect an amount you prefer to keep available?</p>
+        <p className="text-sm font-medium">Want Cusp to protect an amount you prefer to keep available?</p>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">This is optional. Without one, Safe to Spend only protects against going below $0.</p>
         {bufferOpen ? <div className="mt-4 space-y-3">
           <div className="grid grid-cols-4 gap-2">

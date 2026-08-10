@@ -39,7 +39,7 @@ export default function FeaturesPage() {
     <main className="min-h-screen overflow-hidden bg-[#FFFDFC] text-[#111827]">
       <nav className="border-b border-[#EFE7DB] bg-white/90 px-5 py-4 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium"><ArrowLeft size={15} />FlowSight</Link>
+          <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium"><ArrowLeft size={15} />Cusp</Link>
           <Link href="/sign-up" className="rounded-xl bg-[#C96B43] px-4 py-2 text-sm font-medium text-[#111827] transition-colors hover:bg-[#B85B35]">Join Beta</Link>
         </div>
       </nav>
@@ -48,9 +48,9 @@ export default function FeaturesPage() {
         <div className="pointer-events-none absolute -right-40 -top-48 h-[560px] w-[560px] rounded-full bg-[radial-gradient(circle,rgba(201,107,67,0.10),transparent_68%)]" />
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl">
-            <p className="text-xs font-medium uppercase tracking-[0.15em] text-[#C96B43]">FlowSight features</p>
+            <p className="text-xs font-medium uppercase tracking-[0.15em] text-[#C96B43]">Cusp features</p>
             <h1 className="mt-4 text-[44px] font-medium leading-[1.05] tracking-tight sm:text-[60px]">Understand what&apos;s <span className="text-[#C96B43]">ahead</span>—and what creates it.</h1>
-            <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-[#73766F]">FlowSight turns your current balance, income, bills, recurring activity, and account transfers into a forward-looking picture you can inspect and adjust.</p>
+            <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-[#73766F]">Cusp turns your current balance, income, bills, recurring activity, and account transfers into a forward-looking picture you can inspect and adjust.</p>
           </div>
 
           <div className="mt-16 grid gap-4 md:grid-cols-2">

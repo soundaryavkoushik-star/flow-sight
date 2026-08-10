@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { formatCurrencyCents } from "@/lib/financial/currency"
 
 export function ConfidencePill({ confidence }: { confidence: "confirmed" | "estimated" }) {
-  return <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${confidence === "confirmed" ? "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]" : "bg-[hsl(var(--fs-estimate-bg))] text-[hsl(var(--fs-estimate))]"}`}>{confidence === "confirmed" ? "Confirmed" : "Estimated"}</span>
+  return <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${confidence === "confirmed" ? "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]" : "bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]"}`}>{confidence === "confirmed" ? "Confirmed" : "Estimated"}</span>
 }
 
 export function AmountReveal({ cents, prefix = "", estimated = false, className = "" }: { cents: number; prefix?: string; estimated?: boolean; className?: string }) {

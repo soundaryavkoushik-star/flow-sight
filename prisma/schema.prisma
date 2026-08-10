@@ -1,4 +1,4 @@
-// FlowSight — Phase 1 schema
+// Cusp — Phase 1 schema
 // Auth is handled by Supabase — no User model here.
 // userId is the Supabase auth.users.id (UUID string) on every model.
 

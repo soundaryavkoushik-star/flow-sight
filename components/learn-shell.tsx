@@ -3,7 +3,7 @@ import Image from "next/image"
 import { ArrowLeft, ArrowRight } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 
-export const SUPPORT_EMAIL = "support@flowsight.app"
+export const SUPPORT_EMAIL = "support@cusp.app"
 
 export async function LearnShell({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -12,7 +12,7 @@ export async function LearnShell({ children }: { children: React.ReactNode }) {
   return <main className="min-h-screen bg-[#FFFFFF] text-[#292522]">
     <header className="sticky top-0 z-50 border-b border-[#DCCBBA] bg-[#FFFDFC]/90 px-5 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-5">
-        <Link href="/" aria-label="FlowSight home"><Image src="/flowsight-logo.svg" alt="FlowSight" width={170} height={36} loading="eager" className="h-9 w-auto" /></Link>
+        <Link href="/" aria-label="Cusp home"><Image src="/cusp-logo.svg?v=2" alt="Cusp" width={155} height={36} loading="eager" className="h-9 w-auto" /></Link>
         <nav className="hidden items-center gap-7 text-sm md:flex">
           <Link href="/#features" className="text-[#292522]/80 transition-colors hover:text-[#292522]">Features</Link>
           <Link href="/#pricing" className="text-[#292522]/80 transition-colors hover:text-[#292522]">Pricing</Link>

@@ -1,9 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
-  <title id="title">FlowSight</title>
-  <rect width="64" height="64" rx="14" fill="#F7F2EA"/>
-  <g transform="translate(4 8)" fill="none" stroke="#292522" stroke-width="3" stroke-linejoin="round">
-    <rect x="0" y="34" width="24" height="10" rx="2"/>
-    <rect x="8" y="19" width="32" height="10" rx="2"/>
-    <rect x="16" y="4" width="40" height="10" rx="2"/>
+  <title id="title">Cusp</title>
+  <rect width="64" height="64" rx="14" fill="#F9F9F8"/>
+  <g transform="translate(10 10) scale(1.8333)">
+    <path d="M19 9V7.5C19 6.11929 17.8807 5 16.5 5H7.5C6.11929 5 5 6.11929 5 7.5V16.5C5 17.8807 6.11929 19 7.5 19H16.5C17.8807 19 19 17.8807 19 16.5V15"
+          fill="none" stroke="#1D221E" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="9" y="9" width="6" height="6" rx="0.8"
+          fill="none" stroke="#1D221E" stroke-width="1.75"/>
   </g>
 </svg>

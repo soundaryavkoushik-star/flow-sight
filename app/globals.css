@@ -4,89 +4,98 @@
 
 @layer base {
   :root {
-    /* Light mode */
-    --background: 36 45% 94%;
-    --foreground: 26 9% 15%;
-    --card: 20 100% 99%;
-    --card-foreground: 26 9% 15%;
-    --primary: 21 46% 50%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 34 39% 89%;
-    --secondary-foreground: 26 9% 15%;
-    --muted: 34 39% 89%;
-    --muted-foreground: 24 8% 35%;
-    --accent: 21 46% 50%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 350 45% 49%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 31 29% 80%;
-    --input: 31 29% 76%;
-    --ring: 21 46% 50%;
+    /* Light mode — OKLCH, Cusp brand spec: Alabaster / Olive Obsidian / Clay */
+    --background: 98.18% 0.0013 106.4;
+    --foreground: 24.53% 0.0105 151.3;
+    --card: 100% 0 0;
+    --card-foreground: 24.53% 0.0105 151.3;
+    --primary: 66.73% 0.1252 31.6;
+    --primary-foreground: 100% 0 0;
+    --secondary: 96.5% 0.003 145.5;
+    --secondary-foreground: 24.53% 0.0105 151.3;
+    --muted: 96.5% 0.003 145.5;
+    --muted-foreground: 50% 0.012 151.3;
+    --accent: 66.73% 0.1252 31.6;
+    --accent-foreground: 100% 0 0;
+    --destructive: 58% 0.14 22;
+    --destructive-foreground: 100% 0 0;
+    --border: 92.18% 0.0051 145.5;
+    --input: 88% 0.006 145.5;
+    --ring: 66.73% 0.1252 31.6;
     --radius: 0.875rem;
 
-    /* Flowsight semantic tokens — light */
-    --fs-surface: 36 45% 94%;
-    --fs-surface-raised: 20 100% 99%;
-    --fs-surface-overlay: 34 39% 89%;
-    --fs-ink: 26 9% 15%;
-    --fs-ink-muted: 24 8% 35%;
-    --fs-ink-faint: 23 9% 60%;
-    --fs-border: 31 29% 80%;
-    --fs-green: 148 64% 34%;
-    --fs-green-bg: 148 68% 94%;
-    --fs-red: 350 64% 51%;
-    --fs-red-bg: 350 76% 95%;
-    --fs-amber: 42 100% 44%;
-    --fs-amber-bg: 43 100% 93%;
-    --fs-estimate: 220 55% 55%;
-    --fs-estimate-bg: 220 68% 95%;
-    --fs-transfer: 205 72% 47%;
-    --fs-transfer-bg: 205 78% 94%;
-    --fs-brand: 21 46% 50%;
-    --fs-heading: 26 9% 15%;
-    --fs-body: 24 8% 35%;
-    --fs-update: 23 9% 42%;
-    --fs-dark-section: 25 12% 18%;
+    /* Motion — Cusp spec timing */
+    --motion-micro: 180ms;
+    --motion-ui: 220ms;
+    --motion-enter: 560ms;
+    --motion-feature: 700ms;
+    --motion-editorial: 950ms;
+    --ease-cusp: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-cusp-soft: cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* Cusp semantic tokens — light */
+    --fs-surface: 98.18% 0.0013 106.4;
+    --fs-surface-raised: 100% 0 0;
+    --fs-surface-overlay: 96.5% 0.003 145.5;
+    --fs-ink: 24.53% 0.0105 151.3;
+    --fs-ink-muted: 50% 0.012 151.3;
+    --fs-ink-faint: 65% 0.008 151.3;
+    --fs-border: 92.18% 0.0051 145.5;
+    --fs-green: 58.77% 0.0802 148.7;
+    --fs-green-bg: 94% 0.025 148.7;
+    --fs-red: 58% 0.108 22;
+    --fs-red-bg: 94% 0.019 22;
+    --fs-amber: 75.66% 0.1201 81.9;
+    --fs-amber-bg: 95% 0.035 81.9;
+    --fs-estimate: 57.95% 0.1378 262.80;
+    --fs-estimate-bg: 95.18% 0.0170 267.79;
+    --fs-transfer: 60.02% 0.1402 245.80;
+    --fs-transfer-bg: 95.37% 0.0201 238.67;
+    --fs-brand: 66.73% 0.1252 31.6;
+    --fs-heading: 24.53% 0.0105 151.3;
+    --fs-body: 50% 0.012 151.3;
+    --fs-update: 50% 0.012 151.3;
+    --fs-dark-section: 24.53% 0.0105 151.3;
   }
 
   .dark {
-    /* Dark mode — Flowsight's default visual direction */
-    --background: 218 43% 5%;
-    --foreground: 222 52% 93%;
-    --card: 222 38% 9%;
-    --card-foreground: 222 52% 93%;
-    --primary: 21 46% 50%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 225 42% 13%;
-    --secondary-foreground: 226 38% 85%;
-    --muted: 222 41% 13%;
-    --muted-foreground: 220 20% 45%;
-    --accent: 21 46% 50%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 350 45% 49%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 100% / 0.07;
-    --input: 222 41% 13%;
-    --ring: 21 46% 50%;
+    /* Dark mode — Cusp's default visual direction */
+    --background: 14.87% 0.0168 259.92;
+    --foreground: 93.40% 0.0184 269.08;
+    --card: 18.86% 0.0278 267.62;
+    --card-foreground: 93.40% 0.0184 269.08;
+    --primary: 66.73% 0.1252 31.6;
+    --primary-foreground: 100% 0 0;
+    --secondary: 22.27% 0.0425 268.83;
+    --secondary-foreground: 86.21% 0.0314 271.67;
+    --muted: 22.89% 0.0389 266.02;
+    --muted-foreground: 52.75% 0.0524 264.55;
+    --accent: 66.73% 0.1252 31.6;
+    --accent-foreground: 100% 0 0;
+    --destructive: 58% 0.14 22;
+    --destructive-foreground: 100% 0 0;
+    --border: 100.00% 0.0000 89.88 / 0.07;
+    --input: 22.89% 0.0389 266.02;
+    --ring: 66.73% 0.1252 31.6;
 
-    /* Flowsight semantic tokens — dark */
-    --fs-surface: 224 39% 8%;
-    --fs-surface-raised: 217 33% 12%;
-    --fs-surface-overlay: 217 33% 16%;
-    --fs-ink: 210 40% 98%;
-    --fs-ink-muted: 215 20% 55%;
-    --fs-ink-faint: 215 20% 35%;
-    --fs-border: 217 33% 16%;
-    --fs-green: 148 66% 48%;
-    --fs-green-bg: 148 35% 12%;
-    --fs-red: 350 70% 62%;
-    --fs-red-bg: 350 35% 12%;
-    --fs-amber: 42 100% 57%;
-    --fs-amber-bg: 40 55% 12%;
-    --fs-estimate: 220 70% 68%;
-    --fs-estimate-bg: 220 38% 15%;
-    --fs-transfer: 205 80% 62%;
-    --fs-transfer-bg: 205 40% 14%;
+    /* Cusp semantic tokens — dark */
+    --fs-surface: 17.83% 0.0242 265.25;
+    --fs-surface-raised: 22.60% 0.0275 262.47;
+    --fs-surface-overlay: 26.62% 0.0339 257.67;
+    --fs-ink: 98.42% 0.0034 247.86;
+    --fs-ink-muted: 62.14% 0.0466 257.16;
+    --fs-ink-faint: 44.88% 0.0394 256.83;
+    --fs-border: 26.62% 0.0339 257.67;
+    --fs-green: 74.33% 0.1774 153.70;
+    --fs-green-bg: 25.93% 0.0344 159.85;
+    --fs-red: 64.86% 0.1697 12.91;
+    --fs-red-bg: 22.22% 0.0347 11.08;
+    --fs-amber: 83.73% 0.1653 81.79;
+    --fs-amber-bg: 26.75% 0.0389 83.03;
+    --fs-estimate: 69.07% 0.1217 263.53;
+    --fs-estimate-bg: 24.96% 0.0404 265.12;
+    --fs-transfer: 71.39% 0.1282 242.87;
+    --fs-transfer-bg: 25.96% 0.0321 240.37;
   }
 
   * {
@@ -95,10 +104,6 @@
 
   body {
     @apply bg-background text-foreground;
-    background-image:
-      radial-gradient(circle at 82% -8%, rgb(200 144 109 / 0.12), transparent 34rem),
-      linear-gradient(180deg, #fffaf4 0%, hsl(var(--background)) 34rem);
-    background-attachment: fixed;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
@@ -108,18 +113,45 @@
 }
 
 @layer components {
-  .fs-warm-section-transition {
-    background:
-      radial-gradient(circle at 14% 38%, rgb(200 144 109 / 0.07), transparent 28%),
-      linear-gradient(
-        180deg,
-        #fffdfc 0%,
-        #f7f2ea 14%,
-        #efe5d8 34%,
-        #efe5d8 66%,
-        #f7f2ea 86%,
-        #fffdfc 100%
-      );
+  /* The marketing page carries slightly brighter semantic colors than the
+     working app. They remain meaning-led (Clear / Watch / Tight / Estimate),
+     but need enough chroma to hold their own against the quiet neutral page. */
+  .fs-landing {
+    --fs-green: 55% 0.14 148.7;
+    --fs-green-bg: 95% 0.055 148.7;
+    --fs-red: 55% 0.16 22;
+    --fs-red-bg: 95% 0.045 22;
+    --fs-amber: 70% 0.15 81.9;
+    --fs-amber-bg: 95% 0.065 81.9;
+    --fs-estimate: 57% 0.16 262.8;
+    --fs-estimate-bg: 95% 0.04 267.8;
+    --fs-transfer: 58% 0.16 245.8;
+    --fs-transfer-bg: 95% 0.04 238.7;
+  }
+
+  .fs-shimmer {
+    position: relative;
+    overflow: hidden;
+    background-color: oklch(var(--muted));
+  }
+
+  .fs-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(90deg, transparent 0%, oklch(var(--card) / 0.7) 50%, transparent 100%);
+    animation: fs-shimmer-sweep 1.6s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fs-shimmer::after {
+      animation: none;
+    }
+  }
+
+  @keyframes fs-shimmer-sweep {
+    100% { transform: translateX(100%); }
   }
 
   .fs-safe-recalculated {
@@ -127,7 +159,7 @@
   }
 
   .fs-transfer-link-path {
-    color: hsl(var(--primary));
+    color: oklch(var(--primary));
     stroke-dasharray: 1;
     stroke-dashoffset: 1;
     animation: fs-transfer-link-draw 480ms cubic-bezier(0.19, 1, 0.22, 1) forwards;
@@ -152,18 +184,41 @@
     animation: fs-runway-low-arrive 420ms ease-out 620ms both;
   }
 
+  /* Hero entrance — matches treasury.sh's actual headline reveal (pulled
+     from its shipped CSS): a one-time 500ms fade+rise on page load, not
+     scroll-linked. Delay classes mirror their 200/400/600ms stagger. */
+  .fs-fade-in-up {
+    opacity: 0;
+    animation: fs-fade-in-up 500ms ease-out forwards;
+  }
+  .fs-fade-in-up-delay-200 { animation-delay: 200ms; }
+  .fs-fade-in-up-delay-400 { animation-delay: 400ms; }
+  .fs-fade-in-up-delay-600 { animation-delay: 600ms; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fs-fade-in-up {
+      opacity: 1;
+      animation: none;
+    }
+  }
+
+  @keyframes fs-fade-in-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   @keyframes fs-safe-recalculated {
     0% {
-      background-color: hsl(var(--card));
-      box-shadow: 0 0 0 0 hsl(var(--fs-green) / 0);
+      background-color: oklch(var(--card));
+      box-shadow: 0 0 0 0 oklch(var(--fs-green) / 0);
     }
     35% {
-      background-color: hsl(var(--fs-green-bg));
-      box-shadow: 0 0 0 4px hsl(var(--fs-green) / 0.12);
+      background-color: oklch(var(--fs-green-bg));
+      box-shadow: 0 0 0 4px oklch(var(--fs-green) / 0.12);
     }
     100% {
-      background-color: hsl(var(--card));
-      box-shadow: 0 0 0 0 hsl(var(--fs-green) / 0);
+      background-color: oklch(var(--card));
+      box-shadow: 0 0 0 0 oklch(var(--fs-green) / 0);
     }
   }
 
@@ -195,34 +250,31 @@
   }
 
   .fs-landing :is(button, a, input, summary) {
-    transition: all 150ms ease-out;
+    transition: background-color var(--motion-ui) var(--ease-cusp), border-color var(--motion-ui) var(--ease-cusp), color var(--motion-ui) var(--ease-cusp), transform var(--motion-micro) var(--ease-cusp);
   }
 
   .fs-landing :is(button, a, input, summary):focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(187, 108, 67, 0.22);
+    box-shadow: 0 0 0 3px rgba(29, 34, 30, 0.16);
   }
 
+  /* Primary button per spec: dark neutral default, subtle color shift on
+     hover, no glow. Clay is reserved for sparing accents, not every CTA. */
   .fs-landing .fs-brand-action {
-    background: #bb6c43;
-    color: #ffffff;
-    box-shadow: 0 1px 2px rgba(74, 65, 60, 0.1);
+    background: #1D221E;
+    color: #F9F9F8;
   }
 
   .fs-landing .fs-brand-action:hover {
-    background: #a65d39;
-    box-shadow: 0 2px 8px rgba(74, 65, 60, 0.1);
-    transform: translateY(-1px);
+    background: #2B312C;
   }
 
   .fs-landing .fs-brand-action:active {
-    background: #965436;
-    transform: scale(0.98);
+    transform: scale(0.985);
   }
 
   .fs-landing .fs-interactive:hover {
-    border-color: #ccb499;
-    box-shadow: 0 2px 8px rgba(74, 65, 60, 0.08);
+    border-color: #CFD2CF;
   }
 
   .fs-landing h1,
@@ -398,14 +450,14 @@
   }
 
   @keyframes fs-engine-classify-confirmed {
-    0% { opacity: 0; transform: translateX(-10px); border-color: hsl(var(--border)); }
-    70% { opacity: 1; transform: translateX(0); border-color: hsl(var(--fs-green) / 0.45); }
-    100% { opacity: 1; transform: translateX(0); border-color: hsl(var(--border)); }
+    0% { opacity: 0; transform: translateX(-10px); border-color: oklch(var(--border)); }
+    70% { opacity: 1; transform: translateX(0); border-color: oklch(var(--fs-green) / 0.45); }
+    100% { opacity: 1; transform: translateX(0); border-color: oklch(var(--border)); }
   }
 
   @keyframes fs-engine-classify-estimated {
     0% { opacity: 0; transform: translateX(10px); }
-    55% { opacity: 1; transform: translateX(0); box-shadow: 0 0 0 4px hsl(var(--fs-amber) / 0.10); }
+    55% { opacity: 1; transform: translateX(0); box-shadow: 0 0 0 4px oklch(var(--fs-amber) / 0.10); }
     100% { opacity: 1; transform: translateX(0); box-shadow: none; }
   }
 

@@ -1,4 +1,4 @@
-# FlowSight silent demo recording script
+# Cusp silent demo recording script
 
 Target length: **55–65 seconds**  
 Format: **1920×1080 landscape**  
@@ -9,7 +9,7 @@ Demo date: **August 3, 2026**
 1. Create a fresh fictional demo account. Do not use personal financial data.
 2. Begin onboarding and choose **Import a CSV**.
 3. Create a checking account named **Everyday Checking** with a current balance of **$2,740.00**.
-4. Import `flowsight-demo-checking.csv` with:
+4. Import `cusp-demo-checking.csv` with:
    - Date → `Date`
    - Description → `Description`
    - Amount → `Amount`
@@ -61,7 +61,7 @@ Record each clip separately. Leave one second of stillness at the beginning and 
 
 **Large text:**
 
-> FlowSight shows you what your money does next.
+> Cusp shows you what your money does next.
 
 **Small text:**
 
@@ -91,13 +91,13 @@ Record each clip separately. Leave one second of stillness at the beginning and 
 
 > Dates, descriptions and amounts stay visible.
 
-### 0:22–0:29 — FlowSight finds the pattern
+### 0:22–0:29 — Cusp finds the pattern
 
 **Visual:** Show the recurring suggestions.
 
 **Large text:**
 
-> FlowSight finds your repeating activity.
+> Cusp finds your repeating activity.
 
 **Small text:**
 
@@ -153,7 +153,7 @@ Then:
 
 ### 1:00–1:05 — CTA
 
-**Visual:** FlowSight logo/landing page and Join Beta button.
+**Visual:** Cusp logo/landing page and Join Beta button.
 
 **Large text:**
 
@@ -161,12 +161,12 @@ Then:
 
 **Final line:**
 
-> Join the FlowSight private beta — free during beta
+> Join the Cusp private beta — free during beta
 
 ## Editing notes
 
 - Keep each caption to one or two short lines.
-- Use the FlowSight rust accent color for amounts, dates and warnings.
+- Use the Cusp rust accent color for amounts, dates and warnings.
 - Keep background music around 10–15% volume.
 - Use cuts or short dissolves; avoid elaborate transitions.
 - Add a subtle zoom only when directing attention to the projected low or scenario result.

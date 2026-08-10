@@ -65,7 +65,7 @@ function CategoryIcon({ category, transfer, review, estimated }: { category: str
     Groceries: "bg-[#EEF3E3] text-[#365E1C]",
     Dining: "bg-[#FAEEE7] text-[#9A4E2D]",
     Transport: "bg-[#F3EADF] text-[#7A5A45]",
-    Utilities: "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]",
+    Utilities: "bg-[oklch(var(--fs-amber-bg))] text-[oklch(var(--fs-amber))]",
     Housing: "bg-[#F0ECF6] text-[#66527F]",
     Subscriptions: "bg-[#F6ECF1] text-[#87506A]",
     Insurance: "bg-[#E8F2F0] text-[#376B62]",
@@ -79,9 +79,9 @@ function CategoryIcon({ category, transfer, review, estimated }: { category: str
     : review
       ? "bg-[#F8EAF0] text-[#B44455]"
       : estimated
-        ? "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]"
+        ? "bg-[oklch(var(--fs-amber-bg))] text-[oklch(var(--fs-amber))]"
         : ["Regular paycheck", "Variable / side income", "Business income", "Investment income", "Benefits"].includes(category)
-          ? "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]"
+          ? "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]"
           : spendingTone[category] ?? "bg-[#F0F1F3] text-[#625852]"
   return <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon className="h-[18px] w-[18px]" strokeWidth={2} /></span>
 }
@@ -110,7 +110,7 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
     const income = transaction.amountCents > 0 && isForecastIncomeCategory(category)
     const amountClass = amountColorClass(transfer || cardPayment ? "transfer" : income ? "income" : "spending")
     const rowClass = review
-      ? "bg-[hsl(var(--fs-amber-bg))]/85"
+      ? "bg-[oklch(var(--fs-amber-bg))]/85"
       : selectedRow
         ? "bg-primary/[0.035] shadow-[inset_0_0_0_1px_rgba(212,117,74,0.22)]"
         : "bg-card hover:bg-muted/25"
@@ -126,7 +126,7 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
     : <TransactionCategorySelect transactionId={transaction.id} description={transaction.description} amountCents={transaction.amountCents} currentCategory={transaction.categoryName} />
 
   return <>
-    {reviewCount > 0 && <div className="mx-4 sm:mx-5 mt-4 rounded-xl border border-[hsl(var(--fs-amber))]/20 bg-[hsl(var(--fs-amber-bg))] px-3 py-2.5 text-xs leading-relaxed text-foreground"><span className="font-semibold">{reviewCount} money-in {reviewCount === 1 ? "transaction needs" : "transactions need"} review.</span> Use the highlighted category menu to tell FlowSight what the payment represents.</div>}
+    {reviewCount > 0 && <div className="mx-4 sm:mx-5 mt-4 rounded-xl border border-[oklch(var(--fs-amber))]/20 bg-[oklch(var(--fs-amber-bg))] px-3 py-2.5 text-xs leading-relaxed text-foreground"><span className="font-semibold">{reviewCount} money-in {reviewCount === 1 ? "transaction needs" : "transactions need"} review.</span> Use the highlighted category menu to tell Cusp what the payment represents.</div>}
     <div className="px-4 sm:px-5 py-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div>
         <p className="text-base font-semibold">Recent activity</p>
@@ -170,7 +170,7 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
                   <CategoryIcon category={details.category} transfer={details.transfer || details.cardPayment} review={details.review} estimated={Boolean(transaction.estimated)} />
                   <div className="min-w-0">
                     <p className="truncate font-medium text-foreground">{transaction.description}</p>
-                    <p className={`mt-0.5 text-xs ${details.review ? "font-medium text-[hsl(var(--fs-amber))]" : "text-muted-foreground"}`}>{details.date}{transaction.estimated ? " · estimated" : details.cardPayment ? " · card payment" : details.review ? " · needs review" : ""}</p>
+                    <p className={`mt-0.5 text-xs ${details.review ? "font-medium text-[oklch(var(--fs-amber))]" : "text-muted-foreground"}`}>{details.date}{transaction.estimated ? " · estimated" : details.cardPayment ? " · card payment" : details.review ? " · needs review" : ""}</p>
                   </div>
                 </div>
               </td>
@@ -192,7 +192,7 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
             <CategoryIcon category={details.category} transfer={details.transfer || details.cardPayment} review={details.review} estimated={Boolean(transaction.estimated)} />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0"><p className="truncate text-sm font-medium">{transaction.description}</p><p className={`mt-0.5 text-xs ${details.review ? "text-[hsl(var(--fs-amber))]" : "text-muted-foreground"}`}>{details.date}{transaction.estimated ? " · estimated" : details.cardPayment ? " · card payment" : details.review ? " · needs review" : ""}</p></div>
+                <div className="min-w-0"><p className="truncate text-sm font-medium">{transaction.description}</p><p className={`mt-0.5 text-xs ${details.review ? "text-[oklch(var(--fs-amber))]" : "text-muted-foreground"}`}>{details.date}{transaction.estimated ? " · estimated" : details.cardPayment ? " · card payment" : details.review ? " · needs review" : ""}</p></div>
                 <span className={`shrink-0 font-mono text-sm font-medium ${details.amountClass}`}>{details.amount}</span>
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">{categoryControl(transaction, details.transfer, details.cardPayment)}<span className="text-xs text-muted-foreground">{transaction.accountName ?? "Unassigned"}</span></div>

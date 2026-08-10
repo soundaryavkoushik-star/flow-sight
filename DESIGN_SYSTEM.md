@@ -1,6 +1,6 @@
-# FlowSight Design System
+# Cusp Design System
 
-This is the locked visual foundation for the FlowSight web experience. The system should feel calm, clear, human, and financially trustworthy. Orange signals engagement; it is not decorative wallpaper.
+This is the locked visual foundation for the Cusp web experience. The system should feel calm, clear, human, and financially trustworthy. Orange signals engagement; it is not decorative wallpaper.
 
 ## Color palette
 
@@ -86,7 +86,7 @@ The navigation **Join Beta**, hero **Join the Beta**, form submit, and final CTA
 
 ## Surface rhythm
 
-Alternate white and warm `#F8F5EE` to divide the scroll into readable chapters. Use full-bleed dark navy only for moments that benefit from increased seriousness or contrast. Rounded containers may sit on the tinted surface, but should use the same border and shadow rules as interactive cards.
+Keep one consistent warm background color for the entire page — do not alternate section backgrounds between white and tinted. Sections are divided by spacing and typography, not by switching fill color. Cards and content boxes may sit slightly lighter than the page background, but should read as elevated content on a single canvas, not as alternating panels. Use full-bleed dark navy only for moments that benefit from increased seriousness or contrast.
 
 ## Product integrity
 

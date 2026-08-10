@@ -39,13 +39,13 @@ export default function SignInPage() {
           <div className="absolute bottom-1/3 right-1/4 w-48 h-48 bg-primary/[0.08] rounded-full blur-3xl" />
         </div>
 
-        <Link href="/" className="relative w-fit" aria-label="FlowSight home"><Image src="/flowsight-logo.svg" alt="FlowSight" width={170} height={36} loading="eager" className="h-9 w-auto" /></Link>
+        <Link href="/" className="relative w-fit" aria-label="Cusp home"><Image src="/cusp-logo.svg?v=2" alt="Cusp" width={155} height={36} loading="eager" className="h-9 w-auto" /></Link>
 
         <div className="relative space-y-8">
           <div className="bg-background/60 backdrop-blur-sm border border-border rounded-2xl p-6">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <FlowSightMark className="h-5 w-6 text-primary" />
+                <CuspMark className="h-5 w-6 text-primary" />
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-0.5 font-mono">Cash Flow</p>
@@ -77,16 +77,16 @@ export default function SignInPage() {
           </blockquote>
         </div>
 
-        <p className="relative text-xs text-muted-foreground/50">© {new Date().getFullYear()} FlowSight, Inc.</p>
+        <p className="relative text-xs text-muted-foreground/50">© {new Date().getFullYear()} Cusp, Inc.</p>
       </div>
 
       {/* Right panel — form */}
       <div className="flex-1 flex flex-col items-center justify-center px-5 py-12">
-        <Link href="/" className="mb-10 lg:hidden" aria-label="FlowSight home"><Image src="/flowsight-logo.svg" alt="FlowSight" width={170} height={36} loading="eager" className="h-9 w-auto" /></Link>
+        <Link href="/" className="mb-10 lg:hidden" aria-label="Cusp home"><Image src="/cusp-logo.svg?v=2" alt="Cusp" width={155} height={36} loading="eager" className="h-9 w-auto" /></Link>
 
         <div className="w-full max-w-[380px]">
           <h1 className="text-[32px] font-extrabold tracking-tight mb-1.5">Welcome back</h1>
-          <p className="text-sm text-muted-foreground mb-8">Sign in to your FlowSight account.</p>
+          <p className="text-sm text-muted-foreground mb-8">Sign in to your Cusp account.</p>
 
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-3 text-sm text-destructive mb-5">{error}</div>
@@ -135,6 +135,6 @@ export default function SignInPage() {
   )
 }
 
-function FlowSightMark({ className }: { className?: string }) {
-  return <svg viewBox="-3 0 62 50" className={className} aria-hidden="true"><g fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"><rect x="0" y="34" width="24" height="10" rx="2" /><rect x="8" y="19" width="32" height="10" rx="2" /><rect x="16" y="4" width="40" height="10" rx="2" /></g></svg>
+function CuspMark({ className }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true"><path d="M19 9V7.5C19 6.11929 17.8807 5 16.5 5H7.5C6.11929 5 5 6.11929 5 7.5V16.5C5 17.8807 6.11929 19 7.5 19H16.5C17.8807 19 19 17.8807 19 16.5V15" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /><rect x="9" y="9" width="6" height="6" rx="0.8" stroke="currentColor" strokeWidth="1.75" /></svg>
 }

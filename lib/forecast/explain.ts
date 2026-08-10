@@ -34,19 +34,11 @@ export function explainLowestPoint(days: ForecastDay[], lowestDate: string): For
         : ""
   const names = new Intl.ListFormat("en-US", { style: "long", type: "conjunction" })
     .format(expenses.map((event) => event.name))
-  const date = new Date(`${lowestDate}T00:00:00`).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-  })
-  const amount = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(day.endingBalanceCents / 100)
+  const lowPointDate = formatEventDate(lowestDate)
 
   return [{
     date: lowestDate,
-    headline: `${names} ${expenses.length === 1 ? "is" : "are"} expected${timing}, bringing your projected balance to its 30-day low of ${amount} on ${date}.`,
+    headline: `${names} ${expenses.length === 1 ? "is" : "are"} expected${timing}, bringing your projected balance to its low on ${lowPointDate}.`,
     eventIds: expenses.map((event) => event.id),
   }]
 }

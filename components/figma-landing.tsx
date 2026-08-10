@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -8,227 +8,194 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceDot,
 } from "recharts";
 import {
-  Shield, ArrowRight, Lock,
-  BarChart3,
-  X, Menu, Sparkles, CheckCircle, ChevronDown,
+  ArrowRight, Unplug, ShieldCheck, Eye,
+  X, Menu, CheckCircle, ChevronDown,
+  CircleCheck, AlertTriangle, Link2,
+  House, CarFront, Play, Zap, WalletCards,
+  TrendingUp, ListTree, ArrowDownToLine,
 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ConditionBanner } from "@/components/condition-banner";
 
 const display: React.CSSProperties = { fontFamily: "'Bricolage Grotesque', sans-serif" };
 const mono: React.CSSProperties = { fontFamily: "'DM Mono', monospace" };
 const SCENARIO_MOTION_MS = 600;
-const GRID_THINK_MS = 950;
-const AHA_MOTION = {
-  cycleMs: 4800,
-  morphMs: 760,
-  badgeMs: 320,
-  copyMs: 320,
-  chipStaggerMs: 90,
-} as const;
 
-function CountUp({ value, prefix = "", suffix = "", duration = 900, delay = 0, active = true }: { value: number; prefix?: string; suffix?: string; duration?: number; delay?: number; active?: boolean }) {
-  const [displayValue, setDisplayValue] = useState(0);
-  const currentValue = useRef(0);
-  useEffect(() => {
-    if (!active) return;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const from = currentValue.current;
-    const animationDuration = reducedMotion ? 0 : duration;
-    let frame = 0;
-    let startedAt = 0;
-    const tick = (now: number) => {
-      if (startedAt === 0) startedAt = now;
-      const progress = animationDuration === 0 ? 1 : Math.min(1, (now - startedAt) / animationDuration);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const next = Math.round(from + (value - from) * eased);
-      currentValue.current = next;
-      setDisplayValue(next);
-      if (progress < 1) frame = requestAnimationFrame(tick);
-    };
-    const timer = window.setTimeout(() => { frame = requestAnimationFrame(tick); }, reducedMotion ? 0 : delay);
-    return () => { window.clearTimeout(timer); cancelAnimationFrame(frame); };
-  }, [active, delay, duration, value]);
-  return <span className="tabular-nums" aria-label={`${prefix}${value.toLocaleString()}${suffix}`}>{prefix}{displayValue.toLocaleString()}{suffix}</span>;
-}
-
-function Magnetic({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  return <span
-    ref={ref}
-    className={`inline-flex rounded-xl transition-[transform,filter] duration-200 ease-out hover:drop-shadow-[0_8px_14px_rgba(187,108,67,0.20)] ${className}`}
-    onMouseMove={(event) => {
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !window.matchMedia("(pointer: fine)").matches) return;
-      const bounds = event.currentTarget.getBoundingClientRect();
-      const x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 8;
-      const y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 8;
-      event.currentTarget.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    }}
-    onMouseLeave={(event) => { event.currentTarget.style.transform = "translate3d(0, 0, 0)"; }}
-  >{children}</span>;
-}
-
-function moveCursorGlow(event: React.PointerEvent<HTMLElement>) {
-  if (!window.matchMedia("(pointer: fine)").matches) return;
-  const glow = event.currentTarget.querySelector<HTMLElement>("[data-cursor-glow]");
-  if (!glow) return;
-  const bounds = event.currentTarget.getBoundingClientRect();
-  glow.style.opacity = "1";
-  glow.style.transform = `translate3d(${event.clientX - bounds.left - 240}px, ${event.clientY - bounds.top - 240}px, 0)`;
-}
-
-function hideCursorGlow(event: React.PointerEvent<HTMLElement>) {
-  const glow = event.currentTarget.querySelector<HTMLElement>("[data-cursor-glow]");
-  if (glow) glow.style.opacity = "0";
-}
-
-const ahaBuildSteps = [
-  { label: "Starting balance", date: "Today", amount: 2660, delta: null, x: 28, y: 30 },
-  { label: "Rent", date: "Aug 1", amount: 1010, delta: "−$1,650", x: 205, y: 74 },
-  { label: "Insurance", date: "Aug 3", amount: 830, delta: "−$180", x: 372, y: 88 },
-  { label: "Car payment", date: "Aug 3", amount: 420, delta: "−$410", x: 548, y: 123 },
+/* ── Hero's compact Clear-state cash-flow runway ── */
+const HERO_RUNWAY = [
+  { key: "today", label: "Today", value: "$2,740", detail: "Jul 24" },
+  { key: "bills", label: "Next bill", value: "Rent", detail: "Aug 4" },
+  { key: "low", label: "Lowest point", value: "$1,840", detail: "Aug 12" },
+  { key: "recovery", label: "Recovers", value: "$2,950", detail: "Aug 20" },
 ] as const;
 
-function CausalAhaForecast() {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [phase, setPhase] = useState(0);
-  const [run, setRun] = useState(0);
-  const [entered, setEntered] = useState(false);
-  const [inspectedStep, setInspectedStep] = useState<number | null>(null);
+/* ── Timeline motif — appears exactly 3 times (hero, final CTA, + reserve) ── */
+function TimelineMotif({ label, size = "default" }: { label: string; size?: "default" | "large" }) {
+  const big = size === "large";
+  return (
+    <div className="flex flex-col items-center" aria-hidden="true">
+      <div className={`flex items-center gap-0 ${big ? "w-full max-w-md" : "w-56"}`}>
+        <span className="h-px flex-1 bg-border" />
+        <span className={`shrink-0 rounded-full bg-primary ${big ? "h-3 w-3" : "h-2 w-2"}`} />
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      <p className="mt-2 text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground" style={mono}>{label}</p>
+    </div>
+  );
+}
 
+function Reveal({ children, className = "", as: As = "div", id, style }: { children: React.ReactNode; className?: string; as?: "div" | "section"; id?: string; style?: React.CSSProperties }) {
+  const Comp = As as "div";
+  return <Comp data-reveal id={id} className={className} style={style}>{children}</Comp>;
+}
+
+/* ── Fires once when the element scrolls into view — drives auto-playing
+   motion sequences instead of requiring a click. ── */
+function useInView<T extends HTMLElement>(threshold = 0.35) {
+  const ref = useRef<T>(null);
+  const [inView, setInView] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   useEffect(() => {
-    const node = rootRef.current;
-    if (!node) return;
+    const node = ref.current;
+    if (!node || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const observer = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting) return;
-      setEntered(true);
+      setInView(true);
       observer.disconnect();
-    }, { threshold: 0.35 });
+    }, { threshold });
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [threshold]);
+  return [ref, inView] as const;
+}
 
+/* ── Hero: real dashboard recreation in Clear state. Matches treasury.sh's
+   actual hero, verified live: the frame and its content render at final
+   position immediately on load — no scroll-linked motion, no stagger. ── */
+function HeroDashboard() {
+  const navItems = ["Dashboard", "Forecast", "Scenarios", "Transactions", "Accounts"];
+  /* The runway's CSS draw/pulse animations fire at mount; a brief delay just
+     lets the page settle so the draw-in is visible instead of instant. */
+  const [runwayPlay, setRunwayPlay] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   useEffect(() => {
-    if (!entered) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      const frame = window.requestAnimationFrame(() => setPhase(4));
-      return () => window.cancelAnimationFrame(frame);
-    }
-    const resetFrame = window.requestAnimationFrame(() => setPhase(0));
-    const timers = [700, 1450, 2200, 3000].map((delay, index) => window.setTimeout(() => setPhase(index + 1), delay));
-    return () => {
-      window.cancelAnimationFrame(resetFrame);
-      timers.forEach(window.clearTimeout);
-    };
-  }, [entered, run]);
-
-  const eventPhase = Math.min(phase, 3);
-  const displayedPhase = inspectedStep ?? eventPhase;
-  const balance = ahaBuildSteps[displayedPhase].amount;
-  const fullPath = ahaBuildSteps.map((point, index) => `${index ? "L" : "M"}${point.x},${point.y}`).join(" ");
-  const areaPath = `${fullPath} L548,138 L28,138 Z`;
-
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setTimeout(() => setRunwayPlay(true), 300);
+    return () => window.clearTimeout(timer);
+  }, []);
   return (
-    <div ref={rootRef} className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-      <div className="order-2 relative overflow-hidden rounded-[30px] border border-[#DCCBBA] bg-[linear-gradient(135deg,#FFFDFC_0%,#FFFDFC_48%,#F7F2EA_100%)] p-5 shadow-[0_28px_80px_rgba(74,65,60,0.10)] sm:p-6 lg:order-1">
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div><p className="text-xs text-muted-foreground">Example forecast</p><p className="font-medium">Today → August 3</p></div>
-          <span className="rounded-full bg-[hsl(var(--fs-amber-bg))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--fs-amber))]">{phase === 4 ? "Watch · Aug 3" : "Building forecast"}</span>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-[135px_1fr] sm:items-end">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground" style={mono}>Projected balance</p>
-            <p className="mt-2 text-[38px] font-medium leading-none text-foreground" style={mono}><CountUp value={balance} prefix="$" duration={600} /></p>
-            <p className="mt-2 min-h-5 text-xs text-muted-foreground">{displayedPhase === 0 ? "Before upcoming bills" : `After ${ahaBuildSteps[displayedPhase].label.toLowerCase()}`}</p>
+    <div className="h-full overflow-hidden rounded-[24px] border border-border bg-card" style={{ boxShadow: "0 24px 70px rgba(0, 0, 0, 0.06), 0 0 72px rgba(29, 34, 30, 0.10)" }}>
+      <div className="grid h-full sm:grid-cols-[180px_1fr] lg:grid-cols-[190px_1fr]">
+        <aside className="hidden border-r border-border bg-card px-4 py-5 sm:flex sm:flex-col">
+          <div className="px-2"><Image src="/cusp-logo.svg?v=2" alt="Cusp" width={130} height={30} loading="eager" className="h-7 w-auto" /></div>
+          <nav className="mt-4 flex flex-col gap-0.5">{navItems.map((item, index) => <div key={item} className={`relative rounded-xl px-3 py-2 text-[13px] leading-5 ${index === 0 ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground"}`}>{item}</div>)}</nav>
+        </aside>
+        <main className="min-w-0 bg-muted/40 p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div><h3 className="text-[24px] font-medium leading-tight" style={display}>Good morning, Jordan.</h3><p className="mt-1.5 text-[13px] text-muted-foreground">Wednesday, July 24 · Here&apos;s your financial picture.</p></div>
           </div>
-          <svg viewBox="0 0 576 154" className="h-[160px] w-full" role="img" aria-label="Projected balance falling as rent, insurance, and the car payment arrive">
-            {[38, 76, 114].map((y) => <line key={y} x1="20" y1={y} x2="558" y2={y} stroke="#DCCBBA" strokeWidth="1" opacity=".7" />)}
-            <line x1="20" y1="116" x2="558" y2="116" stroke="#B7791F" strokeDasharray="6 5" opacity=".75" />
-            <text x="22" y="108" fill="#B7791F" fontSize="10">$500 safety buffer</text>
-            <path d={areaPath} fill="#BB6C43" className={`transition-opacity duration-500 ${eventPhase === 3 ? "opacity-[0.08]" : "opacity-0"}`} />
-            <path d={fullPath} fill="none" stroke="#BB6C43" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" pathLength="1" strokeDasharray="1" strokeDashoffset={1 - eventPhase / 3} className="transition-[stroke-dashoffset] duration-700 ease-out" />
-            {ahaBuildSteps.map((step, index) => <g key={step.label} className={`transition-[opacity,transform] duration-300 ${index <= eventPhase ? "opacity-100" : "translate-y-1 opacity-0"}`}><line x1={step.x} y1={step.y + 7} x2={step.x} y2="138" stroke="#BB6C43" strokeDasharray="3 3" opacity={index === displayedPhase ? ".8" : ".3"} className="transition-opacity duration-200" /><circle cx={step.x} cy={step.y} r={index === displayedPhase ? 8 : 5} fill={index === 0 ? "#292522" : "#BB6C43"} stroke="#FFFDFC" strokeWidth={index === displayedPhase ? 3 : 2} className="transition-[r,stroke-width] duration-200" /></g>)}
-          </svg>
-        </div>
-        <div className="mt-2 grid min-h-[72px] gap-2 sm:grid-cols-3">
-          {ahaBuildSteps.slice(1).map((step, index) => {
-            const stepIndex = index + 1;
-            const isInspected = displayedPhase === stepIndex;
-            return <button
-              type="button"
-              key={step.label}
-              disabled={stepIndex > eventPhase}
-              onMouseEnter={() => setInspectedStep(stepIndex)}
-              onMouseLeave={() => setInspectedStep(null)}
-              onFocus={() => setInspectedStep(stepIndex)}
-              onBlur={() => setInspectedStep(null)}
-              className={`rounded-xl border p-3 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${stepIndex <= eventPhase ? `translate-y-0 opacity-100 ${isInspected ? "border-primary/45 bg-primary/[0.06] shadow-[0_8px_22px_rgba(187,108,67,0.10)]" : "border-[#DCCBBA] bg-[#FFFDFC] hover:border-primary/30"}` : "translate-y-2 cursor-default border-transparent bg-transparent opacity-0"}`}
-              aria-label={`Inspect ${step.label}: ${step.delta}, projected balance $${step.amount.toLocaleString()}`}
-            ><div className="flex justify-between gap-2 text-xs"><span className="font-medium">{step.label}</span><span style={mono}>{step.delta}</span></div><p className="mt-1 text-[10px] text-muted-foreground">{step.date} · confirmed</p></button>;
-          })}
-        </div>
-      </div>
-      <div className="order-1 flex min-h-0 flex-col justify-center lg:order-2 lg:min-h-[330px]">
-        <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>Five days of warning</p>
-        <h2 className="text-[40px] font-medium leading-[1.06] tracking-tight lg:text-[48px]" style={display}>See it <span className="text-primary">before it arrives.</span></h2>
-        <p className={`mt-5 text-[18px] leading-relaxed text-muted-foreground transition-all duration-500 ${phase === 4 ? "translate-y-0 opacity-100" : "translate-y-2 opacity-35"}`}>
-          Your projected balance drops to <strong className="font-medium text-foreground" style={mono}>$420 on August 3</strong>—five days before payday. Rent, insurance, and your car payment all land in the same week.
-        </p>
-        <button type="button" onClick={() => setRun((current) => current + 1)} className="mt-6 w-fit text-sm font-medium text-primary hover:text-[hsl(var(--fs-primary-hover))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25">↻ Replay forecast</button>
-        <span className="sr-only" aria-live="polite">{phase === 4 ? "Projected balance is 420 dollars on August 3, five days before payday." : ""}</span>
+
+          {/* Primary forecast result — exact ConditionBanner used app-wide */}
+          <div className="mt-3">
+            <ConditionBanner condition="clear" padding="p-4">
+              <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[oklch(var(--fs-green))]">Clear</p>
+              <h4 className="text-lg font-semibold tracking-tight text-foreground">You&apos;re on track for the next 30 days.</h4>
+              <p className="mt-2 text-xs font-medium uppercase tracking-wide opacity-70">Lowest in the next 30 days</p>
+              <p className="mt-1 font-mono text-base font-semibold text-foreground">$1,840 · Aug 12</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">Your projected balance stays comfortably above your safety buffer through August 23.</p>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                <span>Based on balances updated Jul 24</span>
+              </div>
+            </ConditionBanner>
+          </div>
+
+          {/* Stat cards — same four cards as the real Dashboard */}
+          <div className="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+            <div className="rounded-2xl border border-border bg-card px-3.5 py-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-mono">Current balance</p>
+              <p className="text-xl font-bold text-foreground leading-none font-mono">$2,740</p>
+              <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">Across active included accounts.</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-card px-3.5 py-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-mono">Safe to Spend</p>
+              <p className="text-xl font-bold text-[oklch(var(--fs-green))] leading-none font-mono">$1,340</p>
+              <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">Protects your plan through Aug 23.</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-card px-3.5 py-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-mono">Safety buffer</p>
+              <p className="text-lg font-semibold leading-none text-[oklch(var(--fs-green))]">Intact</p>
+              <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">$750 protected</p>
+              <span className="mt-2 inline-flex items-center gap-0.5 text-[11px] font-medium text-primary">Adjust <ArrowRight size={11} /></span>
+            </div>
+            <div className="rounded-2xl border border-border bg-card px-3.5 py-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-mono">Next important event</p>
+              <p className="text-sm font-semibold text-foreground leading-tight truncate">Harbor View Apartments Rent</p>
+              <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">Aug 4 · −$1,650</p>
+            </div>
+          </div>
+
+          {/* Cash-flow runway — same gradient line, sizes, and low-point pulse animation as the real Dashboard */}
+          <section className="mt-3 overflow-hidden rounded-2xl border border-border bg-card p-4">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-primary">Cash-flow runway</p>
+              <h4 className="mt-1 text-sm font-semibold">The moments shaping your next 30 days</h4>
+            </div>
+            <div className="relative mt-1 pb-1 pt-1">
+              <div className={`absolute left-[6%] right-[6%] top-[22px] h-1 rounded-full transition-opacity duration-300 ${runwayPlay ? "fs-runway-line" : "opacity-0"}`} style={{ background: "linear-gradient(90deg, oklch(var(--fs-green)) 0 22%, oklch(var(--fs-amber)) 22% 60%, oklch(var(--fs-red)) 60% 70%, oklch(var(--fs-green)) 70% 100%)" }} />
+              <div className="relative grid grid-cols-4">
+                {HERO_RUNWAY.map((point) => {
+                  const isLow = point.key === "low";
+                  return (
+                    <div key={point.key} className="flex min-w-0 flex-col items-center text-center">
+                      <span className={`relative block rounded-full border-[3px] border-card ${isLow ? `${runwayPlay ? "fs-runway-low" : "opacity-0"} h-6 w-6 bg-foreground` : point.key === "bills" ? "mt-1.5 h-3 w-3 bg-muted-foreground/40" : point.key === "recovery" ? "mt-1 h-4 w-4 bg-[oklch(var(--fs-green))]" : "mt-1 h-4 w-4 bg-foreground"}`} />
+                      <span className={`mt-2 block text-xs ${isLow ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>{point.label}</span>
+                      <span className={`mt-0.5 block font-mono ${isLow ? "text-[24px] font-bold leading-none text-foreground" : point.key === "bills" ? "text-[15px] font-medium text-muted-foreground" : "text-[15px] font-medium text-foreground"}`}>{point.value}</span>
+                      <span className="mt-0.5 block text-[10px] text-muted-foreground">{point.detail}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        </main>
       </div>
     </div>
   );
 }
 
-function LandingDashboardMockup({ expanded: _expanded }: { expanded: boolean }) {
-  const navItems = ["Dashboard", "Forecast", "Scenarios", "Transactions", "Accounts"];
-  return <div className="overflow-hidden rounded-[30px] border border-[#DCCBBA] bg-[#FFFDFC]">
-    <div className="grid min-h-[650px] sm:grid-cols-[170px_1fr] lg:grid-cols-[190px_1fr]">
-      <aside className="hidden border-r border-[#DCCBBA] bg-[#FFFDFC] px-4 py-5 sm:flex sm:flex-col">
-        <div className="px-2"><Image src="/flowsight-logo.svg" alt="FlowSight" width={165} height={35} loading="eager" className="h-8 w-auto" /></div>
-        <nav className="mt-7 space-y-1.5">{navItems.map((item, index) => <div key={item} className={`relative rounded-xl px-3 py-2.5 text-[12px] ${index === 0 ? "bg-primary/[0.10] font-medium text-primary before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-primary" : "text-muted-foreground"}`}>{item}</div>)}</nav>
-        <div className="mt-auto border-t border-[#DCCBBA] px-2 pt-4"><p className="text-[11px] font-medium">Taylor’s workspace</p><p className="mt-1 text-[10px] text-muted-foreground">Updated today</p></div>
-      </aside>
-      <main className="min-w-0 bg-[#F7F2EA] p-4 sm:p-5 lg:p-6">
-        <div className="flex items-start justify-between gap-4"><div><h3 className="text-[22px] font-medium leading-tight" style={display}>Good afternoon, Taylor.</h3><p className="mt-1.5 text-[11px] text-muted-foreground">Sunday, August 2 · Here’s your financial picture.</p></div><span className="rounded-full border border-[#DCCBBA] bg-[#FFFDFC] px-3 py-1.5 text-[10px] text-muted-foreground">Calculated from your latest details</span></div>
-        <div className="mt-5 rounded-2xl border border-[#E7D8B7] bg-[#FFF9EA] p-5"><div className="flex items-center justify-between gap-5"><div><p className="text-[9px] uppercase tracking-[0.15em] text-[#9A6807]" style={mono}>Watch · low point ahead</p><p className="mt-2 text-[16px] font-medium">One tight spot is coming before payday.</p><p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">Rent, insurance, and your car payment bring the projected balance to $420 on August 3—below your $500 buffer.</p></div><span className="shrink-0 rounded-xl bg-[#FFFDFC] px-4 py-2.5 text-[11px] font-medium text-primary shadow-sm">Review low point →</span></div></div>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[["Current balance", "$4,260", "as of Aug 2"], ["Safe to Spend", "$680", "after $500 buffer"], ["Projected low", "$420", "August 3"], ["Next important event", "Rent", "Tomorrow · −$1,650"]].map(([label, value, detail], index) => <div key={label} className="rounded-2xl border border-[#DCCBBA] bg-[#FFFDFC] p-4"><p className="text-[10px] text-muted-foreground">{label}</p><p className={`mt-2 text-[18px] font-medium ${index === 1 ? "text-[#2D8B5A]" : index === 2 ? "text-primary" : ""}`} style={index < 3 ? mono : undefined}>{value}</p><p className="mt-1.5 text-[9px] text-muted-foreground">{detail}</p></div>)}
-        </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-[minmax(0,1.55fr)_minmax(150px,0.65fr)] lg:grid-cols-[minmax(0,1.55fr)_minmax(190px,0.65fr)]">
-          <div className="rounded-2xl border border-[#DCCBBA] bg-[#FFFDFC] p-4"><div className="flex items-start justify-between"><div><p className="text-[13px] font-medium">Cash Flow Forecast</p><p className="mt-1 text-[10px] text-muted-foreground">Projected through August 31</p></div><span className="rounded-full border border-primary/20 bg-primary/[0.08] px-2.5 py-1 text-[9px] font-medium text-primary">30 days</span></div><svg viewBox="0 0 620 190" className="mt-3 h-[190px] w-full" role="img" aria-label="Projected balance falls to 420 dollars on August 3 before recovering"><defs><linearGradient id="heroDashboardArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#BB6C43" stopOpacity=".24" /><stop offset="1" stopColor="#BB6C43" stopOpacity=".02" /></linearGradient></defs>{[36,88,140].map((y) => <line key={y} x1="0" x2="620" y1={y} y2={y} stroke="#DCCBBA" />)}<line x1="0" x2="620" y1="145" y2="145" stroke="#CA8A04" strokeDasharray="6 5" /><path d="M0 34 C72 38 124 44 178 61 S270 138 324 146 S410 74 476 71 S554 90 620 101 L620 168 L0 168 Z" fill="url(#heroDashboardArea)" /><path d="M0 34 C72 38 124 44 178 61 S270 138 324 146 S410 74 476 71 S554 90 620 101" fill="none" stroke="#BB6C43" strokeWidth="4" strokeLinecap="round" /><circle cx="324" cy="146" r="6" fill="#BB6C43" stroke="white" strokeWidth="3" /><text x="337" y="164" fill="#BB6C43" fontSize="10">Aug 3 · $420</text></svg></div>
-          <div className="rounded-2xl border border-[#DCCBBA] bg-[#FFFDFC] p-4"><div className="flex items-center justify-between"><p className="text-[13px] font-medium">Upcoming</p><span className="text-[10px] text-primary">View forecast</span></div><div className="mt-3 divide-y divide-[#DCCBBA]">{[["Rent", "Tomorrow", "−$1,650"], ["Insurance", "Aug 3", "−$180"], ["Car payment", "Aug 3", "−$410"], ["Paycheck", "Aug 8", "+$2,400"]].map(([name, timing, amount]) => <div key={name} className="flex items-center justify-between gap-3 py-3 text-[11px]"><div><p className="font-medium">{name}</p><p className="mt-1 text-[9px] text-muted-foreground">{timing}</p></div><span className={amount.startsWith("+") ? "text-[#2D8B5A]" : ""} style={mono}>{amount}</span></div>)}</div></div>
-        </div>
-      </main>
-    </div>
-  </div>;
+/* Fast ease-out (no slow start) so the headline commits to fading the
+   instant scrolling begins — reads as a sharp, decisive "boom" rather than
+   a gradual reveal. */
+function easeOutCubic(t: number) {
+  return 1 - Math.pow(1 - t, 3);
 }
 
+/* Hero's headline fade range and travel: a short scroll distance fades the
+   headline out (opacity 1→0) and lifts it 28px, while the mockup underneath
+   — pinned via `sticky`, never scaled or faded itself — is revealed as it
+   clears. Kept short enough that a single scroll (even a small mouse-wheel
+   notch) completes it in one motion. */
+const HERO_FADE_RANGE = 60;
+const HERO_FADE_TRAVEL = 28;
+const HERO_MOCKUP_TOP = 64;
+const HERO_PIN_HOLD = 300;
+
 function ExpandingLandingHero({ isSignedIn, navigate }: { isSignedIn: boolean; navigate: (href: string) => void }) {
-  const expansionRef = useRef<HTMLDivElement>(null);
-  const [heroVisible, setHeroVisible] = useState(false);
-  const [gradientVisible, setGradientVisible] = useState(false);
-  const [expansionProgress, setExpansionProgress] = useState(0);
-  const [heroScrollProgress, setHeroScrollProgress] = useState(0);
+  const pinRef = useRef<HTMLDivElement>(null);
+  const mockupRef = useRef<HTMLDivElement>(null);
+  const [fadeProgress, setFadeProgress] = useState(0);
+  const [mockupLift, setMockupLift] = useState(0);
+
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setHeroVisible(true));
-    const gradientTimer = window.setTimeout(() => setGradientVisible(true), 900);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.clearTimeout(gradientTimer);
-    };
-  }, []);
-  useEffect(() => {
-    const expansion = expansionRef.current;
-    if (!expansion) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let frame = 0;
     const update = () => {
-      const rect = expansion.getBoundingClientRect();
-      const start = window.innerHeight * 0.56;
-      const end = window.innerHeight * 0.06;
-      const next = Math.min(1, Math.max(0, (start - rect.top) / (start - end)));
-      setExpansionProgress(next);
-      setHeroScrollProgress(Math.min(1, window.scrollY / 360));
+      const pin = pinRef.current;
+      const mockup = mockupRef.current;
       frame = 0;
+      if (!pin || !mockup) return;
+      const scrolledPast = Math.max(0, -pin.getBoundingClientRect().top);
+      setFadeProgress(Math.min(1, scrolledPast / HERO_FADE_RANGE));
+      const nextLift = Math.max(0, mockup.offsetTop - HERO_MOCKUP_TOP);
+      setMockupLift((current) => Math.abs(current - nextLift) > 0.5 ? nextLift : current);
     };
     const onScroll = () => {
       if (!frame) frame = window.requestAnimationFrame(update);
@@ -242,69 +209,543 @@ function ExpandingLandingHero({ isSignedIn, navigate }: { isSignedIn: boolean; n
       if (frame) window.cancelAnimationFrame(frame);
     };
   }, []);
-  const mockupTranslate = 36 - expansionProgress * 36;
-  const mockupOpacity = 0.82 + expansionProgress * 0.18;
-  const mockupScale = 0.8 + expansionProgress * 0.2;
-  return <section className="relative bg-[linear-gradient(145deg,#FFFAF4_0%,#F7F2EA_54%,#EFE5D8_100%)] pt-24">
-    <div className={`pointer-events-none absolute inset-0 z-0 transition-opacity duration-1000 ease-out motion-reduce:transition-none ${gradientVisible ? "opacity-100" : "opacity-0"}`}>
-      <div className="sticky top-0 h-screen overflow-hidden"><div className="absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,rgba(204,180,153,0.18)_0%,rgba(239,229,216,0.10)_52%,transparent_100%)]" /><div className="absolute left-1/2 top-0 h-[800px] w-[min(1240px,112vw)] -translate-x-1/2 bg-[radial-gradient(ellipse_at_50%_-6%,rgba(200,144,109,0.19)_0%,rgba(204,180,153,0.15)_28%,rgba(239,229,216,0.11)_52%,transparent_79%)] blur-2xl" /></div>
-    </div>
-    <div className="relative z-10 mx-auto max-w-[1240px] px-5 will-change-transform" style={{ opacity: 1 - heroScrollProgress * 0.6, transform: `translateY(${-heroScrollProgress * 34}px)` }}>
-      <div className="mx-auto max-w-4xl text-center">
-        <div className={`transition-[opacity,transform] duration-700 ease-out motion-reduce:transition-none ${heroVisible ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"}`}>
-          <p className="mb-6 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>Cash flow, with context</p>
-          <h1 className="mx-auto max-w-[900px] text-[50px] font-medium leading-[1.02] tracking-[-0.02em] sm:text-[66px]" style={display}>Know what your money<br className="hidden sm:block" /> <span className="text-primary">does next.</span></h1>
+
+  const eased = easeOutCubic(fadeProgress);
+  const headlineOpacity = 1 - eased;
+  const headlineTranslate = -HERO_FADE_TRAVEL * eased;
+
+  return (
+    <section className="relative isolate bg-background">
+      {/* Pinned scroll wrapper: the sticky frame holds the headline+mockup
+          in place on screen while the spacer below supplies the extra
+          scroll distance needed for the headline to fade/lift away and
+          reveal the (unmoving) mockup underneath — same structure as
+          treasury.sh's `md:sticky md:top-0` + spacer pattern, verified
+          directly against its live DOM and scroll behavior. */}
+      <div ref={pinRef} className="relative">
+        <div className="md:sticky md:top-0 pt-24 pb-8">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[620px] overflow-hidden">
+            <div className="absolute left-1/2 top-[-330px] h-[620px] w-[min(980px,120vw)] -translate-x-1/2 rounded-full bg-primary/[0.04] blur-[120px]" />
+          </div>
+          <div
+            className="relative z-10 mx-auto max-w-[1080px] px-5 motion-reduce:!opacity-100 motion-reduce:!transform-none"
+            style={{ opacity: headlineOpacity, transform: `translateY(${headlineTranslate}px)` }}
+          >
+            <div className="mx-auto max-w-3xl text-center">
+              <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />Now in private beta
+              </span>
+              <h1 className="mx-auto max-w-[720px] text-[44px] font-medium leading-[1.08] tracking-[-0.02em] sm:text-[58px]" style={display}>Your money, before it happens.</h1>
+              <p className="mx-auto mt-4 max-w-[520px] text-[17px] leading-relaxed text-muted-foreground">
+                Cusp looks days and weeks ahead of your balance, so you see what&apos;s coming instead of finding out the morning of.
+              </p>
+              <div className="mt-8 flex flex-wrap justify-center gap-3">
+                <button onClick={() => navigate(isSignedIn ? "/app/dashboard" : "/sign-up")} className="fs-brand-action inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium">
+                  {isSignedIn ? "Open dashboard" : "Get early access"} <ArrowRight size={15} />
+                </button>
+              </div>
+            </div>
+          </div>
+          {/* Fixed-size frame, matched to treasury.sh's actual hero card
+              dimensions (verified against its live DOM): max-w-6xl inner
+              frame inside a max-w-7xl section, h-[600px] on mobile,
+              aspect-[16/10] from md up. It never scales, fades, or moves —
+              only the headline above it animates as you scroll. */}
+          <div
+            ref={mockupRef}
+            className="relative z-10 mx-auto mt-8 max-w-7xl px-5 will-change-transform sm:mt-9 motion-reduce:!transform-none"
+            style={{
+              marginBottom: mockupLift > 0 ? `${-mockupLift}px` : undefined,
+              transform: `translateY(${-mockupLift * eased}px)`,
+            }}
+          >
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute left-1/2 top-[-34%] h-[650px] w-[min(1240px,106vw)] -translate-x-1/2 rounded-full opacity-90"
+              style={{ background: "radial-gradient(ellipse, rgba(29, 34, 30, 0.12) 0%, rgba(29, 34, 30, 0.04) 44%, transparent 74%)" }}
+            />
+            <div
+              data-hero-frame="cusp-native-v3"
+              className="relative z-10 mx-auto h-[600px] w-full max-w-6xl overflow-hidden rounded-[24px] md:h-auto md:aspect-[16/10]"
+              style={{ boxShadow: "0 28px 80px rgba(29, 34, 30, 0.10)" }}
+            >
+              <HeroDashboard />
+            </div>
+          </div>
         </div>
-        <p className={`mx-auto mt-6 max-w-[620px] text-[17px] leading-relaxed text-muted-foreground transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none ${heroVisible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`} style={{ transitionDelay: "220ms" }}>FlowSight brings your balance, income, bills, and recent activity together to find the days that matter—and give you time to plan.</p>
-        <div className={`mt-8 flex flex-wrap justify-center gap-3 transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none ${heroVisible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`} style={{ transitionDelay: "440ms" }}><Magnetic><button onClick={() => navigate(isSignedIn ? "/app/dashboard" : "/sign-up")} className="fs-brand-action inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium">{isSignedIn ? "Open dashboard" : "Join the Beta"} <ArrowRight size={15} /></button></Magnetic><button onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })} className="fs-interactive rounded-xl border border-border bg-[#FFFDFC] px-6 py-3 text-sm font-medium">See how it works</button></div>
+        {/* Extra scroll runway for the pin — desktop only, matching
+            treasury.sh's mobile fallback of plain (unpinned) document flow. */}
+        <div aria-hidden="true" className="hidden md:block" style={{ height: HERO_PIN_HOLD }} />
       </div>
-    </div>
-    <div ref={expansionRef} className="relative mt-5 h-[980px] overflow-visible px-2 pt-7 sm:h-[760px] sm:px-4 sm:pt-8">
-      <div className="flex items-start justify-center">
-        <div className="relative w-full max-w-[1360px] origin-top motion-reduce:opacity-100" style={{ transform: `translateY(${mockupTranslate}px) scale(${mockupScale})`, opacity: mockupOpacity }}>
-          <LandingDashboardMockup expanded />
-        </div>
-      </div>
-    </div>
-  </section>;
+    </section>
+  );
 }
 
-const flowsightLandingTheme = {
-  "--background": "36 45% 94%",
-  "--foreground": "26 9% 15%",
-  "--card": "20 100% 99%",
-  "--card-foreground": "26 9% 15%",
-  "--primary": "21 46% 50%",
-  "--primary-foreground": "0 0% 100%",
-  "--secondary": "34 39% 89%",
-  "--secondary-foreground": "26 9% 15%",
-  "--muted": "34 39% 89%",
-  "--muted-foreground": "24 8% 35%",
-  "--accent": "21 46% 50%",
-  "--accent-foreground": "0 0% 100%",
-  "--destructive": "350 45% 49%",
-  "--border": "31 29% 80%",
-  "--input": "31 29% 76%",
-  "--ring": "21 46% 50%",
-  "--fs-tint": "#EFE5D8",
-  "--fs-tint-soft": "#F7F2EA",
-  backgroundImage: "linear-gradient(180deg, #FFFAF4 0%, #F7F2EA 48%, #EFE5D8 100%)",
-} as React.CSSProperties;
+function WhyDifferent() {
+  const [comparisonFocus, setComparisonFocus] = useState<"past" | "future">("past");
+  const isFuture = comparisonFocus === "future";
+  return (
+    <Reveal as="section" className="relative px-5 pb-16 pt-8">
+      <div className="mx-auto max-w-5xl text-center">
+        <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>A different kind of money view</p>
+        <h2 className="text-[34px] font-medium leading-[1.1] tracking-tight sm:text-[42px]" style={display}>Review the past. <span className="text-primary">Plan the next move.</span></h2>
+      </div>
+      <div className="mx-auto mt-10 max-w-3xl">
+        <div className="mx-auto mb-5 flex w-fit rounded-full border border-border bg-card p-1 shadow-sm" role="tablist" aria-label="Compare financial views">
+          <button type="button" role="tab" aria-selected={!isFuture} onClick={() => setComparisonFocus("past")} className={`rounded-full px-5 py-2 text-sm transition-colors ${!isFuture ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>Looking back</button>
+          <button type="button" role="tab" aria-selected={isFuture} onClick={() => setComparisonFocus("future")} className={`rounded-full px-5 py-2 text-sm transition-colors ${isFuture ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>Looking ahead</button>
+        </div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div key={comparisonFocus} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }} className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-[0_18px_50px_rgba(0,0,0,0.05)] sm:p-8">
+            <div className={`absolute -right-16 -top-16 h-48 w-48 rounded-full blur-3xl ${isFuture ? "bg-primary/15" : "bg-muted"}`} />
+            <div className="relative flex items-center gap-3"><div className={`flex h-10 w-10 items-center justify-center rounded-xl font-mono text-sm font-medium ${isFuture ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{isFuture ? "→" : "←"}</div><div><p className="text-xs text-muted-foreground">{isFuture ? "Cusp" : "Traditional finance apps"}</p><h3 className="font-medium text-lg">{isFuture ? "Looking ahead" : "Looking back"}</h3></div></div>
+            <p className="relative mt-6 text-sm leading-relaxed text-muted-foreground">{isFuture ? "Cusp shows what the next few weeks may hold—and what to do if money gets tight." : "Most tools organize what already happened. Useful for review, but they can’t tell you if Friday will be tight."}</p>
+            <div className="relative mt-7 grid gap-3 sm:grid-cols-3">{(isFuture ? ["Warns you before the tight day", "Labels confirmed and estimated events", "“$820 safe to spend until the 18th”"] : ["Reports money already spent", "Categories instead of timing", "“$200 spent on dining last month”"]).map((item) => <div key={item} className={`rounded-xl border p-3 text-sm ${isFuture ? "border-primary/25 bg-primary/[0.07] font-medium text-foreground" : "border-border bg-muted/50 text-muted-foreground"}`}>{item}</div>)}</div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </Reveal>
+  );
+}
 
-const faqs = [
-  { question: "Is FlowSight a budgeting app?", answer: "No. FlowSight starts with your balance and known upcoming activity to show how the next 30 days may unfold. You do not need to maintain category budgets." },
-  { question: "Do I need to connect my bank?", answer: "No. You can start with a CSV from your bank or enter your balance, income and bills manually." },
-  { question: "How does FlowSight build the forecast?", answer: "It combines the current balances, transactions, recurring activity and safety buffer you provide. Confirmed and estimated events are labelled separately." },
-  { question: "How is Safe to Spend calculated?", answer: "FlowSight takes the lowest balance in your 30-day forecast and protects the safety buffer you choose. Open Show Your Work to review every included event and assumption." },
-  { question: "Does FlowSight use AI?", answer: "The Phase 1 forecast is deterministic, not an AI guess. It calculates daily balances from the information you provide. Pattern detection may suggest recurring activity, but you review it before it enters your forecast." },
-  { question: "Can I correct an estimate?", answer: "Yes. You can review recurring suggestions and edit or confirm upcoming events as you learn more." },
-  { question: "Can I export or delete my data?", answer: "Yes. FlowSight includes data export and account deletion controls." },
+/* ── Clear / Watch / Tight ── */
+const CONDITION_TABS = ["clear", "watch", "tight"] as const;
+type ConditionKey = (typeof CONDITION_TABS)[number];
+/* Exact wording used by the real Dashboard/Forecast condition banner
+   (components/forecast-view.tsx resultTitle) — kept identical here so the
+   marketing page never says something the product itself wouldn't. */
+const CONDITION_COPY: Record<ConditionKey, { label: string; title: string; detail: string; icon: typeof CircleCheck; iconBg: string; iconText: string }> = {
+  clear: {
+    label: "Clear",
+    title: "You're on track for the next 30 days.",
+    detail: "Your projected balance stays comfortably above your safety buffer through the end of this forecast.",
+    icon: CircleCheck,
+    iconBg: "bg-[oklch(var(--fs-green-bg))]",
+    iconText: "text-[oklch(var(--fs-green))]",
+  },
+  watch: {
+    label: "Watch",
+    title: "Your balance is approaching your safety buffer.",
+    detail: "Rent, an auto loan, and insurance land within three days of each other, five days before your next paycheck.",
+    icon: Eye,
+    iconBg: "bg-[oklch(var(--fs-amber-bg))]",
+    iconText: "text-[oklch(var(--fs-amber))]",
+  },
+  tight: {
+    label: "Tight",
+    title: "Your balance may fall below your safety buffer on August 6.",
+    detail: "Those same bills would leave your balance short of your buffer before it recovers on payday.",
+    icon: AlertTriangle,
+    iconBg: "bg-[oklch(var(--fs-red-bg))]",
+    iconText: "text-[oklch(var(--fs-red))]",
+  },
+};
+
+function ConditionSystem() {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const interval = setInterval(() => {
+      setActiveIndex((current) => (current + 1) % CONDITION_TABS.length);
+    }, 2800);
+    return () => clearInterval(interval);
+  }, []);
+
+  const activeKey = CONDITION_TABS[activeIndex];
+  const copy = CONDITION_COPY[activeKey];
+  const Icon = copy.icon;
+
+  return (
+    <Reveal as="section" className="relative px-5 py-16">
+      <div className="mx-auto grid max-w-5xl gap-12 lg:grid-cols-2 lg:items-center">
+        <div>
+          <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>The state system</p>
+          <h2 className="text-[34px] font-medium leading-[1.15] tracking-tight sm:text-[42px]" style={display}>
+            Know when you&apos;re<br />
+            <span className="relative inline-block h-[1.2em] overflow-hidden align-bottom">
+              <AnimatePresence initial={false}>
+                <motion.span
+                  key={activeKey}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10, position: "absolute" }}
+                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  className={`inline-block whitespace-nowrap rounded-md px-2 ${copy.iconBg} ${copy.iconText}`}
+                >
+                  {copy.label.toLowerCase()}
+                </motion.span>
+              </AnimatePresence>
+            </span>
+            <br />
+            — and when that changes.
+          </h2>
+          <p className="mt-4 max-w-md text-[15px] leading-relaxed text-muted-foreground">
+            Cusp watches your forecast continuously and tells you which of three states you&apos;re in, in plain language, before it becomes a surprise.
+          </p>
+          <p className="mt-8 text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground" style={mono}>See how it decides →</p>
+        </div>
+        <div className="relative min-h-[200px]">
+          <AnimatePresence initial={false}>
+            <motion.div
+              key={activeKey}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12, position: "absolute" }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="absolute inset-x-0 top-0"
+            >
+              <ConditionBanner
+                condition={activeKey}
+                badge={
+                  <span className={`mb-3 inline-flex items-center gap-1.5 rounded-full border border-current/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${copy.iconText}`}>
+                    <Icon size={12} />{copy.label}
+                  </span>
+                }
+              >
+                <h3 className="text-lg font-semibold tracking-tight text-foreground">{copy.title}</h3>
+                <p className="mt-2 text-sm text-foreground/80">{copy.detail}</p>
+              </ConditionBanner>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
+/* ── Forecast section: real native chart + step-by-step + review low point ──
+   Matches the app's own Step by Step numbers: Rent −1650→1090, Auto Loan
+   −410→680, Insurance −180→500, Netflix −18→482, Electricity ~−113→369. */
+const STEP_EVENTS = [
+  { label: "Rent", day: "Aug 4", change: -1650, balance: 1090, estimated: false, icon: House, iconClass: "bg-primary/[0.12] text-primary" },
+  { label: "Auto Loan", day: "Aug 5", change: -410, balance: 680, estimated: false, icon: CarFront, iconClass: "bg-[oklch(var(--fs-amber-bg))] text-[oklch(var(--fs-amber))]" },
+  { label: "Insurance", day: "Aug 6", change: -180, balance: 500, estimated: false, icon: ShieldCheck, iconClass: "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]" },
+  { label: "Netflix", day: "Aug 12", change: -18, balance: 482, estimated: false, icon: Play, iconClass: "bg-[oklch(var(--fs-red-bg))] text-[oklch(var(--fs-red))]" },
+  { label: "Electricity", day: "Aug 15", change: -113, balance: 369, estimated: true, icon: Zap, iconClass: "bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]" },
+] as const;
+
+const FORECAST_CHART_MASTER = [
+  { day: "Jul 24", projected: 2740 },
+  { day: "Jul 29", projected: 2600 },
+  { day: "Aug 4", projected: 1090 },
+  { day: "Aug 5", projected: 680 },
+  { day: "Aug 6", projected: 500 },
+  { day: "Aug 12", projected: 482 },
+  { day: "Aug 15", projected: 369 },
+  { day: "Aug 16", projected: 2769 },
+  { day: "Aug 22", projected: 2610 },
+  { day: "Sep 1", projected: 2450 },
+  { day: "Sep 13", projected: 2300 },
+  { day: "Sep 22", projected: 2700 },
+  { day: "Oct 2", projected: 2550 },
+  { day: "Oct 12", projected: 2400 },
+  { day: "Oct 22", projected: 2650 },
+] as const;
+const FORECAST_HORIZON_CUTOFF: Record<30 | 60 | 90, string> = { 30: "Aug 22", 60: "Sep 22", 90: "Oct 22" };
+
+type ForecastMode = "forecast" | "steps" | "lowpoint";
+const FORECAST_MODES = [
+  { key: "forecast" as const, label: "Forecast", icon: TrendingUp, activeClass: "bg-primary/[0.11] text-primary ring-primary/20" },
+  { key: "steps" as const, label: "Step by Step", icon: ListTree, activeClass: "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))] ring-[oklch(var(--fs-green))]/20" },
+  { key: "lowpoint" as const, label: "Low Point", icon: ArrowDownToLine, activeClass: "bg-[oklch(var(--fs-red-bg))] text-[oklch(var(--fs-red))] ring-[oklch(var(--fs-red))]/20" },
 ];
+
+const ledgerContainer = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.09 } },
+};
+const ledgerRow = {
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const } },
+};
+
+function EstimatedTag() {
+  return <span className="inline-flex items-center gap-1 rounded-full border border-[oklch(var(--fs-estimate))]/20 bg-[oklch(var(--fs-estimate-bg))] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[oklch(var(--fs-estimate))]"><Zap size={9} />Estimated</span>;
+}
+
+function ConfirmedTag() {
+  return <span className="inline-flex items-center gap-1 rounded-full border border-[oklch(var(--fs-green))]/20 bg-[oklch(var(--fs-green-bg))] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[oklch(var(--fs-green))]"><CircleCheck size={9} />Confirmed</span>;
+}
+
+function ForecastSection() {
+  const [horizon, setHorizon] = useState<30 | 60 | 90>(30);
+  const [mode, setMode] = useState<ForecastMode>("forecast");
+  const cutoffIndex = FORECAST_CHART_MASTER.findIndex((point) => point.day === FORECAST_HORIZON_CUTOFF[horizon]);
+  const chartData = FORECAST_CHART_MASTER.slice(0, cutoffIndex + 1);
+  const additionalDays = horizon - 30;
+
+  const stepRows = STEP_EVENTS.reduce<Array<(typeof STEP_EVENTS)[number] & { runningBalance: number }>>((rows, event) => {
+    const previousBalance = rows.at(-1)?.runningBalance ?? 2740;
+    return [...rows, { ...event, runningBalance: previousBalance + event.change }];
+  }, []);
+
+  const [cardRef, cardInView] = useInView<HTMLDivElement>(0.25);
+
+  return (
+    <Reveal as="section" className="relative overflow-hidden border-y border-border px-5 py-16" style={{ backgroundColor: "#F5F7F6" }}>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(circle at 18% 28%, oklch(var(--fs-green) / 0.10), transparent 27%), radial-gradient(circle at 82% 72%, oklch(var(--fs-red) / 0.09), transparent 28%), radial-gradient(circle at 50% 58%, oklch(var(--fs-amber) / 0.10), transparent 38%)" }} />
+      <div className="relative z-10 mx-auto max-w-2xl text-center">
+        <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>One real forecast</p>
+        <h2 className="text-[32px] font-medium leading-[1.1] tracking-tight sm:text-[40px]" style={display}>See the pressure <span className="text-primary">before it arrives.</span></h2>
+        <p className="mx-auto mt-5 max-w-xl text-[16px] leading-relaxed text-muted-foreground">What happens, why it happens, and the exact day behind it — one forecast, inspected three ways.</p>
+      </div>
+
+      <div ref={cardRef} className="relative z-10 mx-auto mt-14 max-w-2xl rounded-[24px] border border-border bg-card p-6 shadow-[0_24px_70px_rgba(0,0,0,0.06)] sm:p-8">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold">Your {horizon}-day forecast</h3>
+            <span className="mt-2 inline-flex items-center rounded-full bg-[oklch(var(--fs-red-bg))] px-2.5 py-1 text-[10px] font-medium text-[oklch(var(--fs-red))]">Tight · Below buffer</span>
+          </div>
+          {mode === "forecast" && (
+            <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5">
+              {([30, 60, 90] as const).map((option) => (
+                <button key={option} type="button" onClick={() => setHorizon(option)} className={`rounded-md px-2.5 py-1.5 text-[11px] font-mono transition-colors duration-200 ${horizon === option ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{option}d</button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-5 inline-flex w-full rounded-xl border border-border bg-muted/40 p-1" role="tablist" aria-label="Inspect this forecast">
+          {FORECAST_MODES.map((item) => (
+            <button key={item.key} type="button" role="tab" aria-selected={mode === item.key} onClick={() => setMode(item.key)} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium ring-1 ring-transparent transition-colors duration-200 ${mode === item.key ? `${item.activeClass} shadow-sm` : "text-muted-foreground hover:bg-card/70 hover:text-foreground"}`}><item.icon size={13} />{item.label}</button>
+          ))}
+        </div>
+
+        <div className="relative mt-4 min-h-[260px]">
+          <AnimatePresence mode="wait" initial={false}>
+            {mode === "forecast" && (
+              <motion.div key="forecast" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
+                <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-1.5"><span className="inline-block h-0 w-4 border-t-2 border-primary" />Forecast</span>
+                  <span className="flex items-center gap-1.5"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[oklch(var(--fs-amber))]" />Today</span>
+                  <span className="flex items-center gap-1.5"><span className="inline-block h-0 w-4 border-t border-dashed border-[oklch(var(--fs-amber))]" />Safety buffer</span>
+                </div>
+                <div className="mt-2 h-[200px]">
+                  {cardInView && <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={[...chartData]} margin={{ top: 16, right: 8, left: -18, bottom: 0 }}>
+                      <XAxis dataKey="day" tick={{ fontSize: 9, fill: "#8a8f8b" }} tickLine={false} axisLine={false} interval={Math.max(1, Math.floor(chartData.length / 6))} />
+                      <YAxis tick={{ fontSize: 9, fill: "#8a8f8b" }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v / 1000}k`} />
+                      <Tooltip content={<ScenarioTooltip />} cursor={{ stroke: "#BB6C43", strokeWidth: 1, strokeDasharray: "3 3", opacity: 0.5 }} isAnimationActive={false} />
+                      <ReferenceLine x="Jul 24" stroke="#c78a3a" strokeDasharray="4 3" strokeWidth={1.25} />
+                      <ReferenceLine y={750} stroke="#c78a3a" strokeDasharray="5 4" strokeWidth={1.1} />
+                      <Area type="monotone" dataKey="projected" stroke="#BB6C43" strokeWidth={2.25} fill="#BB6C4314" dot={false} isAnimationActive animationDuration={900} animationEasing="ease-out" connectNulls={false} />
+                      <ReferenceDot x="Aug 15" y={369} r={5} fill="oklch(var(--fs-red))" stroke="#fff" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>}
+                </div>
+                <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
+                  <span className="text-muted-foreground">Projected low</span>
+                  <span className="font-mono font-semibold text-foreground">$369 · Aug 15</span>
+                </div>
+                {additionalDays > 0 && <p className="mt-1 text-xs text-muted-foreground">No lower point appears in the additional {additionalDays} days.</p>}
+              </motion.div>
+            )}
+
+            {mode === "steps" && (
+              <motion.div key="steps" variants={ledgerContainer} initial="hidden" animate="show" exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                <motion.div variants={ledgerRow} className="flex items-center justify-between rounded-xl bg-foreground/[0.035] px-3 py-2.5 text-sm">
+                  <span className="flex items-center gap-2.5 font-medium text-foreground"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground/[0.08] text-foreground"><WalletCards size={15} /></span>Opening balance</span>
+                  <span className="font-mono font-semibold text-foreground">$2,740</span>
+                </motion.div>
+                {stepRows.map((row) => (
+                  <motion.div key={row.label} variants={ledgerRow} className="group flex items-center justify-between border-b border-border/60 px-1 py-2.5 text-sm last:border-0 hover:bg-muted/35">
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${row.iconClass}`}><row.icon size={15} /></span>
+                      <span className="min-w-0"><span className="flex flex-wrap items-center gap-1.5 font-medium text-foreground">{row.label}{row.estimated ? <EstimatedTag /> : <ConfirmedTag />}</span><span className="mt-0.5 block text-[10px] text-muted-foreground">{row.day}</span></span>
+                    </span>
+                    <span className="flex shrink-0 items-baseline gap-3 font-mono">
+                      <span className="text-muted-foreground">{row.estimated ? "~" : ""}−${Math.abs(row.change).toLocaleString()}</span>
+                      <span className="font-semibold text-foreground">${row.runningBalance.toLocaleString()}</span>
+                    </span>
+                  </motion.div>
+                ))}
+                <p className="mt-4 text-xs text-muted-foreground">Every step reconciles to $369 on August 15.</p>
+              </motion.div>
+            )}
+
+            {mode === "lowpoint" && (
+              <motion.div key="lowpoint" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} className="mx-auto max-w-sm py-4 text-center">
+                <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground" style={mono}>August 15</p>
+                <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-muted/30 px-4 py-3 text-left text-sm">
+                  <span className="inline-flex items-center gap-1.5 font-medium text-foreground">Electricity<EstimatedTag /></span>
+                  <span className="font-mono">~−$113</span>
+                </div>
+                <p className="mt-4 text-sm leading-relaxed text-muted-foreground">Only Electricity lands on this day. The running balance from every earlier step is what brings the forecast down to <span className="font-semibold text-foreground">$369</span>.</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <p className="mt-4 text-center text-xs text-muted-foreground">One forecast. Three ways to inspect it.</p>
+      </div>
+    </Reveal>
+  );
+}
+
+/* ── How Cusp Knows: Recognizes / Matches / Projects / Explains ── */
+/* ── Each mechanic gets a small native-feeling demo of the real product
+   behavior, resolving in only once its card scrolls into view. ── */
+/* Mirrors the real CSV-import "New patterns" review list (csv-import-panel.tsx). */
+function RecognizesDemo({ inView }: { inView: boolean }) {
+  const activity = [
+    { date: "May 1", amount: "−$1,650" },
+    { date: "Jun 1", amount: "−$1,650" },
+  ] as const;
+  return (
+    <div className={`mt-4 overflow-hidden rounded-2xl border border-border bg-card shadow-[0_10px_26px_rgba(58,49,42,0.05)] transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none ${inView ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}`}>
+      <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/35 px-4 py-2">
+        <div><p className="text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground">Activity found</p><p className="mt-0.5 text-sm font-semibold text-foreground">Parkview Rent</p></div>
+        <span className="rounded-full bg-primary/[0.09] px-2.5 py-1 text-[10px] font-medium text-primary">Monthly pattern</span>
+      </div>
+      <div className="space-y-1.5 p-2">
+        {activity.map((item, index) => (
+          <div key={item.date} className={`flex items-center justify-between rounded-xl border border-border/80 bg-background px-3 py-2 text-xs transition-[opacity,transform] duration-400 ${inView ? "translate-x-0 opacity-100" : "translate-x-2 opacity-0"}`} style={{ transitionDelay: `${120 + index * 110}ms` }}>
+            <span className="text-muted-foreground">{item.date} · <span className="font-medium text-foreground">Parkview Rent</span></span><span className="font-mono text-foreground">{item.amount}</span>
+          </div>
+        ))}
+      </div>
+      <div className={`mx-2 mb-2 flex items-center justify-between rounded-xl border border-[oklch(var(--fs-green))]/20 bg-[oklch(var(--fs-green-bg))] px-3 py-2 transition-[opacity,transform] duration-500 ${inView ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}`} style={{ transitionDelay: "390ms" }}><div><p className="text-sm font-medium text-foreground">Rent · next Aug 1</p><p className="mt-0.5 text-[10px] text-muted-foreground">Stable amount and timing</p></div><div className="text-right"><span className="rounded-full bg-card px-2 py-0.5 text-[9px] font-medium text-[oklch(var(--fs-green))]">Confirmed</span><p className="mt-1 font-mono text-sm text-foreground">−$1,650</p></div></div>
+    </div>
+  );
+}
+
+function MatchesDemo({ inView }: { inView: boolean }) {
+  return (
+    <div className="mt-4 rounded-2xl border border-border bg-card p-4 shadow-[0_10px_26px_rgba(58,49,42,0.05)]">
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+        <div className={`rounded-xl border p-3 transition-colors duration-300 ${inView ? "border-[oklch(var(--fs-transfer))]/30 bg-[oklch(var(--fs-transfer-bg))]" : "border-border bg-background"}`}><p className="text-[10px] text-muted-foreground">Everyday checking · Jul 12</p><p className="mt-1.5 text-xs font-medium">Payment to Northstar Visa</p><p className="mt-3 font-mono text-sm">−$190</p></div>
+        <span className="relative inline-flex h-7 w-10 shrink-0 items-center justify-center text-[oklch(var(--fs-transfer))]" aria-hidden="true">
+          <svg viewBox="0 0 40 18" className="absolute inset-0 h-full w-full overflow-visible">
+            <path className={inView ? "fs-transfer-link-path" : ""} d="M2 9 C11 2 29 16 38 9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" pathLength="1" style={{ opacity: inView ? 1 : 0 }} />
+          </svg>
+          {!inView && <ArrowRight size={15} className="text-muted-foreground" />}
+        </span>
+        <div className={`rounded-xl border p-3 transition-colors duration-300 ${inView ? "border-[oklch(var(--fs-transfer))]/30 bg-[oklch(var(--fs-transfer-bg))]" : "border-border bg-background"}`}><p className="text-[10px] text-muted-foreground">Northstar Visa · Jul 13</p><p className="mt-1.5 text-xs font-medium">Payment received</p><p className="mt-3 font-mono text-sm">+$190</p></div>
+      </div>
+      <div className={`mt-3 flex items-center gap-1.5 text-xs font-medium text-[oklch(var(--fs-transfer))] transition-opacity duration-500 ${inView ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: "480ms" }}><Link2 size={14} />Strong match · linked as a transfer</div>
+    </div>
+  );
+}
+
+/* Mirrors the real "Credit card cash timing" card payment estimate row
+   (forecast-view.tsx), using the app's actual strategy label wording. */
+function ProjectsDemo({ inView }: { inView: boolean }) {
+  const charges = [["Market Basket", "−$60"], ["Trader Joe's", "−$30"], ["Netflix", "−$18"]] as const;
+  return (
+    <div className={`mt-4 rounded-2xl border border-border bg-card p-4 text-sm shadow-[0_10px_26px_rgba(58,49,42,0.05)] transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none ${inView ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}`}>
+      <div className="grid grid-cols-3 gap-2 border-b border-border pb-3">
+        {charges.map(([name, amount], index) => <div key={name} className={`rounded-lg border border-border bg-background px-2 py-2.5 text-center transition-[opacity,transform] duration-400 ${inView ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}`} style={{ transitionDelay: `${100 + index * 110}ms` }}><p className="truncate text-[9px] text-muted-foreground">{name}</p><p className="mt-1.5 font-mono text-[11px] text-foreground">{amount}</p></div>)}
+      </div>
+      <div className={`mt-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[0.06] p-3 transition-[opacity,transform] duration-500 ${inView ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}`} style={{ transitionDelay: "480ms" }}><div><p className="text-xs font-medium text-foreground">Estimated card payment</p><p className="mt-0.5 text-[10px] text-muted-foreground">Due Sep 3 · based on charges so far</p></div><div className="text-right"><span className="rounded-full bg-card px-1.5 py-0.5 text-[9px] text-primary">Estimated</span><p className="mt-1 font-mono text-sm text-foreground">−$340</p></div></div>
+    </div>
+  );
+}
+
+function ExplainsDemo({ inView }: { inView: boolean }) {
+  return (
+    <div className={`mt-4 rounded-2xl border border-border bg-card p-3 shadow-[0_10px_26px_rgba(58,49,42,0.05)] transition-opacity duration-500 ${inView ? "opacity-100" : "opacity-0"}`}>
+      <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-3 text-sm">
+        <div><span className="text-foreground">Rent</span><p className="mt-0.5 text-[10px] text-muted-foreground">6 occurrences · same amount</p></div>
+        <div className="text-right"><span className="rounded-full bg-[oklch(var(--fs-green-bg))] px-1.5 py-0.5 text-[9px] text-[oklch(var(--fs-green))]">Confirmed</span><p className="mt-1 font-mono text-foreground">−$1,650</p></div>
+      </div>
+      <div className="mt-2 flex items-center justify-between rounded-xl border border-dashed border-[oklch(var(--fs-estimate))]/45 bg-[oklch(var(--fs-estimate-bg))] px-3 py-3 text-sm">
+        <div><span className="text-foreground">Electricity</span><p className="mt-0.5 text-[10px] text-muted-foreground">6 occurrences · $84–$139</p></div>
+        <div className="text-right"><span className="rounded-full bg-card px-1.5 py-0.5 text-[9px] text-[oklch(var(--fs-estimate))]">Estimated</span><p className="mt-1 font-mono text-[oklch(var(--fs-estimate))]">~−$113</p></div>
+      </div>
+      <p className="px-1 pt-3 text-[11px] leading-relaxed text-muted-foreground">The forecast always shows which numbers are known and which still carry a range.</p>
+    </div>
+  );
+}
+
+const mechanics = [
+  {
+    eyebrow: "Recognizes",
+    title: "Repeated activity becomes something useful.",
+    body: "Cusp groups repeated transactions, checks timing and amount, and asks you to confirm before anything enters the forecast.",
+    demo: RecognizesDemo,
+  },
+  {
+    eyebrow: "Matches",
+    title: "The same money is not counted twice.",
+    body: "Money moved between your own accounts is linked instead of being counted as new income or a second expense.",
+    demo: MatchesDemo,
+  },
+  {
+    eyebrow: "Projects",
+    title: "Purchases explain spending. The due date explains cash.",
+    body: "Cusp places one estimated card payment on checking rather than projecting every card purchase independently.",
+    demo: ProjectsDemo,
+  },
+  {
+    eyebrow: "Explains",
+    title: "Confirmed and estimated never look the same.",
+    body: "They are not equally certain, so they don't look equally certain. Evidence stays visible behind every number — what caused the forecast is always one click away.",
+    demo: ExplainsDemo,
+  },
+] as const;
+
+function MechanicCard({ eyebrow, title, body, demo: Demo, className = "" }: {
+  eyebrow: string;
+  title: string;
+  body: string;
+  demo: (props: { inView: boolean }) => React.ReactNode;
+  className?: string;
+}) {
+  const [ref, inView] = useInView<HTMLDivElement>(0.35);
+  return (
+    <div ref={ref} className={`rounded-2xl border border-border bg-card p-4 sm:p-5 md:h-full ${className}`}>
+      <p className="text-[11px] uppercase tracking-[0.15em] text-primary" style={mono}>{eyebrow}</p>
+      <h3 className="mt-2 text-lg font-medium leading-snug">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
+      <Demo inView={inView} />
+    </div>
+  );
+}
+
+function HowCuspKnows() {
+  return (
+    <Reveal as="section" className="relative px-5 py-16" id="features">
+      <div className="relative mx-auto mb-12 max-w-3xl text-center">
+        <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>What your forecast already knows</p>
+        <h2 className="text-[36px] font-medium leading-[1.1] tracking-tight sm:text-[44px]" style={display}>The work happens quietly.<br />The assumptions stay <span className="text-primary">visible.</span></h2>
+        <p className="mx-auto mt-5 max-w-2xl text-[16px] leading-relaxed text-muted-foreground">Cusp finds the shape in your activity, then makes every useful assumption available for you to inspect.</p>
+      </div>
+      <div className="relative mx-auto grid max-w-6xl gap-4 md:auto-rows-[404px] md:grid-cols-2">
+        {mechanics.map((mechanic, index) => <MechanicCard key={mechanic.eyebrow} {...mechanic} className={index % 2 === 0 ? "bg-card" : "bg-card/85"} />)}
+      </div>
+    </Reveal>
+  );
+}
+
+/* ── Editorial Pause ── */
+function EditorialPause() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const node = rootRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      setVisible(true);
+      observer.disconnect();
+    }, { threshold: 0.5 });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div ref={rootRef} className="px-5 py-8 text-center">
+      <p className={`mx-auto max-w-2xl text-[32px] font-medium leading-[1.3] tracking-tight transition-[opacity,filter] duration-1000 ease-out motion-reduce:transition-none sm:text-[42px] ${visible ? "opacity-100 blur-0" : "opacity-0 blur-[4px]"}`} style={display}>
+        You don&apos;t discover the future. You arrive in it.
+      </p>
+    </div>
+  );
+}
 
 const scenarios = [
   { label: "No purchase", amount: 0 },
   { label: "Weekend trip ($480)", amount: 480 },
-  { label: "New iPhone ($1,099)", amount: 1099 },
+  { label: "New laptop ($1,999)", amount: 1999 },
   { label: "MacBook Pro ($2,499)", amount: 2499 },
 ];
 
@@ -323,20 +764,19 @@ const generateScenarioData = (amount: number, moveToRecommendedDate = false) => 
 ];
 
 const trustItems = [
-  { icon: Lock, title: "No bank connection required", desc: "Start with a CSV or enter your essentials manually. Bank connectivity is a future Premium option." },
-  { icon: Shield, title: "You stay in control", desc: "Review what enters your forecast, download a copy of your data, or remove your financial information from FlowSight." },
+  { icon: Unplug, title: "No bank connection required", desc: "Start with a CSV or enter your essentials manually. Bank connectivity may become an option later, but is not required to use Cusp." },
+  { icon: ShieldCheck, title: "You stay in control", desc: "Review information before it enters the forecast. Download or remove data at any time." },
+  { icon: Eye, title: "Evidence stays visible", desc: "Nothing enters the forecast as a silent guess. Confirmed and estimated items remain visibly distinct." },
 ];
 
-const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; name: string }>; label?: string }) => {
-  if (!active || !payload?.length) return null;
-  const value = payload[0]?.value ?? payload[1]?.value;
-  return (
-    <div className="bg-card border border-border rounded-xl px-3 py-2 text-xs shadow-2xl">
-      <p className="text-muted-foreground mb-1">{label}</p>
-      <p className="text-foreground font-semibold" style={mono}>${value?.toLocaleString()}</p>
-    </div>
-  );
-};
+const faqs = [
+  { question: "What do Clear, Watch and Tight mean?", answer: "They're the three states Cusp uses to describe your forecast. Clear means your forecast is comfortably on track. Watch means something ahead deserves attention. Tight means your projected balance crosses your safety buffer before it recovers." },
+  { question: "Is Cusp a budgeting app?", answer: "No. Cusp does not set spending limits or organize the experience around categories. It projects the balance forward and identifies the day it runs lowest so that day can be planned around rather than discovered." },
+  { question: "How does the forecast work?", answer: "It combines the current balances, transactions, recurring activity and safety buffer you provide. Confirmed and estimated events are labelled separately." },
+  { question: "How is Safe to Spend calculated?", answer: "Cusp takes the lowest balance in your 30-day forecast and protects the safety buffer you choose." },
+  { question: "Do I need to connect my bank?", answer: "No. You can start with a CSV from your bank or enter your balance, income and bills manually." },
+  { question: "Can I export/delete my data?", answer: "Yes. Cusp includes data export and account deletion controls." },
+];
 
 function ScenarioTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value?: number; dataKey?: string; color?: string }>; label?: string }) {
   if (!active || !payload?.length) return null;
@@ -347,7 +787,7 @@ function ScenarioTooltip({ active, payload, label }: { active?: boolean; payload
   const baseline = values.find((item) => item.dataKey === "baseline");
   const primary = projected ?? recorded ?? baseline;
   if (typeof primary?.value !== "number") return null;
-  return <div className="min-w-[130px] rounded-xl border border-[#DCCBBA] bg-[#FFFDFC]/95 px-3 py-2.5 shadow-[0_12px_30px_rgba(74,65,60,0.12)] backdrop-blur-sm">
+  return <div className="min-w-[130px] rounded-xl border border-border bg-card/95 px-3 py-2.5 shadow-[0_12px_30px_rgba(0,0,0,0.10)] backdrop-blur-sm">
     <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground" style={mono}>{label}</p>
     <p className="mt-1 text-sm font-medium text-foreground" style={mono}>${primary.value.toLocaleString()}</p>
     <p className="mt-1 text-[9px] text-muted-foreground">{recorded ? "Recorded balance" : "Projected balance"}</p>
@@ -355,260 +795,73 @@ function ScenarioTooltip({ active, payload, label }: { active?: boolean; payload
   </div>;
 }
 
-const ahaStories = [
-  {
-    label: "Tight week",
-    eyebrow: "Five days of warning",
-    primary: 420,
-    secondary: 5,
-    headline: "on August 3.",
-    accent: "Payday is five days away.",
-    body: "Rent, insurance, and your car payment all land in the same week.",
-    note: "FlowSight shows you the squeeze while there is still time to respond.",
-    condition: "Watch · Aug 3",
-    conditionTone: "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]",
-    balances: [5500, 5200, 5100, 4200, 2600, 1800, 420, 2820, 2610, 2450, 2300, 2180],
-    events: [
-      { label: "Rent", date: "Aug 1", amount: "−$1,650", point: 4 },
-      { label: "Insurance", date: "Aug 3", amount: "−$180", point: 6 },
-      { label: "Car payment", date: "Aug 3", amount: "−$410", point: 6 },
-    ],
-    kind: "tight" as const,
-  },
-  {
-    label: "Safer month",
-    eyebrow: "Room to decide",
-    primary: 820,
-    secondary: 0,
-    headline: "safe to spend.",
-    accent: "No below-buffer days ahead.",
-    body: "Known bills stay covered and your lowest projected balance remains above the amount you want protected.",
-    note: "FlowSight turns the whole month into one usable decision number.",
-    condition: "Clear · through Aug 20",
-    conditionTone: "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]",
-    balances: [5500, 5320, 5160, 4980, 4620, 4380, 4200, 6600, 6280, 6010, 5780, 5600],
-    events: [
-      { label: "Rent covered", date: "Aug 1", amount: "−$1,650", point: 4 },
-      { label: "Paycheck", date: "Aug 5", amount: "+$2,400", point: 7 },
-      { label: "Buffer protected", date: "All month", amount: "$500", point: 6 },
-    ],
-    kind: "clear" as const,
-  },
-  {
-    label: "Irregular income",
-    eyebrow: "A range, not one guess",
-    primary: 220,
-    secondary: 1460,
-    headline: "possible range.",
-    accent: "Invoice timing sets the low.",
-    body: "Your salary covers the known bills. The range changes mainly with when the Acme invoice arrives.",
-    note: "Confirmed income stays fixed; uncertain payments remain visibly estimated.",
-    condition: "Estimated · invoice timing",
-    conditionTone: "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]",
-    balances: [3900, 3760, 3540, 3320, 2940, 2720, 220, 1460, 1240, 1160, 980, 910],
-    events: [
-      { label: "Salary", date: "Regular", amount: "+$1,950", point: 3 },
-      { label: "Acme invoice", date: "Aug 4–12", amount: "~+$1,240", point: 7 },
-      { label: "Client deposit", date: "Possible", amount: "~+$600", point: 9 },
-    ],
-    kind: "irregular" as const,
-  },
-];
+/* ── Scenario Planner: the second hero, richest interaction on the page ── */
+function ScenarioPlanner({ scenario, setScenario, scenarioUsesRecommendedDate, setScenarioUsesRecommendedDate }: {
+  scenario: number; setScenario: (n: number) => void;
+  scenarioUsesRecommendedDate: boolean; setScenarioUsesRecommendedDate: (fn: (v: boolean) => boolean) => void;
+}) {
+  const scenarioData = generateScenarioData(scenarios[scenario].amount, scenarioUsesRecommendedDate);
+  const projectedBalances = scenarioData.flatMap((point) => typeof point.projected === "number" ? [point.projected] : []);
+  const lowestProjectedBalance = Math.min(...projectedBalances);
+  const safeToSpend = Math.max(0, lowestProjectedBalance - 500);
+  const scenarioLowPoint = scenarioData.reduce<{ day: string; value: number } | null>((lowest, point) => {
+    if (typeof point.projected !== "number") return lowest;
+    return !lowest || point.projected < lowest.value ? { day: point.day, value: point.projected } : lowest;
+  }, null);
+  const scenarioCondition = safeToSpend < 500
+    ? { label: "Tight", condition: "tight" as const, className: "bg-[oklch(var(--fs-red-bg))] text-[oklch(var(--fs-red))]" }
+    : safeToSpend < 1000
+      ? { label: "Watch", condition: "watch" as const, className: "bg-[oklch(var(--fs-amber-bg))] text-[oklch(var(--fs-amber))]" }
+      : { label: scenario === 0 ? "Baseline" : "Clear", condition: scenario === 0 ? "update_needed" as const : "clear" as const, className: "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]" };
 
-function AhaConditionBadge({ activeStory }: { activeStory: number }) {
-  return <span className="relative grid shrink-0" aria-live="polite">{ahaStories.map((story, index) => <span key={story.condition} aria-hidden={activeStory !== index} className={`col-start-1 row-start-1 rounded-full px-3 py-1.5 text-xs font-medium transition-[opacity,transform] ease-out motion-reduce:transition-none ${story.conditionTone} ${activeStory === index ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-1 opacity-0"}`} style={{ transitionDuration: `${AHA_MOTION.badgeMs}ms` }}>{story.condition}</span>)}</span>;
-}
-
-function ForecastStoryChart({ activeStory, onStoryChange }: { activeStory: number; onStoryChange: (story: number) => void }) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const story = ahaStories[activeStory];
-  const [animatedBalances, setAnimatedBalances] = useState<number[]>(ahaStories[0].balances);
-  const animatedBalancesRef = useRef<number[]>(ahaStories[0].balances);
-  const width = 600;
-  const height = 170;
-  const top = 16;
-  const bottom = 24;
-  const maxBalance = 7000;
-  const points = animatedBalances.map((balance, index) => ({
-    x: (index / (animatedBalances.length - 1)) * width,
-    y: top + (1 - balance / maxBalance) * (height - top - bottom),
-    date: `Day ${index * 3 + 1}`,
-    balance,
-  }));
-  const lowIndex = animatedBalances.indexOf(Math.min(...animatedBalances));
-  const lowPoint = points[lowIndex];
-  const eventPoints = story.events.map((event, index, events) => {
-    const matches = events.filter((candidate) => candidate.point === event.point);
-    const matchIndex = matches.findIndex((candidate) => candidate.label === event.label);
-    const offset = matches.length > 1 ? (matchIndex - (matches.length - 1) / 2) * 16 : 0;
-    return { ...event, x: points[event.point].x + offset, y: points[event.point].y };
-  });
-  const linePath = points.map((point, index) => `${index ? "L" : "M"}${point.x},${point.y}`).join(" ");
-  const areaPath = `${points.map((point, index) => `${index ? "L" : "M"}${point.x},${point.y}`).join(" ")} L${width},${height - bottom} L0,${height - bottom} Z`;
-  const bufferY = top + (1 - 500 / maxBalance) * (height - top - bottom);
-  const hovered = hoveredIndex === null ? null : points[hoveredIndex];
-
-  useEffect(() => {
-    const node = rootRef.current;
-    if (!node) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      const frame = window.requestAnimationFrame(() => setVisible(true));
-      return () => window.cancelAnimationFrame(frame);
-    }
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) return;
-      setVisible(true);
-      observer.disconnect();
-    }, { threshold: 0.35 });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const target = story.balances;
-    const from = animatedBalancesRef.current;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      animatedBalancesRef.current = target;
-      const reducedMotionFrame = window.requestAnimationFrame(() => setAnimatedBalances(target));
-      return () => window.cancelAnimationFrame(reducedMotionFrame);
-    }
-    let frame = 0;
-    const started = performance.now();
-    const tick = (now: number) => {
-      const progress = Math.min(1, (now - started) / AHA_MOTION.morphMs);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const next = target.map((value, index) => from[index] + (value - from[index]) * eased);
-      animatedBalancesRef.current = next;
-      setAnimatedBalances(next);
-      if (progress < 1) frame = window.requestAnimationFrame(tick);
-    };
-    frame = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frame);
-  }, [story]);
-
-  return <div ref={rootRef}>
-    <div className="relative flex flex-wrap items-center justify-between gap-3 mb-4"><div><p className="text-xs text-muted-foreground">Example forecast</p><p className="font-medium">Today → next 30 days</p></div><AhaConditionBadge activeStory={activeStory} /></div>
-    <div className="relative h-[190px]" aria-label={`${story.label} example forecast`}>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible" role="img">
-        <defs><linearGradient id="storyArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#BB6C43" stopOpacity=".18" /><stop offset="100%" stopColor="#BB6C43" stopOpacity=".01" /></linearGradient></defs>
-        {[.25, .5, .75].map((position) => <line key={position} x1="0" y1={top + (height - top - bottom) * position} x2={width} y2={top + (height - top - bottom) * position} stroke="#DCCBBA" strokeWidth="1" opacity=".55" />)}
-        <path d={areaPath} fill="url(#storyArea)" className={`transition-opacity duration-500 ${visible ? "opacity-100" : "opacity-0"}`} />
-        <line x1="0" y1={top} x2="0" y2={height - bottom} stroke="#625852" strokeDasharray="4 4" opacity=".55" /><text x="7" y="14" fill="#625852" fontSize="10">Today</text>
-        <line x1="0" y1={bufferY} x2={width} y2={bufferY} stroke="#CA8A04" strokeDasharray="6 5" opacity=".8" /><text x="6" y={bufferY - 7} fill="#CA8A04" fontSize="10">$500 safety buffer</text>
-        <path d={linePath} fill="none" stroke="#BB6C43" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" pathLength="1" strokeDasharray="1" strokeDashoffset={visible ? 0 : 1} className="transition-[stroke-dashoffset] duration-1000 ease-out" />
-        {eventPoints.map((event, index) => <g key={event.label}><line x1={event.x} y1={event.y + 7} x2={event.x} y2={height - bottom} stroke={event.amount.startsWith("+") ? "#2D7A55" : "#BB6C43"} strokeWidth="1.25" strokeDasharray="3 3" opacity=".48" /><circle cx={event.x} cy={event.y} r="7" fill={event.amount.startsWith("+") ? "#2D7A55" : "#BB6C43"} stroke="#FFFDFC" strokeWidth="2" /><text x={event.x} y={event.y + 2.7} fill="white" fontSize="7.5" fontWeight="600" textAnchor="middle">{index + 1}</text></g>)}
-        <circle cx={lowPoint.x} cy={lowPoint.y} r="5" fill="#B7791F" stroke="white" strokeWidth="2.5" className={visible ? "fs-low-pulse" : "opacity-0"} />
-        {points.map((point, index) => <circle key={point.date} cx={point.x} cy={point.y} r="10" fill="transparent" className="cursor-crosshair" onMouseEnter={() => setHoveredIndex(index)} onMouseLeave={() => setHoveredIndex(null)} tabIndex={0} onFocus={() => setHoveredIndex(index)} onBlur={() => setHoveredIndex(null)} aria-label={`${point.date}: $${point.balance.toLocaleString()} projected balance`} />)}
-      </svg>
-      {hovered && <div className="pointer-events-none absolute z-10 rounded-xl border border-[#DCCBBA] bg-[#FFFDFC] px-3 py-2 text-xs shadow-lg" style={{ left: `${Math.min(88, Math.max(4, hovered.x / width * 100))}%`, top: `${Math.max(2, hovered.y / height * 100 - 14)}%`, transform: "translateX(-50%)" }}><p className="text-[#625852]">{hovered.date}</p><p className="font-medium text-[#292522] mt-0.5" style={mono}>${hovered.balance.toLocaleString()}</p>{hoveredIndex === lowIndex && <p className="mt-1 text-[hsl(var(--fs-amber))]">Lowest projected point</p>}</div>}
-    </div>
-    <p className="mt-3 text-[10px] uppercase tracking-[0.14em] text-muted-foreground" style={mono}>What creates this forecast</p>
-    <div key={`events-${activeStory}`} className="relative mt-2 grid min-h-[76px] gap-2 sm:grid-cols-3">{story.events.map((event, index) => <button type="button" key={event.label} onClick={() => setHoveredIndex(event.point)} className={`rounded-xl border border-l-2 bg-[#FFFDFC] p-3 text-left transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 ${event.amount.startsWith("+") ? "border-l-[#2D8B5A]" : "border-l-primary"} ${story.kind === "irregular" && index > 0 ? "border-dashed border-[hsl(var(--fs-amber))]/35" : "border-[#DCCBBA]"}`} style={{ animationDelay: `${index * AHA_MOTION.chipStaggerMs}ms`, animationDuration: `${AHA_MOTION.copyMs}ms`, animationFillMode: "both" }}><div className="flex items-center gap-2 text-xs"><span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-white ${event.amount.startsWith("+") ? "bg-[hsl(var(--fs-green))]" : "bg-primary"}`}>{index + 1}</span><span className="min-w-0 flex-1 truncate font-medium">{event.label}</span><span style={mono}>{event.amount}</span></div><p className="pl-7 text-[10px] text-muted-foreground mt-1">{event.date} · {story.kind === "irregular" && index > 0 ? "estimated" : "confirmed"}</p></button>)}</div>
-    <div className="mt-4 grid grid-cols-3 gap-2" role="tablist" aria-label="Example forecast stories">{ahaStories.map((item, index) => <button key={item.label} type="button" role="tab" aria-selected={activeStory === index} onClick={() => onStoryChange(index)} className={`rounded-xl border px-3 py-2 text-xs transition-[background-color,border-color,color] duration-200 ${activeStory === index ? "border-primary/35 bg-primary/[0.08] font-medium text-foreground" : "border-[#DCCBBA] bg-[#FFFDFC] text-muted-foreground hover:border-primary/25 hover:text-foreground"}`}>{item.label}</button>)}</div>
-  </div>;
-}
-
-function InteractiveAhaShowcase() {
-  const [activeStory, setActiveStory] = useState(0);
-  const story = ahaStories[activeStory];
-  const headings = ["See it before it arrives.", "Know what stays available.", "See the range—not one guess."];
-  const outcomes = [
-    "$420 on August 3",
-    "$820 safe to spend",
-    "$220–$1,460 projected range",
-  ];
-
-  return <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:items-center">
-    <div className="max-w-xl">
-      <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>{story.eyebrow}</p>
-      <h2 className="text-[40px] font-medium leading-[1.06] tracking-tight lg:text-[48px]" style={display}>{headings[activeStory]}</h2>
-      <p className="mt-5 text-[18px] leading-relaxed text-muted-foreground"><strong className="font-medium text-foreground" style={mono}>{outcomes[activeStory]}</strong>. {story.body}</p>
-      <div className="mt-6 rounded-2xl border border-primary/15 bg-[#FFFDFC]/70 p-4 backdrop-blur-sm"><p className="text-[10px] uppercase tracking-[0.14em] text-primary" style={mono}>Why it matters</p><p className="mt-2 text-sm font-medium text-foreground">{story.accent}</p><p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{story.note}</p></div>
-      <p className="mt-5 text-xs text-muted-foreground">Choose an example to inspect. FlowSight will not advance it for you.</p>
-    </div>
-    <div className="rounded-[30px] border border-[#DCCBBA] bg-[#FFFDFC] p-5 shadow-[0_28px_80px_rgba(74,65,60,0.10)] sm:p-7">
-      <ForecastStoryChart activeStory={activeStory} onStoryChange={setActiveStory} />
-    </div>
-  </div>;
-}
-
-const processSteps = [
-  { n: "01", title: "Bring in your numbers", desc: "Import a CSV from your bank, or enter the essentials yourself. No bank connection required." },
-  { n: "02", title: "Check what we found", desc: "Review your transactions and confirm the paychecks, bills, and subscriptions that happen regularly." },
-  { n: "03", title: "See what’s ahead", desc: "Get a clear 30-day view of your balance, your safest spending amount, and the days that may need attention." },
-];
-
-function StepIllustration({ step }: { step: number }) {
-  if (step === 0) return <div className="min-h-[286px] rounded-2xl border border-[#DCCBBA] bg-[#FFFDFC] p-5 flex flex-col"><div className="flex items-center justify-between mb-5"><div><p className="text-[10px] uppercase tracking-[0.15em] text-primary">Connection-free import</p><h4 className="font-medium text-[#292522] mt-1">Import a CSV</h4></div><span className="rounded-full bg-[#2D8B5A]/10 px-2.5 py-1 text-[10px] text-[#2D8B5A]">No bank login</span></div><div className="grid grid-cols-2 gap-3 mb-3"><div className="rounded-xl border border-[#DCCBBA] px-3 py-2"><p className="text-[10px] text-[#625852]">Account name</p><p className="text-xs text-[#292522] mt-1">Everyday checking</p></div><div className="rounded-xl border border-[#DCCBBA] px-3 py-2"><p className="text-[10px] text-[#625852]">Account type</p><p className="text-xs text-[#292522] mt-1">Checking</p></div></div><div className="flex-1 rounded-xl border border-dashed border-primary/40 bg-primary/[0.04] flex flex-col items-center justify-center text-center px-5"><ArrowRight className="-rotate-90 text-primary mb-2" size={20} /><p className="text-sm font-medium text-[#292522]">Choose a transaction file</p><p className="text-[11px] text-[#625852] mt-1">You’ll review everything before it is saved.</p></div></div>;
-  if (step === 1) return <div className="min-h-[286px] rounded-2xl border border-[#DCCBBA] bg-[#FFFDFC] p-5"><div className="flex items-center justify-between mb-4"><div><p className="text-[10px] uppercase tracking-[0.15em] text-primary">Review patterns</p><h4 className="font-medium text-[#292522] mt-1">3 recurring suggestions</h4></div><span className="text-[10px] text-[#625852]">Review each one</span></div><div className="divide-y divide-[#DCCBBA]">{[["Rent", "Monthly · $1,650", "Confirmed", "#2D8B5A"], ["Paycheck", "Every 2 weeks · $2,400", "Confirmed", "#2D8B5A"], ["Electricity", "6 occurrences · $84–$139", "Estimated", "#CA8A04"]].map(([name, detail, status, color]) => <div key={name} className="flex items-center gap-3 py-4"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} /><div className="min-w-0 flex-1"><p className="text-sm font-medium text-[#292522]">{name}</p><p className="text-[11px] text-[#625852] mt-0.5">{detail}</p></div><span className="rounded-full px-2.5 py-1 text-[10px]" style={{ color, backgroundColor: `${color}14` }}>{status}</span></div>)}</div></div>;
-  return <div className="min-h-[286px] rounded-2xl border border-[#DCCBBA] bg-[#FFFDFC] p-5"><div className="grid grid-cols-3 gap-2 mb-5"><div className="rounded-xl bg-[var(--fs-tint)] p-3"><p className="text-[10px] text-[#625852]">Safe to spend</p><p className="text-lg font-medium text-[#292522] mt-1" style={mono}>$680</p></div><div className="rounded-xl bg-[var(--fs-tint)] p-3"><p className="text-[10px] text-[#625852]">Projected low</p><p className="text-lg font-medium text-[#CA8A04] mt-1" style={mono}>$420</p></div><div className="rounded-xl bg-[#CA8A04]/10 p-3"><p className="text-[10px] text-[#625852]">Condition</p><p className="text-xs font-medium text-[#CA8A04] mt-2">Watch · Aug 3</p></div></div><div className="rounded-xl border border-[#DCCBBA] p-4"><div className="flex justify-between text-[10px] text-[#625852] mb-4"><span>30-day forecast</span><span>Jul 21 → Aug 20</span></div><div className="h-24 flex items-end gap-1.5">{[72, 67, 62, 56, 50, 35, 16, 43, 39, 34, 30, 27].map((height, index) => <span key={index} className={`flex-1 rounded-t ${index === 6 ? "bg-[#CA8A04]" : "bg-primary/70"}`} style={{ height: `${height}%` }} />)}</div><div className="border-t border-dashed border-[#CA8A04] mt-1 pt-2 text-[10px] text-[#CA8A04]">$500 safety buffer</div></div></div>;
+  return (
+    <Reveal as="section" className="relative px-5 py-16">
+      <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.72fr_1.28fr] lg:items-center">
+        <div>
+          <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>Before you spend</p>
+          <h2 className="text-[36px] font-medium leading-[1.1] tracking-tight sm:text-[44px]" style={display}>Test a purchase <span className="text-primary">before your balance does.</span></h2>
+          <p className="mt-5 text-[16px] leading-relaxed text-muted-foreground">A weekend trip. A new laptop. Enter it, and watch your baseline forecast shift into a new projected low — the actual financial picture with this purchase in it, not just a yes or no.</p>
+          <div className="mt-7 grid grid-cols-2 gap-2" aria-label="Scenario demo">
+            {scenarios.map((item, index) => <button type="button" onClick={() => { setScenario(index); setScenarioUsesRecommendedDate(() => false); }} key={item.label} aria-pressed={scenario === index} className={`rounded-xl border px-3 py-2.5 text-left text-xs transition-[background-color,border-color,color,transform] duration-200 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${scenario === index ? "border-primary/40 bg-primary/[0.10] font-medium text-primary" : "border-border bg-card text-muted-foreground hover:border-primary/25 hover:text-foreground"}`}>{item.label}</button>)}
+          </div>
+        </div>
+        <div className="relative overflow-hidden rounded-[24px] border border-border bg-card p-5 shadow-[0_24px_70px_rgba(0,0,0,0.06)] sm:p-7">
+          <div className="relative flex items-start justify-between gap-4"><div><p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground" style={mono}>{scenario === 0 ? "Your current plan" : `Private what-if · ${scenarioUsesRecommendedDate ? "tested Aug 11" : "tested today"}`}</p><p className="mt-2 font-medium">{scenario === 0 ? "No extra purchase" : `${scenarios[scenario].label.replace(/\s*\([^)]*\)$/, "")} · −$${scenarios[scenario].amount.toLocaleString()}`}</p></div><span className={`rounded-full px-2.5 py-1 text-[10px] font-medium ${scenarioCondition.className}`}>{scenarioCondition.label}</span></div>
+          <div className="relative mt-3 flex items-center gap-4 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1.5"><span className="inline-block h-0 w-4 border-t border-dashed border-muted-foreground" />Baseline forecast</span>
+            <span className="flex items-center gap-1.5 text-primary"><span className="inline-block h-0 w-4 border-t-2 border-primary" />With this purchase</span>
+          </div>
+          <div className="relative"><ResponsiveContainer width="100%" height={230}><AreaChart data={scenarioData} margin={{ top: 24, right: 8, left: -18, bottom: 0 }}><XAxis dataKey="day" tick={{ fontSize: 9, fill: "#8a8f8b" }} tickLine={false} axisLine={false} interval={2} /><YAxis domain={[0, 6500]} ticks={[0, 3000, 6000]} tick={{ fontSize: 9, fill: "#8a8f8b" }} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} /><Tooltip content={<ScenarioTooltip />} cursor={{ stroke: "#D67563", strokeWidth: 1, strokeDasharray: "3 3", opacity: 0.55 }} isAnimationActive={false} /><ReferenceLine x={scenarioUsesRecommendedDate ? "Aug 11" : "Today"} stroke="#8a8f8b" strokeDasharray="4 4" label={{ value: "Purchase", position: "insideTopLeft", fill: "#8a8f8b", fontSize: 9 }} /><ReferenceLine y={500} stroke="#c78a3a" strokeDasharray="5 4" label={{ value: "$500 buffer", position: "insideBottomLeft", fill: "#c78a3a", fontSize: 9 }} /><Area type="monotone" dataKey="balance" stroke="#1D221E" strokeWidth={2.5} fill="#1D221E0A" dot={false} isAnimationActive={false} connectNulls={false} />{scenario > 0 && <Area type="monotone" dataKey="baseline" stroke="#8a8f8b" strokeDasharray="5 5" strokeWidth={1.5} fill="transparent" dot={false} isAnimationActive={false} />}<Area type="monotone" dataKey="projected" stroke="#D67563" strokeWidth={2.75} fill="#D6756314" dot={false} animationDuration={SCENARIO_MOTION_MS} connectNulls={false} />{scenarioLowPoint && <ReferenceDot x={scenarioLowPoint.day} y={scenarioLowPoint.value} r={4} fill="#D67563" stroke="#fff" strokeWidth={2} />}</AreaChart></ResponsiveContainer></div>
+          {scenario === 3 && <div className={`relative mb-4 rounded-xl border p-3 ${scenarioUsesRecommendedDate ? "border-[oklch(var(--fs-green))]/25 bg-[oklch(var(--fs-green-bg))]/55" : "border-[oklch(var(--fs-amber))]/25 bg-[oklch(var(--fs-amber-bg))]/55"}`}><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium">{scenarioUsesRecommendedDate ? "August 11 keeps the forecast clear." : "Buying today creates a tight day on August 7."}</p><p className="mt-1 text-[10px] text-muted-foreground">{scenarioUsesRecommendedDate ? "Compared with your original date—nothing has been saved." : "August 11 is the earliest date that stays clear."}</p></div><button type="button" onClick={() => setScenarioUsesRecommendedDate((value) => !value)} className="rounded-lg border border-border bg-card px-3 py-2 text-[10px] font-medium text-primary hover:border-primary/30">{scenarioUsesRecommendedDate ? "Compare today" : "Compare Aug 11"}</button></div></div>}
+          <div className="relative grid grid-cols-2 gap-4 border-t border-border pt-4"><div><p className="text-[10px] text-muted-foreground">Projected low</p><p className="mt-1 text-lg font-medium" style={mono}>${lowestProjectedBalance.toLocaleString()}</p><p className="mt-1 text-[10px] text-muted-foreground">{scenarioLowPoint?.day}</p></div><div><p className="text-[10px] text-muted-foreground">Safe to Spend</p><p className={`mt-1 text-lg font-medium ${scenarioCondition.condition === "tight" ? "text-[oklch(var(--fs-red))]" : scenarioCondition.condition === "watch" ? "text-[oklch(var(--fs-amber))]" : "text-[oklch(var(--fs-green))]"}`} style={mono}>${safeToSpend.toLocaleString()}</p><p className="mt-1 text-[10px] text-muted-foreground">after $500 buffer</p></div></div>
+        </div>
+      </div>
+    </Reveal>
+  );
 }
 
 export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }) {
   const router = useRouter();
   const navigate = router.push;
   const primaryHref = isSignedIn ? "/app/dashboard" : "/sign-up";
-  const primaryLabel = isSignedIn ? "Open dashboard" : "Join Beta";
+  const primaryLabel = isSignedIn ? "Open dashboard" : "Get Cusp";
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scenario, setScenario] = useState(0);
   const [scenarioUsesRecommendedDate, setScenarioUsesRecommendedDate] = useState(false);
-  const [comparisonFocus, setComparisonFocus] = useState<"past" | "future">("past");
-  const [featurePanelVisible, setFeaturePanelVisible] = useState([false, false, false, false]);
-  const [featurePanelResolved, setFeaturePanelResolved] = useState([false, false, false, false]);
-  const [featurePanelRuns, setFeaturePanelRuns] = useState([0, 0, 0, 0]);
   const [activeSection, setActiveSection] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const sectionVisibility = useRef(new Map<string, number>());
-  const featurePanelRefs = useRef<Array<HTMLElement | null>>([]);
-
-  const replayFeaturePanel = (panel: number) => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    setFeaturePanelRuns((runs) => runs.map((run, index) => index === panel ? run + 1 : run));
-  };
 
   useEffect(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reducedMotion) {
-      const frame = window.requestAnimationFrame(() => {
-        setFeaturePanelVisible([true, true, true, true]);
-        setFeaturePanelResolved([true, true, true, true]);
-      });
-      return () => window.cancelAnimationFrame(frame);
-    }
-    const resolveTimers: number[] = [];
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        const panel = Number((entry.target as HTMLElement).dataset.enginePanel);
-        setFeaturePanelVisible((visible) => visible.map((value, index) => index === panel ? true : value));
-        resolveTimers.push(window.setTimeout(() => {
-          setFeaturePanelResolved((resolved) => resolved.map((value, index) => index === panel ? true : value));
-        }, GRID_THINK_MS));
-        observer.unobserve(entry.target);
-      });
-    }, { threshold: 0.42 });
-    featurePanelRefs.current.forEach((panel) => panel && observer.observe(panel));
-    return () => {
-      observer.disconnect();
-      resolveTimers.forEach(window.clearTimeout);
-    };
-  }, []);
-
-  useEffect(() => {
-    const onScroll = () => {
-      setScrolled(window.scrollY > 40);
-    };
+    const onScroll = () => setScrolled(window.scrollY > 40);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
 
   useEffect(() => {
     const ids = ["features", "security", "faq"];
@@ -624,38 +877,36 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
     return () => observer.disconnect();
   }, []);
 
+  /* Global entrance system: opacity 0→1, translateY 18px→0, ~560ms, one
+     controlled stagger per section (data-stagger-child), trigger once. */
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const sections = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
     sections.forEach((section) => {
       section.style.opacity = "0";
-      section.style.transform = "translateY(20px)";
-      section.style.transition = "opacity 400ms ease-out, transform 400ms ease-out";
+      section.style.transform = "translateY(18px)";
+      section.style.transition = "opacity 560ms var(--ease-cusp), transform 560ms var(--ease-cusp)";
+      const staggerChildren = Array.from(section.querySelectorAll<HTMLElement>("[data-stagger-child]"));
+      staggerChildren.forEach((child, index) => {
+        child.style.opacity = "0";
+        child.style.transform = "translateY(12px)";
+        child.style.transition = `opacity 500ms var(--ease-cusp) ${100 + index * 90}ms, transform 500ms var(--ease-cusp) ${100 + index * 90}ms`;
+      });
     });
     const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
       if (!entry.isIntersecting) return;
       const section = entry.target as HTMLElement;
       section.style.opacity = "1";
       section.style.transform = "translateY(0)";
+      section.querySelectorAll<HTMLElement>("[data-stagger-child]").forEach((child) => {
+        child.style.opacity = "1";
+        child.style.transform = "translateY(0)";
+      });
       observer.unobserve(section);
     }), { threshold: 0.12 });
     sections.forEach((section) => observer.observe(section));
     return () => observer.disconnect();
   }, []);
-
-  const scenarioData = generateScenarioData(scenarios[scenario].amount, scenarioUsesRecommendedDate);
-  const projectedBalances = scenarioData.flatMap((point) => typeof point.projected === "number" ? [point.projected] : []);
-  const lowestProjectedBalance = Math.min(...projectedBalances);
-  const safeToSpend = Math.max(0, lowestProjectedBalance - 500);
-  const scenarioLowPoint = scenarioData.reduce<{ day: string; value: number } | null>((lowest, point) => {
-    if (typeof point.projected !== "number") return lowest;
-    return !lowest || point.projected < lowest.value ? { day: point.day, value: point.projected } : lowest;
-  }, null);
-  const scenarioCondition = safeToSpend < 500
-    ? { label: "Tight", className: "bg-[hsl(var(--fs-red-bg))] text-[hsl(var(--fs-red))]" }
-    : safeToSpend < 1000
-      ? { label: "Watch", className: "bg-[hsl(var(--fs-amber-bg))] text-[hsl(var(--fs-amber))]" }
-      : { label: scenario === 0 ? "Baseline" : "Clear", className: "bg-[hsl(var(--fs-green-bg))] text-[hsl(var(--fs-green))]" };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -663,279 +914,173 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
   };
 
   return (
-    <div className="fs-landing min-h-screen bg-background text-foreground overflow-x-hidden" style={flowsightLandingTheme}>
+    <div className="fs-landing relative min-h-screen bg-background text-foreground">
+      {/* Ambient background glow */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute left-1/2 top-[-18%] h-[720px] w-[1100px] -translate-x-1/2 rounded-full bg-primary/[0.16] blur-[130px]" />
+        <div className="absolute right-[-15%] top-[45%] h-[560px] w-[560px] rounded-full bg-primary/[0.11] blur-[120px]" />
+        <div className="absolute left-[-12%] bottom-[-8%] h-[500px] w-[500px] rounded-full bg-[oklch(var(--fs-amber))]/[0.08] blur-[110px]" />
+      </div>
       {/* NAV */}
-      <nav className={`fixed inset-x-0 top-0 z-50 border-b transition-[background-color,border-color,backdrop-filter] duration-300 ${scrolled ? "border-[#DCCBBA] bg-[#FFFDFC]/[0.85] backdrop-blur-xl" : "border-transparent bg-transparent backdrop-blur-none"}`}>
+      <nav className={`fixed inset-x-0 top-0 z-50 border-b transition-[background-color,border-color] duration-200 ${scrolled ? "border-border bg-background/90 backdrop-blur-xl" : "border-transparent bg-transparent"}`}>
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
-          <button type="button" className="cursor-pointer" onClick={() => navigate("/")} aria-label="FlowSight home">
-            <Image src="/flowsight-logo.svg" alt="FlowSight" width={170} height={36} loading="eager" className="h-9 w-auto" />
+          <button type="button" className="cursor-pointer" onClick={() => navigate("/")} aria-label="Cusp home">
+            <Image src="/cusp-logo.svg?v=2" alt="Cusp" width={125} height={29} loading="eager" className="h-7 w-auto" />
           </button>
           <div className="hidden md:flex items-center gap-7">
-            {["Features", "Pricing", "Security"].map((l) => (
-              <a key={l} href={`#${l.toLowerCase().replace(/\s+/g, "-")}`} aria-current={activeSection === l.toLowerCase().replace(/\s+/g, "-") ? "location" : undefined} className={`relative py-2 text-sm transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left after:bg-primary after:transition-transform after:duration-300 ${activeSection === l.toLowerCase().replace(/\s+/g, "-") ? "font-medium text-foreground after:scale-x-100" : "text-[#292522]/80 hover:text-[#292522] after:scale-x-0"}`}>{l}</a>
-            ))}
-            <Link href="/learn" className="relative py-2 text-sm text-[#292522]/80 transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left after:scale-x-0 after:bg-primary after:transition-transform after:duration-300 hover:text-[#292522] hover:after:scale-x-100">Learn</Link>
-            <a href="#faq" aria-current={activeSection === "faq" ? "location" : undefined} className={`relative py-2 text-sm transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left after:bg-primary after:transition-transform after:duration-300 ${activeSection === "faq" ? "font-medium text-foreground after:scale-x-100" : "text-[#292522]/80 hover:text-[#292522] after:scale-x-0"}`}>FAQ</a>
+            <a href="#features" aria-current={activeSection === "features" ? "location" : undefined} className={`relative py-2 text-sm transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left after:bg-primary after:transition-transform after:duration-200 ${activeSection === "features" ? "font-medium text-foreground after:scale-x-100" : "text-muted-foreground hover:text-foreground after:scale-x-0"}`}>Product</a>
+            <Link href="/learn" className="relative py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">Learn</Link>
+            <a href="#security" aria-current={activeSection === "security" ? "location" : undefined} className={`relative py-2 text-sm transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left after:bg-primary after:transition-transform after:duration-200 ${activeSection === "security" ? "font-medium text-foreground after:scale-x-100" : "text-muted-foreground hover:text-foreground after:scale-x-0"}`}>Security</a>
+            <a href="#faq" aria-current={activeSection === "faq" ? "location" : undefined} className={`relative py-2 text-sm transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left after:bg-primary after:transition-transform after:duration-200 ${activeSection === "faq" ? "font-medium text-foreground after:scale-x-100" : "text-muted-foreground hover:text-foreground after:scale-x-0"}`}>FAQ</a>
           </div>
           <div className="hidden md:flex items-center gap-3">
-            {!isSignedIn && <button onClick={() => navigate("/sign-in")} className="px-3 py-1.5 text-sm text-[#292522]/80 transition-colors hover:text-[#292522]">Sign in</button>}
-            <Magnetic><button onClick={() => navigate(primaryHref)} className="fs-brand-action text-sm px-4 py-2 rounded-xl font-medium">{primaryLabel}</button></Magnetic>
+            {!isSignedIn && <button onClick={() => navigate("/sign-in")} className="px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">Sign in</button>}
+            <button onClick={() => navigate(primaryHref)} className="fs-brand-action inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl font-medium">{primaryLabel} <ArrowRight size={14} /></button>
           </div>
           <button className="md:hidden text-muted-foreground p-1" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X size={19} /> : <Menu size={19} />}
           </button>
         </div>
         {mobileOpen && (
-          <div className="mx-3 mb-3 flex flex-col gap-4 rounded-2xl border border-[#DCCBBA] bg-[#FFFDFC]/95 px-5 py-5 shadow-xl backdrop-blur-2xl md:hidden">
-            {["Features", "Pricing", "Security"].map((l) => (
-              <a key={l} href={`#${l.toLowerCase().replace(/\s+/g, "-")}`} className="text-sm text-[#292522]/85" onClick={() => setMobileOpen(false)}>{l}</a>
-            ))}
-            <Link href="/learn" className="text-sm text-[#292522]/85" onClick={() => setMobileOpen(false)}>Learn</Link>
-            <a href="#faq" className="text-sm text-[#292522]/85" onClick={() => setMobileOpen(false)}>FAQ</a>
-            {!isSignedIn && <button onClick={() => navigate("/sign-in")} className="text-left text-sm text-[#292522]/85">Sign in</button>}
+          <div className="mx-3 mb-3 flex flex-col gap-4 rounded-2xl border border-border bg-background/95 px-5 py-5 shadow-xl backdrop-blur-2xl md:hidden">
+            <a href="#features" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Product</a>
+            <Link href="/learn" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Learn</Link>
+            <a href="#security" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Security</a>
+            <a href="#faq" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>FAQ</a>
+            {!isSignedIn && <button onClick={() => navigate("/sign-in")} className="text-left text-sm text-muted-foreground">Sign in</button>}
             <button onClick={() => navigate(primaryHref)} className="fs-brand-action text-sm px-4 py-2.5 rounded-xl font-medium">{primaryLabel}</button>
           </div>
         )}
       </nav>
 
-      {/* HERO */}
+      {/* 1. HERO — kept outside the overflow-x-hidden wrapper below: any
+          overflow-hidden ancestor (even on html/body) breaks the hero's
+          `position: sticky` pin, so horizontal-scroll clipping is scoped to
+          everything after it instead. */}
       <ExpandingLandingHero isSignedIn={isSignedIn} navigate={navigate} />
 
-      {/* AHA FORECAST */}
-      <section id="how-it-works" data-reveal className="relative scroll-mt-16 overflow-hidden border-y border-[#DCCBBA]/70 bg-[#FFFDFC] px-5 py-24">
-        <div className="relative z-10 mx-auto w-full max-w-6xl"><CausalAhaForecast /></div>
-      </section>
+      <div className="overflow-x-hidden">
+      {/* 2. WHY THIS IS DIFFERENT */}
+      <WhyDifferent />
 
-      {/* ENGINE QUALITIES */}
-      <section
-        data-reveal
-        className="relative overflow-hidden px-5 py-24"
-        id="features"
-        onPointerMove={moveCursorGlow}
-        onPointerLeave={(event) => {
-          hideCursorGlow(event);
-        }}
-      >
-        <div data-cursor-glow className="pointer-events-none absolute left-0 top-0 h-[480px] w-[480px] rounded-full bg-[radial-gradient(circle,rgba(187,108,67,0.09),rgba(187,108,67,0.025)_40%,transparent_70%)] opacity-0 blur-xl transition-[transform,opacity] duration-150 ease-out" />
-        <div className="relative z-10 mx-auto max-w-6xl">
-          <div className="mx-auto mb-14 max-w-3xl text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>What your forecast already knows</p>
-            <h2 className="text-[40px] font-medium leading-[1.08] tracking-tight lg:text-[48px]" style={display}>The work happens quietly.<br />The assumptions stay <span className="text-primary">visible.</span></h2>
-            <p className="mx-auto mt-5 max-w-2xl text-[16px] leading-relaxed text-muted-foreground">From the numbers you provide, FlowSight finds the structure—and shows you what it assumed.</p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <article ref={(node) => { featurePanelRefs.current[0] = node; }} data-engine-panel="0" tabIndex={0} onMouseEnter={() => replayFeaturePanel(0)} onFocus={() => replayFeaturePanel(0)} className="group rounded-3xl border border-[#DCCBBA] bg-[#FFFDFC] p-6 transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(74,65,60,0.09)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
-              <p className="text-[10px] uppercase tracking-[0.15em] text-primary" style={mono}>Patterns recognised</p>
-              <h3 className="mt-3 text-[25px] font-medium" style={display}>Repeated activity becomes something useful.</h3>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">FlowSight groups repeated transactions, checks their timing and amount, then lets you confirm what belongs in the forecast.</p>
-              <div key={`pattern-${featurePanelVisible[0]}-${featurePanelRuns[0]}`} className="mt-6 grid gap-3 rounded-2xl border border-[#DCCBBA] bg-[#F7F2EA] p-4 xl:grid-cols-[1fr_auto_1fr] xl:items-center">
-                <div className="space-y-2">
-                  {["May 1 · −$1,650", "Jun 1 · −$1,650", "Jul 1 · −$1,650"].map((row, index) => <div key={row} className={`rounded-xl border border-[#DCCBBA] bg-[#FFFDFC] px-3 py-2 text-xs ${featurePanelVisible[0] ? "fs-engine-list-row" : "opacity-0"}`} style={{ animationDelay: `${index * 220}ms` }}><span className="font-medium">Parkview Rent</span><span className="float-right text-muted-foreground" style={mono}>{row}</span></div>)}
-                </div>
-                <ArrowRight className={`mx-auto text-primary ${featurePanelResolved[0] ? "fs-engine-converge-arrow" : "opacity-0"}`} size={18} />
-                <div className={`rounded-2xl border border-primary/20 bg-[#FFFDFC] p-4 ${featurePanelResolved[0] ? "fs-engine-resolve-card" : "opacity-0"}`}>
-                  <div className="flex items-start justify-between gap-3"><div><p className="font-medium">Rent</p><p className="mt-1 text-xs text-muted-foreground">Monthly · next Aug 1</p></div><span className="rounded-full bg-[hsl(var(--fs-green-bg))] px-2 py-1 text-[10px] font-medium text-[hsl(var(--fs-green))]">Confirmed</span></div>
-                  <p className="mt-5 text-lg font-medium" style={mono}>−$1,650</p>
-                </div>
-              </div>
-            </article>
+      {/* 3. CLEAR / WATCH / TIGHT — one system, one product frame */}
+      <ConditionSystem />
 
-            <article ref={(node) => { featurePanelRefs.current[1] = node; }} data-engine-panel="1" tabIndex={0} onMouseEnter={() => replayFeaturePanel(1)} onFocus={() => replayFeaturePanel(1)} className="group rounded-3xl border border-[#DCCBBA] bg-[#F7F2EA] p-6 transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(74,65,60,0.09)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
-              <p className="text-[10px] uppercase tracking-[0.15em] text-primary" style={mono}>Certainty stays visible</p>
-              <h3 className="mt-3 text-[25px] font-medium" style={display}>Known facts and estimates never look the same.</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Stable amounts stay confirmed. Variable bills keep the evidence behind the estimate.</p>
-              <div key={`certainty-${featurePanelVisible[1]}-${featurePanelRuns[1]}`} className="mt-6 space-y-3">
-                <div className={`rounded-2xl border border-[#DCCBBA] bg-[#FFFDFC] p-4 ${featurePanelVisible[1] ? "fs-engine-classify-confirmed" : "opacity-0"}`}><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-medium">Netflix</p><p className="mt-1 text-xs text-muted-foreground">6 occurrences · same amount</p></div><div className="text-right"><span className="rounded-full bg-[hsl(var(--fs-green-bg))] px-2 py-1 text-[10px] text-[hsl(var(--fs-green))]">Confirmed</span><p className="mt-2 text-sm" style={mono}>−$17.99</p></div></div></div>
-                <div className={`rounded-2xl border border-dashed border-[hsl(var(--fs-amber))]/40 bg-[#FFFDFC] p-4 ${featurePanelVisible[1] ? "fs-engine-classify-estimated" : "opacity-0"}`}><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-medium">Electricity</p><p className={`mt-1 text-xs text-muted-foreground transition-opacity duration-300 ${featurePanelResolved[1] ? "opacity-100" : "opacity-0"}`}>6 occurrences · $84–$139</p></div><div className="text-right"><span className="rounded-full bg-[hsl(var(--fs-amber-bg))] px-2 py-1 text-[10px] text-[hsl(var(--fs-amber))]">Estimated</span><p className="mt-2 text-sm" style={mono}>~−$117</p></div></div></div>
-              </div>
-            </article>
+      {/* 4. FORECAST — real chart + step by step + review low point */}
+      <ForecastSection />
 
-            <article ref={(node) => { featurePanelRefs.current[2] = node; }} data-engine-panel="2" tabIndex={0} onMouseEnter={() => replayFeaturePanel(2)} onFocus={() => replayFeaturePanel(2)} className="group rounded-3xl border border-[#DCCBBA] bg-[#F7F2EA] p-6 transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(74,65,60,0.09)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
-              <p className="text-[10px] uppercase tracking-[0.15em] text-primary" style={mono}>Transfers connected</p>
-              <h3 className="mt-3 text-[25px] font-medium" style={display}>The same money is not counted twice.</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Matching activity across your accounts is linked as a transfer—not mistaken for new income or another expense.</p>
-              <div key={`transfer-${featurePanelVisible[2]}-${featurePanelRuns[2]}`} className="relative mt-6 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-[#DCCBBA] bg-[#FFFDFC] p-4"><p className="text-[10px] text-muted-foreground">Primary checking · Jul 12</p><p className="mt-2 text-sm font-medium">Payment to Amex</p><p className="mt-4" style={mono}>−$1,200</p></div>
-                <div className="rounded-2xl border border-[#DCCBBA] bg-[#FFFDFC] p-4"><p className="text-[10px] text-muted-foreground">Amex · Jul 13</p><p className="mt-2 text-sm font-medium">Payment received</p><p className="mt-4 text-muted-foreground" style={mono}>+$1,200</p></div>
-                {featurePanelResolved[2] && <span className="fs-engine-transfer-beam absolute left-1/2 top-1/2 hidden h-px w-[84px] -translate-x-1/2 -translate-y-1/2 bg-primary/25 sm:block"><span className="fs-engine-transfer-pulse absolute -top-1 h-2 w-2 rounded-full bg-primary" /></span>}
-                <span className={`absolute left-1/2 top-1/2 hidden h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-primary/30 bg-[#FFFDFC] text-primary sm:flex ${featurePanelResolved[2] ? "fs-engine-transfer-link" : "opacity-0"}`}>↔</span>
-              </div>
-              <p className={`mt-4 text-center text-xs text-muted-foreground transition-opacity duration-300 ${featurePanelResolved[2] ? "opacity-100" : "opacity-0"}`}>Strong match · linked as a reversible transfer</p>
-            </article>
+      {/* 5. HOW CUSP KNOWS */}
+      <HowCuspKnows />
 
-            <article ref={(node) => { featurePanelRefs.current[3] = node; }} data-engine-panel="3" tabIndex={0} onMouseEnter={() => replayFeaturePanel(3)} onFocus={() => replayFeaturePanel(3)} className="group rounded-3xl border border-[#DCCBBA] bg-[#FFFDFC] p-6 transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_20px_55px_rgba(74,65,60,0.09)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10">
-              <p className="text-[10px] uppercase tracking-[0.15em] text-primary" style={mono}>Card timing understood</p>
-              <h3 className="mt-3 text-[25px] font-medium" style={display}>Purchases explain spending. The payment explains cash.</h3>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">Card purchases collect through the statement cycle. FlowSight places one estimated cash payment on the due date.</p>
-              <div key={`card-${featurePanelVisible[3]}-${featurePanelRuns[3]}`} className="mt-6 rounded-2xl border border-[#DCCBBA] bg-[#F7F2EA] p-4">
-                <div className="grid grid-cols-2 gap-2 border-b border-[#DCCBBA] pb-4 text-center text-[10px] text-muted-foreground xl:grid-cols-4">{[["Market Basket", "$60"], ["Trader Joe's", "$30"], ["Whole Foods", "$60"], ["Netflix", "$17.99"]].map(([name, amount], index) => <div key={name} className={`rounded-xl bg-[#FFFDFC] px-2 py-3 ${featurePanelVisible[3] ? "fs-engine-charge" : "opacity-0"}`} style={{ animationDelay: `${index * 190}ms` }}><p className="truncate">{name}</p><p className="mt-2 font-medium text-foreground" style={mono}>−{amount}</p></div>)}</div>
-                <div className={`mt-4 flex items-center justify-between gap-4 rounded-xl border border-primary/20 bg-[#FFFDFC] p-4 ${featurePanelResolved[3] ? "fs-engine-payment-total" : "opacity-0"}`}><div><p className="text-sm font-medium">Estimated card payment</p><p className="mt-1 text-xs text-muted-foreground">Due Aug 15 · based on charges so far</p></div><div className="text-right"><span className="rounded-full bg-[hsl(var(--fs-amber-bg))] px-2 py-1 text-[10px] text-[hsl(var(--fs-amber))]">Estimated</span><p className="mt-2 font-medium" style={mono}>−$167.99</p></div></div>
-              </div>
-            </article>
-          </div>
+      {/* 6. EDITORIAL PAUSE — quiet moment, no motif, no icon */}
+      <EditorialPause />
 
-          <button type="button" onClick={() => navigate("/features")} className="mx-auto mt-8 flex items-center gap-2 text-sm font-medium text-primary hover:text-[hsl(var(--fs-primary-hover))]">See all features <ArrowRight size={14} /></button>
-        </div>
-      </section>
+      {/* 7. SCENARIO PLANNER — second hero */}
+      <ScenarioPlanner
+        scenario={scenario}
+        setScenario={setScenario}
+        scenarioUsesRecommendedDate={scenarioUsesRecommendedDate}
+        setScenarioUsesRecommendedDate={setScenarioUsesRecommendedDate}
+      />
 
-      {/* SCENARIO PLANNER */}
-      <section data-reveal className="relative overflow-hidden border-y border-[#DCCBBA]/70 bg-[#FFFDFC] px-5 py-24">
-        <div className="pointer-events-none absolute right-[-12rem] top-1/2 h-[42rem] w-[42rem] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(148,163,184,0.14)_0%,rgba(200,210,224,0.08)_45%,transparent_72%)] blur-2xl" />
-        <div className="relative z-10 mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.72fr_1.28fr] lg:items-center">
-          <div>
-            <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>Scenario planner</p>
-            <h2 className="text-[40px] font-medium leading-[1.08] tracking-tight lg:text-[48px]" style={display}>Test a decision <span className="text-primary">before you make it.</span></h2>
-            <p className="mt-5 text-[16px] leading-relaxed text-muted-foreground">Enter a purchase and when you want to make it. FlowSight compares it with your current plan, checks your safety buffer, and—when timing is tight—finds the earliest date that stays clear. It remains a private what-if and never changes your transactions, accounts, or real forecast.</p>
-            <div className="mt-7 grid grid-cols-2 gap-2" aria-label="Scenario demo">
-              {scenarios.map((item, index) => <button type="button" onClick={() => { setScenario(index); setScenarioUsesRecommendedDate(false); }} key={item.label} aria-pressed={scenario === index} className={`rounded-xl border px-3 py-2.5 text-left text-xs transition-[background-color,border-color,color,transform] duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${scenario === index ? "border-primary/40 bg-primary/[0.10] font-medium text-primary" : "border-[#DCCBBA] bg-[#FFFDFC] text-muted-foreground hover:border-primary/25 hover:text-foreground"}`}>{item.label}</button>)}
-            </div>
-          </div>
-          <div className="rounded-[30px] border border-[#DCCBBA] bg-[linear-gradient(145deg,#FFFDFC_0%,#FFFDFC_46%,#F7F2EA_100%)] p-5 shadow-[0_28px_80px_rgba(74,65,60,0.08)] sm:p-7">
-            <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground" style={mono}>{scenario === 0 ? "Your current plan" : `Private what-if · ${scenarioUsesRecommendedDate ? "tested Aug 11" : "tested today"}`}</p><p className="mt-2 font-medium">{scenario === 0 ? "No extra purchase" : `${scenarios[scenario].label.replace(/\s*\([^)]*\)$/, "")} · −$${scenarios[scenario].amount.toLocaleString()}`}</p></div><span className={`rounded-full px-2.5 py-1 text-[10px] font-medium ${scenarioCondition.className}`}>{scenarioCondition.label}</span></div>
-            <ResponsiveContainer width="100%" height={230}><AreaChart data={scenarioData} margin={{ top: 24, right: 8, left: -18, bottom: 0 }}><XAxis dataKey="day" tick={{ fontSize: 9, fill: "#625852" }} tickLine={false} axisLine={false} interval={2} /><YAxis domain={[0, 6500]} ticks={[0, 3000, 6000]} tick={{ fontSize: 9, fill: "#625852" }} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} /><Tooltip content={<ScenarioTooltip />} cursor={{ stroke: "#BB6C43", strokeWidth: 1, strokeDasharray: "3 3", opacity: 0.55 }} isAnimationActive={false} /><ReferenceLine x={scenarioUsesRecommendedDate ? "Aug 11" : "Today"} stroke="#A4958C" strokeDasharray="4 4" label={{ value: "Purchase", position: "insideTopLeft", fill: "#625852", fontSize: 9 }} /><ReferenceLine y={500} stroke="#B7791F" strokeDasharray="5 4" label={{ value: "$500 buffer", position: "insideBottomLeft", fill: "#B7791F", fontSize: 9 }} /><Area type="monotone" dataKey="balance" stroke="#292522" strokeWidth={2.5} fill="#2925220A" dot={false} isAnimationActive={false} connectNulls={false} />{scenario > 0 && <Area type="monotone" dataKey="baseline" stroke="#A4958C" strokeDasharray="5 5" strokeWidth={1.5} fill="transparent" dot={false} isAnimationActive={false} />}<Area type="monotone" dataKey="projected" stroke="#BB6C43" strokeWidth={2.75} fill="#BB6C4314" dot={false} animationDuration={SCENARIO_MOTION_MS} connectNulls={false} />{scenarioLowPoint && <ReferenceDot x={scenarioLowPoint.day} y={scenarioLowPoint.value} r={4} fill="#BB6C43" stroke="#fff" strokeWidth={2} />}</AreaChart></ResponsiveContainer>
-            {scenario === 3 && <div className={`mb-4 rounded-xl border p-3 ${scenarioUsesRecommendedDate ? "border-[hsl(var(--fs-green))]/25 bg-[hsl(var(--fs-green-bg))]/55" : "border-[hsl(var(--fs-amber))]/25 bg-[hsl(var(--fs-amber-bg))]/55"}`}><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium">{scenarioUsesRecommendedDate ? "August 11 keeps the forecast clear." : "Buying today creates a tight day on August 7."}</p><p className="mt-1 text-[10px] text-muted-foreground">{scenarioUsesRecommendedDate ? "Compared with your original date—nothing has been saved." : "August 11 is the earliest date that stays clear."}</p></div><button type="button" onClick={() => setScenarioUsesRecommendedDate((value) => !value)} className="rounded-lg border border-[#DCCBBA] bg-[#FFFDFC] px-3 py-2 text-[10px] font-medium text-primary hover:border-primary/30">{scenarioUsesRecommendedDate ? "Compare today" : "Compare Aug 11"}</button></div></div>}
-            <div className="grid grid-cols-2 gap-4 border-t border-[#DCCBBA] pt-4"><div><p className="text-[10px] text-muted-foreground">Projected low</p><p className="mt-1 text-lg font-medium" style={mono}>${lowestProjectedBalance.toLocaleString()}</p><p className="mt-1 text-[10px] text-muted-foreground">{scenarioLowPoint?.day}</p></div><div><p className="text-[10px] text-muted-foreground">Safe to Spend</p><p className="mt-1 text-lg font-medium text-[hsl(var(--fs-green))]" style={mono}>${safeToSpend.toLocaleString()}</p><p className="mt-1 text-[10px] text-muted-foreground">after $500 buffer</p></div></div>
-          </div>
-        </div>
-      </section>
-
-      {/* CONTRAST */}
-      <section
-        data-reveal
-        className="fs-warm-section-transition relative overflow-hidden py-24 px-5"
-        onPointerMove={moveCursorGlow}
-        onPointerLeave={hideCursorGlow}
-      >
-        <div data-cursor-glow className="pointer-events-none absolute left-0 top-0 z-0 h-[480px] w-[480px] rounded-full bg-[radial-gradient(circle,rgba(187,108,67,0.12),rgba(187,108,67,0.035)_38%,transparent_70%)] opacity-0 blur-xl transition-[transform,opacity] duration-150 ease-out" />
-        <div className="relative z-10 max-w-6xl mx-auto">
-          <div className="text-center mb-10">
-            <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>From history to foresight</p>
-            <h2 className="text-[42px] lg:text-[52px] font-medium tracking-tight leading-[1.08] mb-4" style={display}>
-              Stop looking <span className="text-muted-foreground">backward.</span><br />Start planning <span className="text-accent">forward.</span>
-            </h2>
-          </div>
-          <div className="max-w-3xl mx-auto">
-            <div className="mx-auto mb-5 flex w-fit rounded-full border border-border bg-[#FFFDFC] p-1 shadow-sm" role="tablist" aria-label="Compare finance apps"><button role="tab" aria-selected={comparisonFocus === "past"} onClick={() => setComparisonFocus("past")} className={`rounded-full px-5 py-2 text-sm ${comparisonFocus === "past" ? "bg-[#292522] text-white shadow" : "text-muted-foreground hover:text-foreground"}`}>Looking back</button><button role="tab" aria-selected={comparisonFocus === "future"} onClick={() => setComparisonFocus("future")} className={`rounded-full px-5 py-2 text-sm ${comparisonFocus === "future" ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}>Looking ahead</button></div>
-            <div key={comparisonFocus} className="relative overflow-hidden rounded-3xl border border-border bg-[#FFFDFC] p-8 sm:p-10 shadow-[0_2px_8px_rgba(15,29,58,0.06)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
-              <div className={`absolute -right-14 -top-14 h-44 w-44 rounded-full blur-3xl ${comparisonFocus === "future" ? "bg-primary/10" : "bg-[var(--fs-tint)]"}`} />
-              <div className="relative mb-6 flex items-center justify-between gap-5"><div className="flex items-center gap-3"><div className={`h-10 w-10 rounded-xl flex items-center justify-center ${comparisonFocus === "future" ? "bg-primary text-primary-foreground" : "bg-[var(--fs-tint)] text-muted-foreground"}`}>{comparisonFocus === "future" ? <Sparkles size={17} /> : <BarChart3 size={17} />}</div><div><p className="text-xs text-muted-foreground">{comparisonFocus === "future" ? "FlowSight" : "Traditional finance apps"}</p><h3 className="font-medium text-lg">{comparisonFocus === "future" ? "Looking ahead" : "Looking back"}</h3></div></div><svg viewBox="0 0 92 38" className="h-10 w-24" aria-hidden="true">{comparisonFocus === "past" ? [18, 27, 21, 31, 24].map((height, index) => <rect key={index} x={5 + index * 17} y={35 - height} width="10" height={height} rx="3" fill="#625852" opacity={1 - index * .14} />) : <><path d="M5 29 C22 27, 31 22, 43 24 S65 12, 87 8" fill="none" stroke="#BB6C43" strokeWidth="2.5" strokeLinecap="round" /><circle cx="87" cy="8" r="3.5" fill="#2D7A55" /></>}</svg></div>
-              <p className="relative leading-relaxed mb-7 text-muted-foreground">{comparisonFocus === "future" ? "FlowSight shows what the next few weeks may hold—and what to do if money gets tight." : "Most tools organize what already happened. Useful for review, but they can't tell you if Friday will be tight."}</p>
-              <div className="relative grid sm:grid-cols-3 gap-3">{(comparisonFocus === "future" ? ["Warns you before the tight day", "Labels confirmed and estimated events", '“$820 safe to spend until the 18th”'] : ["Reports money already spent", "Categories instead of timing", '“$200 spent on dining last month”']).map((item, index) => <div key={item} className={`relative overflow-hidden rounded-xl border p-3 text-sm ${comparisonFocus === "future" ? `border-primary/30 bg-primary/[0.08] font-medium motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 ${index === 2 ? "fs-contrast-payoff" : ""}` : "border-border bg-[var(--fs-tint)] text-muted-foreground"}`} style={{ animationDelay: `${index * 120}ms` }}>{comparisonFocus === "future" && <svg viewBox="0 0 16 16" className="mr-1.5 inline-block h-4 w-4 align-[-3px] text-[hsl(var(--fs-green))]" aria-hidden="true"><path d="M3 8.5 6.4 12 13 4.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" pathLength="1" className="fs-contrast-check" style={{ animationDelay: `${index * 120}ms` }} /></svg>}{item}</div>)}</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* TRUST */}
-      <section data-reveal className="py-20 px-5 bg-[#FFFDFC]" id="security">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-accent text-xs font-medium uppercase tracking-[0.15em] mb-3" style={mono}>Security</p>
-            <h2 className="text-[40px] font-medium tracking-tight mb-3" style={display}>Start <span className="text-primary">without handing over</span> your bank login.</h2>
-            <p className="text-muted-foreground max-w-lg mx-auto">Use a CSV or manual entry, review what enters the forecast, and see the details behind the result.</p>
-          </div>
-          <div className="grid md:grid-cols-2 gap-4 max-w-3xl mx-auto">
-            {trustItems.map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="bg-card border border-border rounded-2xl p-6 hover:border-primary/20 transition-colors duration-200 group">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/15 transition-colors">
-                  <Icon size={17} className="text-primary" />
-                </div>
-                <h3 className="font-semibold text-sm text-foreground mb-2">{title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* BETA PRICING */}
-      <section id="pricing" data-reveal className="scroll-mt-16 border-y border-[#DCCBBA]/70 bg-[#FFFDFC] px-5 py-24">
+      {/* 8. SECURITY — kept small */}
+      <Reveal as="section" className="relative py-12 px-5" id="security">
         <div className="mx-auto max-w-6xl">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>Pricing</p>
-            <h2 className="text-[40px] font-medium leading-[1.08] tracking-tight lg:text-[48px]" style={display}>Free during the <span className="text-primary">private beta.</span></h2>
-            <p className="mx-auto mt-5 max-w-xl text-[16px] leading-relaxed text-muted-foreground">Explore your forecast and help shape FlowSight at no cost. We&apos;ll share pricing clearly before any paid plan begins.</p>
+          <div className="text-center mb-10">
+            <p className="text-primary text-xs font-medium uppercase tracking-[0.15em] mb-3" style={mono}>Security</p>
+            <h2 className="text-[28px] font-medium tracking-tight sm:text-[34px]" style={display}>Start <span className="text-primary">without handing over</span> your bank login.</h2>
           </div>
-          <div className="grid overflow-hidden rounded-3xl border border-border bg-[#FFFDFC] md:grid-cols-3">
-            {[
-              { step: "Now", title: "Private beta", copy: "Use FlowSight free while we learn from early users.", emphasis: true },
-              { step: "Before launch", title: "Clear notice", copy: "We&apos;ll publish plans and what each includes before anything changes." },
-              { step: "Your choice", title: "No surprise charge", copy: "You decide whether a future paid plan is right for you." },
-            ].map((item, index) => (
-              <article key={item.title} className={`relative p-7 sm:p-8 ${index > 0 ? "border-t border-border md:border-l md:border-t-0" : ""} ${item.emphasis ? "bg-primary/[0.05]" : "bg-[#FFFDFC]"}`}>
-                <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground" style={mono}>{item.step}</p>
-                <h3 className="mt-4 text-xl font-medium" style={display}>{item.title}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{item.copy}</p>
-                {item.emphasis && <span className="mt-6 inline-flex rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground">$0 during beta</span>}
-              </article>
+          <div className="grid gap-4 md:grid-cols-3">
+            {trustItems.map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="bg-card border border-border rounded-2xl p-6 transition-colors duration-200 hover:border-primary/20 group">
+                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center mb-4 transition-[background-color] duration-200 group-hover:bg-primary/15">
+                  <Icon size={18} strokeWidth={1.75} className="text-primary" />
+                </div>
+                <h3 className="font-semibold text-base text-foreground mb-2">{title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+              </div>
             ))}
           </div>
         </div>
-      </section>
+      </Reveal>
 
-      {/* FAQ */}
-      <section data-reveal className="bg-[#FFFDFC] px-5 py-24" id="faq">
-        <div className="max-w-3xl mx-auto">
+      {/* 9. PRICING — compact */}
+      <Reveal as="section" className="relative scroll-mt-16 px-5 py-12" id="pricing">
+        <div className="mx-auto max-w-6xl">
+          <div className="mx-auto mb-10 max-w-2xl text-center">
+            <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>Pricing</p>
+            <h2 className="text-[28px] font-medium leading-[1.1] tracking-tight sm:text-[34px]" style={display}>Free during the <span className="text-primary">private beta.</span></h2>
+            <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">Explore the forecast and help shape Cusp at no cost. Pricing is published before any paid plan begins.</p>
+          </div>
+          <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-3">
+            {[
+              { step: "Now", title: "Private beta", copy: "$0, use it free.", emphasis: true },
+              { step: "Before launch", title: "Plans published", copy: "In advance of any change." },
+              { step: "Your choice", title: "Opt in, or not", copy: "When pricing begins." },
+            ].map((item) => (
+              <div key={item.title} className={`rounded-2xl border p-5 ${item.emphasis ? "border-primary/25 bg-primary/[0.05]" : "border-border bg-card"}`}>
+                <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground" style={mono}>{item.step}</p>
+                <h3 className="mt-3 text-base font-medium">{item.title}</h3>
+                <p className="mt-1.5 text-sm text-muted-foreground">{item.copy}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Reveal>
+
+      {/* 10. FAQ */}
+      <Reveal as="section" className="relative px-5 py-16" id="faq">
+        <div className="mx-auto max-w-3xl">
           <div className="text-center mb-12">
             <p className="text-primary text-xs font-medium uppercase tracking-[0.15em] mb-3" style={mono}>Common questions</p>
-            <h2 className="text-[40px] font-medium tracking-tight" style={display}>A few things to <span className="text-primary">know.</span></h2>
+            <h2 className="text-[36px] font-medium tracking-tight sm:text-[44px]" style={display}>A few things to <span className="text-primary">know.</span></h2>
           </div>
           <div className="divide-y divide-border border-y border-border">
             {faqs.map((item, index) => (
-              <div key={item.question} className="py-5">
-                <button type="button" aria-expanded={openFaq === index} aria-controls={`faq-answer-${index}`} onClick={() => setOpenFaq((current) => current === index ? null : index)} className="flex w-full items-center justify-between gap-4 text-left font-semibold text-foreground"><span>{item.question}</span><ChevronDown size={18} className={`shrink-0 text-primary ${openFaq === index ? "fs-faq-chevron-open" : "transition-transform duration-300"}`} /></button>
-                <div id={`faq-answer-${index}`} aria-hidden={openFaq !== index} className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${openFaq === index ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}><div className="overflow-hidden"><p className="text-sm text-muted-foreground leading-relaxed pt-3 pr-10">{item.answer}</p></div></div>
+              <div key={item.question} data-stagger-child className="py-5">
+                <button type="button" aria-expanded={openFaq === index} aria-controls={`faq-answer-${index}`} onClick={() => setOpenFaq((current) => current === index ? null : index)} className="flex w-full items-center justify-between gap-4 text-left font-semibold text-foreground"><span>{item.question}</span><ChevronDown size={18} className={`shrink-0 text-primary transition-transform duration-200 ${openFaq === index ? "rotate-180" : ""}`} /></button>
+                <div id={`faq-answer-${index}`} aria-hidden={openFaq !== index} className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${openFaq === index ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}><div className="overflow-hidden"><p className="text-sm text-muted-foreground leading-relaxed pt-3 pr-10">{item.answer}</p></div></div>
               </div>
             ))}
           </div>
         </div>
-      </section>
+      </Reveal>
 
-      {/* CTA */}
-      <section
-        data-reveal
-        className="py-20 px-5 relative overflow-hidden"
-        style={{ background: "radial-gradient(circle at 34% 28%, rgba(148,163,184,0.12), transparent 34%), radial-gradient(circle at 66% 52%, rgba(187,108,67,0.10), transparent 38%), #FFFDFC" }}
-        onPointerMove={moveCursorGlow}
-        onPointerLeave={hideCursorGlow}
-      >
-        <div data-cursor-glow className="pointer-events-none absolute left-0 top-0 h-[480px] w-[480px] rounded-full bg-[radial-gradient(circle,rgba(187,108,67,0.18),rgba(187,108,67,0.05)_42%,transparent_72%)] opacity-0 blur-2xl transition-[transform,opacity] duration-150 ease-out" />
+      {/* 11. FINAL CTA */}
+      <Reveal as="section" className="py-14 px-5 relative">
         <div className="relative z-10 max-w-xl mx-auto text-center">
-          <div className="relative">
-            <div className="absolute inset-0 bg-primary/10 rounded-3xl blur-3xl pointer-events-none" />
-            <div className="relative bg-card border border-border rounded-3xl px-8 py-14">
-              <p className="text-accent text-xs font-medium uppercase tracking-[0.15em] mb-5" style={mono}>Early Access</p>
-              <h2 className="text-[40px] font-medium tracking-tight leading-[1.1] mb-4" style={display}>Stop <span className="text-muted-foreground">guessing.</span><br />Start <span className="text-primary">knowing.</span></h2>
-              <p className="text-muted-foreground mb-8 max-w-xs mx-auto text-sm">Join the beta and be among the first to see exactly where your money is going — before it gets there.</p>
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/[0.05] px-3 py-1.5 text-xs text-muted-foreground mb-6"><span className="h-1.5 w-1.5 rounded-full bg-primary" />Private beta · shaped with early-user feedback</div>
-              {isSignedIn ? (
-                <Magnetic><button type="button" onClick={() => navigate("/app/dashboard")} className="fs-brand-action px-6 py-3 rounded-xl text-sm font-medium">Open dashboard</button></Magnetic>
-              ) : submitted ? (
-                <div className="flex flex-col items-center gap-3 py-2 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500" aria-live="polite">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--fs-green-bg))] motion-safe:animate-[fs-transfer-linking_650ms_ease-out_both]"><CheckCircle size={22} className="text-[hsl(var(--fs-green))]" /></div>
-                  <p className="text-foreground font-semibold">You&apos;re on the list!</p>
-                  <p className="text-sm text-muted-foreground">We&apos;ll reach out when your spot opens up.</p>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2.5 max-w-sm mx-auto">
-                  <div className="relative flex-1"><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required aria-invalid={email.length > 0 && !emailLooksValid}
-                    className="w-full bg-muted border border-border rounded-xl py-3 pl-4 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-colors" />{emailLooksValid && <CheckCircle size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(var(--fs-green))] motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:duration-200" aria-label="Email address looks valid" />}</div>
-                  <Magnetic className="w-full sm:w-auto"><button type="submit" className="fs-brand-action w-full px-5 py-3 rounded-xl text-sm font-medium whitespace-nowrap">Join Beta</button></Magnetic>
-                </form>
-              )}
-              <p className="text-xs text-muted-foreground mt-5">Early access. No spam. Unsubscribe anytime.</p>
-            </div>
+          <div className="bg-card border border-border rounded-3xl px-8 py-14">
+            <p className="text-primary text-xs font-medium uppercase tracking-[0.15em] mb-5" style={mono}>Early access</p>
+            <h2 className="text-[36px] font-medium tracking-tight leading-[1.1] mb-4 sm:text-[44px]" style={display}>See it <span className="text-primary">before it happens.</span></h2>
+            <p className="text-muted-foreground mb-8 max-w-xs mx-auto text-sm">Join the beta and be among the first to see your tightest day before it gets here.</p>
+            {isSignedIn ? (
+              <button type="button" onClick={() => navigate("/app/dashboard")} className="fs-brand-action px-6 py-3 rounded-xl text-sm font-medium">Open dashboard</button>
+            ) : submitted ? (
+              <div className="flex flex-col items-center gap-3 py-2" aria-live="polite">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[oklch(var(--fs-green-bg))]"><CheckCircle size={22} className="text-[oklch(var(--fs-green))]" /></div>
+                <p className="text-foreground font-semibold">You&apos;re on the list!</p>
+                <p className="text-sm text-muted-foreground">We&apos;ll reach out when your spot opens up.</p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2.5 max-w-sm mx-auto">
+                <div className="relative flex-1"><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required aria-invalid={email.length > 0 && !emailLooksValid}
+                  className="w-full bg-muted border border-border rounded-xl py-3 pl-4 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-colors" />{emailLooksValid && <CheckCircle size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[oklch(var(--fs-green))]" aria-label="Email address looks valid" />}</div>
+                <button type="submit" className="fs-brand-action w-full sm:w-auto px-5 py-3 rounded-xl text-sm font-medium whitespace-nowrap">Join Beta</button>
+              </form>
+            )}
+            <p className="text-xs text-muted-foreground mt-5">Private beta · shaped with early-user feedback</p>
+            <div className="mt-8"><TimelineMotif label="Today" /></div>
           </div>
         </div>
-      </section>
+      </Reveal>
 
       {/* FOOTER */}
       <footer className="border-t border-border py-12 px-5">
         <div className="max-w-6xl mx-auto">
           <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-10 mb-10">
             <div>
-              <button type="button" className="mb-3 cursor-pointer" onClick={() => navigate("/")} aria-label="FlowSight home">
-                <Image src="/flowsight-logo.svg" alt="FlowSight" width={170} height={36} className="h-9 w-auto" />
+              <button type="button" className="mb-3 cursor-pointer" onClick={() => navigate("/")} aria-label="Cusp home">
+                <Image src="/cusp-logo.svg?v=2" alt="Cusp" width={125} height={29} className="h-7 w-auto" />
               </button>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-[170px]">Know what&apos;s next for your money.</p>
             </div>
@@ -966,11 +1111,11 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
             </div>
           </div>
           <div className="pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} FlowSight, Inc. All rights reserved.</p>
-            <p className="text-xs text-muted-foreground">Designed for clarity. Built for trust.</p>
+            <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Cusp. All rights reserved.</p>
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }

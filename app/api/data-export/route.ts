@@ -36,7 +36,7 @@ export async function GET() {
   return new NextResponse(body, {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Content-Disposition": `attachment; filename="flowsight-export-${new Date().toISOString().slice(0, 10)}.json"`,
+      "Content-Disposition": `attachment; filename="cusp-export-${new Date().toISOString().slice(0, 10)}.json"`,
       "Cache-Control": "private, no-store",
     },
   })

@@ -72,7 +72,7 @@ export function TransferReviewPanel({ suggestions, confirmed }: { suggestions: T
     <div className="px-4 sm:px-5 py-4 border-b border-border">
       <div className="flex items-start gap-3">
         <div className="mt-0.5 rounded-lg bg-primary/10 p-2"><Link2 className="h-4 w-4 text-primary" /></div>
-        <div><h2 className="text-sm font-semibold">Transfers between your accounts</h2><p className="mt-1 text-xs leading-relaxed text-muted-foreground">A transfer moves money but is not new income or new spending. FlowSight only links a pair when both sides appear in accounts you added.</p></div>
+        <div><h2 className="text-sm font-semibold">Transfers between your accounts</h2><p className="mt-1 text-xs leading-relaxed text-muted-foreground">A transfer moves money but is not new income or new spending. Cusp only links a pair when both sides appear in accounts you added.</p></div>
       </div>
     </div>
     {suggestions.length > 0 && <div className="divide-y divide-border">

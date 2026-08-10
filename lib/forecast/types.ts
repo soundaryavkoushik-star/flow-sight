@@ -78,6 +78,12 @@ export interface ForecastResult {
 export interface ScenarioComparison {
   baseline: ForecastResult
   scenario: ForecastResult
+  comparisonStartDate: string
+  baselineComparisonLowCents: MoneyCents
+  baselineComparisonLowDate: string
+  scenarioComparisonLowCents: MoneyCents
+  scenarioComparisonLowDate: string
+  scenarioComparisonSafeToSpendCents: MoneyCents
   lowestBalanceDeltaCents: MoneyCents
   safeToSpendDeltaCents: MoneyCents
   riskChanged: boolean
