@@ -51,6 +51,9 @@ export async function deleteFinancialData() {
       prisma.actualBalanceObservation.deleteMany({ where: { userId: user.id } }),
       prisma.recurringException.deleteMany({ where: { userId: user.id } }),
       prisma.recurringSeries.deleteMany({ where: { userId: user.id } }),
+      prisma.recurringSuggestionDecision.deleteMany({ where: { userId: user.id } }),
+      // TransactionTransfer and CreditCardSettings aren't listed here — both cascade
+      // via onDelete: Cascade on their Account/Transaction relations below.
       prisma.transaction.deleteMany({ where: { userId: user.id } }),
       prisma.categoryRule.deleteMany({ where: { userId: user.id } }),
       prisma.category.deleteMany({ where: { userId: user.id } }),

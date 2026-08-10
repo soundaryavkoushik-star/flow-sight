@@ -7,7 +7,7 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const [profile, accounts, transactions, categories, categoryRules, recurringSeries, recurringExceptions, forecastSnapshots, actualBalanceObservations] = await prisma.$transaction([
+  const [profile, accounts, transactions, categories, categoryRules, recurringSeries, recurringExceptions, forecastSnapshots, actualBalanceObservations, recurringSuggestionDecisions, transactionTransfers, creditCardSettings] = await prisma.$transaction([
     prisma.userProfile.findUnique({ where: { userId: user.id } }),
     prisma.account.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } }),
     prisma.transaction.findMany({ where: { userId: user.id }, orderBy: { date: "asc" } }),
@@ -17,6 +17,9 @@ export async function GET() {
     prisma.recurringException.findMany({ where: { userId: user.id }, orderBy: { originalDate: "asc" } }),
     prisma.forecastSnapshot.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } }),
     prisma.actualBalanceObservation.findMany({ where: { userId: user.id }, orderBy: { observedAt: "asc" } }),
+    prisma.recurringSuggestionDecision.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } }),
+    prisma.transactionTransfer.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } }),
+    prisma.creditCardSettings.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } }),
   ])
 
   const body = JSON.stringify({
@@ -31,6 +34,9 @@ export async function GET() {
     recurringExceptions,
     forecastSnapshots,
     actualBalanceObservations,
+    recurringSuggestionDecisions,
+    transactionTransfers,
+    creditCardSettings,
   }, null, 2)
 
   return new NextResponse(body, {

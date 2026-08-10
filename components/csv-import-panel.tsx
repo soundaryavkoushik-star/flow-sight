@@ -240,7 +240,7 @@ export function CsvImportPanel({ autoOpen = false, accounts = [], initialAccount
       return
     }
 
-    setResultText(`${result.imported} imported · ${result.duplicates} duplicates skipped`)
+    setResultText(`${result.imported} imported · ${result.duplicates} duplicates skipped${result.anchorSkipped ? " · this file's balance date is older than your current anchor, so the account balance was not changed" : ""}`)
     setImportedAccountId(result.accountId)
     const paymentProposal = result.accountType === "credit_card" ? suggestCardPaymentFromHistory(rows) : null
     setCardPaymentProposal(paymentProposal)

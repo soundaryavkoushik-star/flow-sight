@@ -24,7 +24,7 @@ export interface CsvImportInput {
 }
 
 export type CsvImportResult =
-  | { ok: true; imported: number; duplicates: number; accountId: string; accountType: string }
+  | { ok: true; imported: number; duplicates: number; accountId: string; accountType: string; anchorSkipped: boolean }
   | { ok: false; message: string }
 
 export interface RecurringConfirmationInput {
@@ -90,6 +90,7 @@ export async function importCsvTransactions(input: CsvImportInput): Promise<CsvI
         ? await tx.account.findFirst({ where: { id: input.accountId, userId: user.id, type: { in: ["checking", "savings", "credit_card"] } } })
         : null
       if (input.accountId && !account) throw new Error("Selected account not found")
+      let anchorSkipped = false
       if (!account) {
         if (!input.newAccountName?.trim() || !["checking", "savings"].includes(input.newAccountType ?? "")) throw new Error("New account details are missing")
         account = await tx.account.create({
@@ -103,9 +104,12 @@ export async function importCsvTransactions(input: CsvImportInput): Promise<CsvI
           },
         })
       } else {
+        anchorSkipped = Boolean(account.anchorDate && balanceDate < account.anchorDate)
         account = await tx.account.update({
           where: { id: account.id },
-          data: { anchorBalanceCents: input.currentBalanceCents, anchorDate: balanceDate, source: account.source === "manual" ? "csv" : account.source },
+          data: anchorSkipped
+            ? { source: account.source === "manual" ? "csv" : account.source }
+            : { anchorBalanceCents: input.currentBalanceCents, anchorDate: balanceDate, source: account.source === "manual" ? "csv" : account.source },
         })
       }
 
@@ -158,7 +162,7 @@ export async function importCsvTransactions(input: CsvImportInput): Promise<CsvI
       }
 
       await tx.userProfile.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id } })
-      return { ok: true as const, imported: uniqueRows.length, duplicates: input.rows.length - uniqueRows.length, accountId: account.id, accountType: account.type }
+      return { ok: true as const, imported: uniqueRows.length, duplicates: input.rows.length - uniqueRows.length, accountId: account.id, accountType: account.type, anchorSkipped }
     })
   } catch (error) {
     console.error("CSV import failed", error)

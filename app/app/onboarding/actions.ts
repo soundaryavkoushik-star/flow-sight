@@ -132,10 +132,13 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
         orderBy: { createdAt: "asc" },
       })
 
+      const anchorSkipped = Boolean(existingAccount?.anchorDate && today < existingAccount.anchorDate)
       const account = existingAccount
         ? await tx.account.update({
             where: { id: existingAccount.id },
-            data: { name: payload.accountName.trim(), anchorBalanceCents: payload.balanceCents, anchorDate: today },
+            data: anchorSkipped
+              ? { name: payload.accountName.trim() }
+              : { name: payload.accountName.trim(), anchorBalanceCents: payload.balanceCents, anchorDate: today },
           })
         : await tx.account.create({
             data: {
