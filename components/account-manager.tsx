@@ -5,6 +5,7 @@ import { Building, CreditCard, Pencil, PiggyBank, Plus, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { createAccount, deleteAccount, updateAccount } from "@/app/app/accounts/actions"
+import { localDateKey } from "@/lib/forecast/local-date"
 
 type PaymentStrategy = "full_statement" | "minimum" | "fixed"
 interface CardSettings {
@@ -45,7 +46,7 @@ function AccountEditor({ account, paymentAccounts, onClose, onSaved }: { account
   const [name, setName] = useState(isNew ? "" : account.name)
   const [type, setType] = useState<"checking" | "savings" | "credit_card">(isNew ? "checking" : account.type === "credit_card" ? "credit_card" : account.type === "savings" ? "savings" : "checking")
   const [balance, setBalance] = useState(isNew || account.balanceCents === null ? "" : String(Math.abs(account.balanceCents) / 100))
-  const [balanceDate, setBalanceDate] = useState(isNew || !account.balanceDate ? new Date().toISOString().slice(0, 10) : account.balanceDate)
+  const [balanceDate, setBalanceDate] = useState(isNew || !account.balanceDate ? localDateKey() : account.balanceDate)
   const [minimumPayment, setMinimumPayment] = useState(existingCard?.minimumPaymentCents ? String(existingCard.minimumPaymentCents / 100) : "")
   const [closingDay, setClosingDay] = useState(existingCard ? String(existingCard.statementClosingDay) : "")
   const [dueDay, setDueDay] = useState(String(existingCard?.paymentDueDay ?? 15))

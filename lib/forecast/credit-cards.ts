@@ -67,14 +67,13 @@ function isCardPaymentDescription(description: string) {
   return /\b(payment received|autopay payment|payment thank|thank you payment|card payment)\b/i.test(description)
 }
 
-export function buildKnownCardPayment(
-  start: Date,
-  statementClosingDay: number,
-  paymentDueDay: number,
-  unpaidStatementBalanceCents: number,
-  transactions: CardCycleTransaction[],
-  knownUpcomingCharges: CardCycleTransaction[] = [],
-): KnownCardPayment {
+export interface CardCycleDates {
+  cycleStartDate: Date
+  closeDate: Date
+  dueDate: Date
+}
+
+export function computeCardCycleDates(start: Date, statementClosingDay: number, paymentDueDay: number): CardCycleDates {
   let closeYear = start.getUTCFullYear()
   let closeMonth = start.getUTCMonth()
   let closeDate = utcDateForDay(closeYear, closeMonth, statementClosingDay)
@@ -108,6 +107,43 @@ export function buildKnownCardPayment(
     }
     dueDate = utcDateForDay(dueYear, dueMonth, paymentDueDay)
   }
+
+  return { cycleStartDate, closeDate, dueDate }
+}
+
+export interface CardStatementBaseline {
+  hasFullCycleCoverage: boolean
+  unpaidStatementBalanceCents: number
+}
+
+export function resolveCardStatementBaseline(
+  start: Date,
+  statementClosingDay: number,
+  paymentDueDay: number,
+  statementBalanceCents: number,
+  transactions: CardCycleTransaction[],
+): CardStatementBaseline {
+  if (transactions.length === 0) {
+    return { hasFullCycleCoverage: false, unpaidStatementBalanceCents: statementBalanceCents }
+  }
+  const { cycleStartDate } = computeCardCycleDates(start, statementClosingDay, paymentDueDay)
+  const earliestTransactionDate = transactions.reduce((earliest, transaction) => transaction.date < earliest ? transaction.date : earliest, transactions[0].date)
+  const hasFullCycleCoverage = earliestTransactionDate <= cycleStartDate
+  return {
+    hasFullCycleCoverage,
+    unpaidStatementBalanceCents: hasFullCycleCoverage ? 0 : statementBalanceCents,
+  }
+}
+
+export function buildKnownCardPayment(
+  start: Date,
+  statementClosingDay: number,
+  paymentDueDay: number,
+  unpaidStatementBalanceCents: number,
+  transactions: CardCycleTransaction[],
+  knownUpcomingCharges: CardCycleTransaction[] = [],
+): KnownCardPayment {
+  const { cycleStartDate, closeDate, dueDate } = computeCardCycleDates(start, statementClosingDay, paymentDueDay)
 
   const postedCycleActivity = transactions.filter((transaction) =>
     transaction.date >= cycleStartDate

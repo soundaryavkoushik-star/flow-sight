@@ -11,6 +11,7 @@ import { updateSafetyBuffer } from "@/app/app/forecast/actions"
 import { applyAmountSignConvention, applyTransactionDirection, detectAmountColumns, detectDirectionColumn, findHeader, inferPositiveOnlyDirection, normalizeDate, normalizeMerchant, parseCsv, parseMoney, suggestRecurring, type CsvDateOrder } from "@/lib/csv/parse"
 import { reconcileRecurringSuggestions, type ExistingRecurringItem } from "@/lib/csv/reconcile"
 import { suggestCardPaymentFromHistory } from "@/lib/forecast/credit-cards"
+import { localDateKey } from "@/lib/forecast/local-date"
 
 type AmountMode = "signed" | "split"
 type Stage = "choose" | "assist" | "map" | "review" | "recurring" | "card-payment" | "income-pattern" | "safety-buffer" | "done"
@@ -53,7 +54,7 @@ export function CsvImportPanel({ autoOpen = false, accounts = [], initialAccount
   const [debitColumn, setDebitColumn] = useState("")
   const [creditColumn, setCreditColumn] = useState("")
   const [currentBalance, setCurrentBalance] = useState(() => initialAccount?.anchorBalanceCents !== null && initialAccount?.anchorBalanceCents !== undefined ? (initialAccount.anchorBalanceCents / 100).toFixed(2) : "")
-  const [balanceDate, setBalanceDate] = useState(() => initialAccount?.anchorDate ?? new Date().toISOString().slice(0, 10))
+  const [balanceDate, setBalanceDate] = useState(() => initialAccount?.anchorDate ?? localDateKey())
   const [error, setError] = useState<string | null>(null)
   const [working, setWorking] = useState(false)
   const [resultText, setResultText] = useState("")
@@ -169,7 +170,7 @@ export function CsvImportPanel({ autoOpen = false, accounts = [], initialAccount
     setAccountChoice(value)
     const account = accounts.find((item) => item.id === value)
     setCurrentBalance(account?.anchorBalanceCents !== null && account?.anchorBalanceCents !== undefined ? (account.anchorBalanceCents / 100).toFixed(2) : "")
-    setBalanceDate(account?.anchorDate ?? new Date().toISOString().slice(0, 10))
+    setBalanceDate(account?.anchorDate ?? localDateKey())
   }
 
   async function chooseFile(file: File) {

@@ -7,7 +7,7 @@ import { measureForecasts } from "@/lib/analytics/forecast-measurement"
 import { rollForwardAnchors } from "@/lib/forecast/anchors"
 import { financialDateKey } from "@/lib/forecast/timezone"
 import { recurringDisplayName } from "@/lib/financial/recurring-label"
-import { buildKnownCardPayment, isMatchingCardPayment } from "@/lib/forecast/credit-cards"
+import { buildKnownCardPayment, isMatchingCardPayment, resolveCardStatementBaseline } from "@/lib/forecast/credit-cards"
 
 export interface DashboardForecast {
   timezone: string
@@ -156,7 +156,13 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
         description: transaction.description,
         amountCents: transaction.amountCents,
       }))
-    const coldStartBalanceCents = cardTransactions.length === 0 ? card.statementBalanceCents : 0
+    const { hasFullCycleCoverage, unpaidStatementBalanceCents: coldStartBalanceCents } = resolveCardStatementBaseline(
+      start,
+      card.statementClosingDay,
+      card.paymentDueDay,
+      card.statementBalanceCents,
+      cardTransactions,
+    )
     const cardRecurring = recurring.filter((item) =>
       item.accountId === card.account.id
       && item.type === "bill"
@@ -218,7 +224,9 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
       dueDate: payment.dueDate,
       strategy: payment.usesFallback
         ? "Cold-start estimate — no card purchases are available for this cycle yet"
-        : `Based on ${payment.postedChargeCount} posted ${payment.postedChargeCount === 1 ? "charge" : "charges"}${payment.upcomingChargeCount > 0 ? ` and ${payment.upcomingChargeCount} known upcoming ${payment.upcomingChargeCount === 1 ? "bill" : "bills"}` : ""}: ${shortMoney(payment.knownCycleChargesCents)} in recorded cycle activity. More spending before ${shortDate(payment.cycleCloseDate)} will increase this payment`,
+        : !hasFullCycleCoverage
+          ? `Based on your entered balance of ${shortMoney(coldStartBalanceCents)} plus ${payment.postedChargeCount} posted ${payment.postedChargeCount === 1 ? "charge" : "charges"}${payment.upcomingChargeCount > 0 ? ` and ${payment.upcomingChargeCount} known upcoming ${payment.upcomingChargeCount === 1 ? "bill" : "bills"}` : ""} since then — imported history doesn't yet cover the full cycle. More spending before ${shortDate(payment.cycleCloseDate)} will increase this payment`
+          : `Based on ${payment.postedChargeCount} posted ${payment.postedChargeCount === 1 ? "charge" : "charges"}${payment.upcomingChargeCount > 0 ? ` and ${payment.upcomingChargeCount} known upcoming ${payment.upcomingChargeCount === 1 ? "bill" : "bills"}` : ""}: ${shortMoney(payment.knownCycleChargesCents)} in recorded cycle activity. More spending before ${shortDate(payment.cycleCloseDate)} will increase this payment`,
       paymentAccountId: card.paymentAccount?.id ?? null,
       cardAccountId: card.account.id,
       settingsId: card.id,

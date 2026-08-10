@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { createManualTransaction } from "@/app/app/transactions/actions"
 import type { TransactionAccountOption } from "@/components/csv-import-panel"
+import { localDateKey } from "@/lib/forecast/local-date"
 
 export function ManualTransactionPanel({ accounts, variant = "default" }: { accounts: TransactionAccountOption[]; variant?: "default" | "outline" }) {
   const router = useRouter()
@@ -14,8 +15,8 @@ export function ManualTransactionPanel({ accounts, variant = "default" }: { acco
   const [newAccountName, setNewAccountName] = useState("")
   const [newAccountType, setNewAccountType] = useState<"checking" | "savings">("checking")
   const [newAccountBalance, setNewAccountBalance] = useState("")
-  const [newAccountBalanceDate, setNewAccountBalanceDate] = useState(new Date().toISOString().slice(0, 10))
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [newAccountBalanceDate, setNewAccountBalanceDate] = useState(localDateKey())
+  const [date, setDate] = useState(localDateKey())
   const [description, setDescription] = useState("")
   const [amount, setAmount] = useState("")
   const [type, setType] = useState<"expense" | "income">("expense")

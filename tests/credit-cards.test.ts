@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildKnownCardPayment, expectedCardPaymentCents, isMatchingCardPayment, nextCardPaymentDate, suggestCardPaymentFromHistory } from "../lib/forecast/credit-cards"
+import { buildKnownCardPayment, expectedCardPaymentCents, isMatchingCardPayment, nextCardPaymentDate, resolveCardStatementBaseline, suggestCardPaymentFromHistory } from "../lib/forecast/credit-cards"
 import { detectTransferSuggestions, isUnmatchedCardPayment } from "../lib/transfers/detect"
 
 describe("credit card payment planning", () => {
@@ -102,6 +102,37 @@ describe("credit card payment planning", () => {
     expect(payment.postedChargeCount).toBe(0)
     expect(payment.upcomingChargeCount).toBe(1)
     expect(payment.usesFallback).toBe(false)
+  })
+
+  it("keeps the manually-entered statement balance when imported history doesn't cover the full cycle", () => {
+    // Cycle closes on the 15th; only 5 days of imported history (Aug 6-10) within an Aug 1 - Aug 10 window.
+    const start = new Date("2026-08-10T00:00:00.000Z")
+    const cardTransactions = [
+      { date: new Date("2026-08-06T00:00:00.000Z"), description: "Coffee", amountCents: -500 },
+      { date: new Date("2026-08-09T00:00:00.000Z"), description: "Groceries", amountCents: -14_500 },
+    ]
+    const baseline = resolveCardStatementBaseline(start, 15, 10, 120_000, cardTransactions)
+    expect(baseline.hasFullCycleCoverage).toBe(false)
+    expect(baseline.unpaidStatementBalanceCents).toBe(120_000)
+
+    const payment = buildKnownCardPayment(start, 15, 10, baseline.unpaidStatementBalanceCents, cardTransactions)
+    // Should reflect the bank-verified $1,200 balance plus the $150 in newly-visible charges, not just the $150 sliver.
+    expect(payment.expectedPaymentCents).toBe(135_000)
+  })
+
+  it("drops the manual statement balance once imported history fully covers the current cycle", () => {
+    const start = new Date("2026-08-10T00:00:00.000Z")
+    const cardTransactions = [
+      // Cycle starts 2026-07-16 for a statement closing on the 15th; this predates the cycle start.
+      { date: new Date("2026-07-01T00:00:00.000Z"), description: "Old cycle charge", amountCents: -2_000 },
+      { date: new Date("2026-08-02T00:00:00.000Z"), description: "Groceries", amountCents: -6_000 },
+    ]
+    const baseline = resolveCardStatementBaseline(start, 15, 10, 120_000, cardTransactions)
+    expect(baseline.hasFullCycleCoverage).toBe(true)
+    expect(baseline.unpaidStatementBalanceCents).toBe(0)
+
+    const payment = buildKnownCardPayment(start, 15, 10, baseline.unpaidStatementBalanceCents, cardTransactions)
+    expect(payment.expectedPaymentCents).toBe(6_000)
   })
 
   it("proposes the next payment from observed card-payment history", () => {

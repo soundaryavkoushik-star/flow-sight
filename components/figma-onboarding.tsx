@@ -12,6 +12,7 @@ import { saveOnboarding, type OnboardingForecastSummary } from "@/app/app/onboar
 import { updateSafetyBuffer } from "@/app/app/forecast/actions";
 import { AmountReveal } from "@/components/financial-display";
 import { safeToSpendTone } from "@/components/condition-banner";
+import { localDateKey } from "@/lib/forecast/local-date";
 
 const display: React.CSSProperties = { fontFamily: "'Bricolage Grotesque', sans-serif" };
 const mono: React.CSSProperties = { fontFamily: "'DM Mono', monospace" };
@@ -455,7 +456,7 @@ function RecurringIncome({
             <input
               id="income-next-date"
               type="date"
-              min={new Date().toISOString().slice(0, 10)}
+              min={localDateKey()}
               value={nextDate}
               onChange={(e) => setNextDate(e.target.value)}
               className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/40 transition-colors"
@@ -638,7 +639,7 @@ function RecurringBills({
             <input
               id="bill-next-date"
               type="date"
-              min={new Date().toISOString().slice(0, 10)}
+              min={localDateKey()}
               value={nextDate}
               onChange={(e) => setNextDate(e.target.value)}
               className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/40 transition-colors"
