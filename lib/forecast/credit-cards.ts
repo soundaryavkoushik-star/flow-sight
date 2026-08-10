@@ -111,35 +111,37 @@ export function computeCardCycleDates(start: Date, statementClosingDay: number, 
   return { cycleStartDate, closeDate, dueDate }
 }
 
-export interface CardStatementBaseline {
-  hasFullCycleCoverage: boolean
-  unpaidStatementBalanceCents: number
+export interface CardOpeningBalance {
+  openingBalanceCents: number
+  activityCents: number
 }
 
-export function resolveCardStatementBaseline(
-  start: Date,
-  statementClosingDay: number,
-  paymentDueDay: number,
+// Mirrors lib/forecast/anchors.ts's rollForwardAnchors boundary convention
+// exactly: activity strictly after the anchor date, strictly before today.
+// statementBalanceCents is stored as a positive "amount owed" figure, so
+// charges (negative amountCents) increase what's owed and refunds/credits
+// (positive amountCents) decrease it — hence subtracting activityCents
+// rather than adding it.
+export function resolveCardOpeningBalance(
   statementBalanceCents: number,
+  statementBalanceDate: Date | null,
   transactions: CardCycleTransaction[],
-): CardStatementBaseline {
-  if (transactions.length === 0) {
-    return { hasFullCycleCoverage: false, unpaidStatementBalanceCents: statementBalanceCents }
+  today: Date,
+): CardOpeningBalance {
+  if (!statementBalanceDate) {
+    return { openingBalanceCents: statementBalanceCents, activityCents: 0 }
   }
-  const { cycleStartDate } = computeCardCycleDates(start, statementClosingDay, paymentDueDay)
-  const earliestTransactionDate = transactions.reduce((earliest, transaction) => transaction.date < earliest ? transaction.date : earliest, transactions[0].date)
-  const hasFullCycleCoverage = earliestTransactionDate <= cycleStartDate
-  return {
-    hasFullCycleCoverage,
-    unpaidStatementBalanceCents: hasFullCycleCoverage ? 0 : statementBalanceCents,
-  }
+  const activityCents = transactions
+    .filter((t) => !isCardPaymentDescription(t.description) && t.date > statementBalanceDate && t.date < today)
+    .reduce((sum, t) => sum + t.amountCents, 0)
+  return { openingBalanceCents: statementBalanceCents - activityCents, activityCents }
 }
 
 export function buildKnownCardPayment(
   start: Date,
   statementClosingDay: number,
   paymentDueDay: number,
-  unpaidStatementBalanceCents: number,
+  openingBalanceCents: number,
   transactions: CardCycleTransaction[],
   knownUpcomingCharges: CardCycleTransaction[] = [],
 ): KnownCardPayment {
@@ -156,20 +158,23 @@ export function buildKnownCardPayment(
     && transaction.date <= closeDate
     && !isCardPaymentDescription(transaction.description),
   )
-  const cycleActivity = [...postedCycleActivity, ...upcomingCycleActivity]
-  const knownCycleChargesCents = Math.max(0, -cycleActivity.reduce((total, transaction) => total + transaction.amountCents, 0))
-  const chargeCount = cycleActivity.filter((transaction) => transaction.amountCents < 0).length
+
+  // Only forward-looking charges get added on top of openingBalanceCents —
+  // postedCycleActivity is already folded into openingBalanceCents via the
+  // anchor rollforward and must not be summed again here.
+  const upcomingChargesCents = Math.max(0, -upcomingCycleActivity.reduce((total, transaction) => total + transaction.amountCents, 0))
+  const chargeCount = postedCycleActivity.filter((transaction) => transaction.amountCents < 0).length + upcomingCycleActivity.filter((transaction) => transaction.amountCents < 0).length
   const postedChargeCount = postedCycleActivity.filter((transaction) => transaction.amountCents < 0).length
   const upcomingChargeCount = upcomingCycleActivity.filter((transaction) => transaction.amountCents < 0).length
-  const usesFallback = cycleActivity.length === 0
+  const usesFallback = transactions.length === 0 && knownUpcomingCharges.length === 0
 
   return {
     cycleStartDate: cycleStartDate.toISOString().slice(0, 10),
     cycleCloseDate: closeDate.toISOString().slice(0, 10),
     dueDate: dueDate.toISOString().slice(0, 10),
-    unpaidStatementBalanceCents,
-    knownCycleChargesCents,
-    expectedPaymentCents: usesFallback ? unpaidStatementBalanceCents : unpaidStatementBalanceCents + knownCycleChargesCents,
+    unpaidStatementBalanceCents: openingBalanceCents,
+    knownCycleChargesCents: upcomingChargesCents,
+    expectedPaymentCents: Math.max(0, openingBalanceCents + upcomingChargesCents),
     chargeCount,
     postedChargeCount,
     upcomingChargeCount,

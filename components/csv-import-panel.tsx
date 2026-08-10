@@ -329,7 +329,7 @@ export function CsvImportPanel({ autoOpen = false, accounts = [], initialAccount
                 const amountCents = Math.round(Number(proposedPayment) * 100)
                 setWorking(true)
                 setError(null)
-                const result = await confirmCardPaymentProposal({ accountId: importedAccountId, expectedPaymentCents: amountCents, nextPaymentDate: proposedPaymentDate })
+                const result = await confirmCardPaymentProposal({ accountId: importedAccountId, expectedPaymentCents: amountCents, nextPaymentDate: proposedPaymentDate, statementBalanceDate: localDateKey() })
                 setWorking(false)
                 if (!result.ok) { setError(result.message); return }
                 setStage(incomePatternEstablished ? (safetyBufferSetupResolved ? "done" : "safety-buffer") : "income-pattern")

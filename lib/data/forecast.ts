@@ -7,7 +7,7 @@ import { measureForecasts } from "@/lib/analytics/forecast-measurement"
 import { rollForwardAnchors } from "@/lib/forecast/anchors"
 import { financialDateKey } from "@/lib/forecast/timezone"
 import { recurringDisplayName } from "@/lib/financial/recurring-label"
-import { buildKnownCardPayment, isMatchingCardPayment, resolveCardStatementBaseline } from "@/lib/forecast/credit-cards"
+import { buildKnownCardPayment, isMatchingCardPayment, resolveCardOpeningBalance } from "@/lib/forecast/credit-cards"
 
 export interface DashboardForecast {
   timezone: string
@@ -156,12 +156,11 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
         description: transaction.description,
         amountCents: transaction.amountCents,
       }))
-    const { hasFullCycleCoverage, unpaidStatementBalanceCents: coldStartBalanceCents } = resolveCardStatementBaseline(
-      start,
-      card.statementClosingDay,
-      card.paymentDueDay,
+    const { openingBalanceCents, activityCents } = resolveCardOpeningBalance(
       card.statementBalanceCents,
+      card.statementBalanceDate,
       cardTransactions,
+      start,
     )
     const cardRecurring = recurring.filter((item) =>
       item.accountId === card.account.id
@@ -205,15 +204,24 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
       start,
       card.statementClosingDay,
       card.paymentDueDay,
-      coldStartBalanceCents,
+      openingBalanceCents,
       cardTransactions,
       upcomingCardCharges,
     )
     if (payment.expectedPaymentCents <= 0 || new Date(`${payment.dueDate}T00:00:00.000Z`) >= end) return []
+    const upcomingChargeNote = payment.upcomingChargeCount > 0
+      ? ` plus ${payment.upcomingChargeCount} known upcoming ${payment.upcomingChargeCount === 1 ? "bill" : "bills"} (${shortMoney(payment.knownCycleChargesCents)})`
+      : ""
+    const balanceChangeCents = -activityCents
+    const balanceChangeNote = balanceChangeCents === 0
+      ? "no activity"
+      : balanceChangeCents > 0
+        ? `${shortMoney(balanceChangeCents)} in new charges`
+        : `${shortMoney(-balanceChangeCents)} in refunds/credits`
     return [{
       cardName: card.account.name,
       paymentAccountName: card.paymentAccount?.name ?? "an account Cusp will identify",
-      statementBalanceCents: coldStartBalanceCents,
+      statementBalanceCents: openingBalanceCents,
       knownCycleChargesCents: payment.knownCycleChargesCents,
       expectedPaymentCents: payment.expectedPaymentCents,
       chargeCount: payment.chargeCount,
@@ -224,9 +232,9 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
       dueDate: payment.dueDate,
       strategy: payment.usesFallback
         ? "Cold-start estimate — no card purchases are available for this cycle yet"
-        : !hasFullCycleCoverage
-          ? `Based on your entered balance of ${shortMoney(coldStartBalanceCents)} plus ${payment.postedChargeCount} posted ${payment.postedChargeCount === 1 ? "charge" : "charges"}${payment.upcomingChargeCount > 0 ? ` and ${payment.upcomingChargeCount} known upcoming ${payment.upcomingChargeCount === 1 ? "bill" : "bills"}` : ""} since then — imported history doesn't yet cover the full cycle. More spending before ${shortDate(payment.cycleCloseDate)} will increase this payment`
-          : `Based on ${payment.postedChargeCount} posted ${payment.postedChargeCount === 1 ? "charge" : "charges"}${payment.upcomingChargeCount > 0 ? ` and ${payment.upcomingChargeCount} known upcoming ${payment.upcomingChargeCount === 1 ? "bill" : "bills"}` : ""}: ${shortMoney(payment.knownCycleChargesCents)} in recorded cycle activity. More spending before ${shortDate(payment.cycleCloseDate)} will increase this payment`,
+        : card.statementBalanceDate
+          ? `Rolled forward from the ${shortMoney(card.statementBalanceCents)} balance you entered on ${shortDate(dateKey(card.statementBalanceDate))}, updated for ${balanceChangeNote} since then${upcomingChargeNote}. More spending before ${shortDate(payment.cycleCloseDate)} will increase this payment`
+          : `Based on your entered balance of ${shortMoney(openingBalanceCents)}${upcomingChargeNote} — connect more transaction history to refine this estimate. More spending before ${shortDate(payment.cycleCloseDate)} will increase this payment`,
       paymentAccountId: card.paymentAccount?.id ?? null,
       cardAccountId: card.account.id,
       settingsId: card.id,

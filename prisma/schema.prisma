@@ -69,6 +69,7 @@ model CreditCardSettings {
   paymentAccountId      String?
   paymentAccount        Account? @relation("CreditCardPaymentAccount", fields: [paymentAccountId], references: [id], onDelete: SetNull)
   statementBalanceCents Int
+  statementBalanceDate  DateTime?
   minimumPaymentCents   Int?
   statementClosingDay   Int
   paymentDueDay         Int

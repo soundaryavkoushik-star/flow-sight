@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildKnownCardPayment, expectedCardPaymentCents, isMatchingCardPayment, nextCardPaymentDate, resolveCardStatementBaseline, suggestCardPaymentFromHistory } from "../lib/forecast/credit-cards"
+import { buildKnownCardPayment, expectedCardPaymentCents, isMatchingCardPayment, nextCardPaymentDate, resolveCardOpeningBalance, suggestCardPaymentFromHistory } from "../lib/forecast/credit-cards"
 import { detectTransferSuggestions, isUnmatchedCardPayment } from "../lib/transfers/detect"
 
 describe("credit card payment planning", () => {
@@ -28,7 +28,7 @@ describe("credit card payment planning", () => {
     )).toBe(true)
   })
 
-  it("combines the unpaid statement with charges known in the current cycle", () => {
+  it("no longer adds posted cycle activity on top of the opening balance (it's already rolled forward)", () => {
     expect(buildKnownCardPayment(
       new Date("2026-08-10T00:00:00.000Z"),
       15,
@@ -44,8 +44,8 @@ describe("credit card payment planning", () => {
       cycleCloseDate: "2026-08-15",
       dueDate: "2026-09-10",
       unpaidStatementBalanceCents: 40_000,
-      knownCycleChargesCents: 8_000,
-      expectedPaymentCents: 48_000,
+      knownCycleChargesCents: 0,
+      expectedPaymentCents: 40_000,
       chargeCount: 2,
       postedChargeCount: 2,
       upcomingChargeCount: 0,
@@ -53,7 +53,7 @@ describe("credit card payment planning", () => {
     })
   })
 
-  it("assigns purchases after closing to the next statement cycle", () => {
+  it("assigns purchases after closing to the next statement cycle for display counts", () => {
     const payment = buildKnownCardPayment(
       new Date("2026-08-20T00:00:00.000Z"),
       15,
@@ -68,7 +68,8 @@ describe("credit card payment planning", () => {
     expect(payment.cycleStartDate).toBe("2026-08-16")
     expect(payment.cycleCloseDate).toBe("2026-09-15")
     expect(payment.dueDate).toBe("2026-10-10")
-    expect(payment.knownCycleChargesCents).toBe(6_000)
+    expect(payment.postedChargeCount).toBe(1)
+    expect(payment.chargeCount).toBe(1)
   })
 
   it("uses the unpaid-statement amount as a cold-start fallback", () => {
@@ -104,37 +105,6 @@ describe("credit card payment planning", () => {
     expect(payment.usesFallback).toBe(false)
   })
 
-  it("keeps the manually-entered statement balance when imported history doesn't cover the full cycle", () => {
-    // Cycle closes on the 15th; only 5 days of imported history (Aug 6-10) within an Aug 1 - Aug 10 window.
-    const start = new Date("2026-08-10T00:00:00.000Z")
-    const cardTransactions = [
-      { date: new Date("2026-08-06T00:00:00.000Z"), description: "Coffee", amountCents: -500 },
-      { date: new Date("2026-08-09T00:00:00.000Z"), description: "Groceries", amountCents: -14_500 },
-    ]
-    const baseline = resolveCardStatementBaseline(start, 15, 10, 120_000, cardTransactions)
-    expect(baseline.hasFullCycleCoverage).toBe(false)
-    expect(baseline.unpaidStatementBalanceCents).toBe(120_000)
-
-    const payment = buildKnownCardPayment(start, 15, 10, baseline.unpaidStatementBalanceCents, cardTransactions)
-    // Should reflect the bank-verified $1,200 balance plus the $150 in newly-visible charges, not just the $150 sliver.
-    expect(payment.expectedPaymentCents).toBe(135_000)
-  })
-
-  it("drops the manual statement balance once imported history fully covers the current cycle", () => {
-    const start = new Date("2026-08-10T00:00:00.000Z")
-    const cardTransactions = [
-      // Cycle starts 2026-07-16 for a statement closing on the 15th; this predates the cycle start.
-      { date: new Date("2026-07-01T00:00:00.000Z"), description: "Old cycle charge", amountCents: -2_000 },
-      { date: new Date("2026-08-02T00:00:00.000Z"), description: "Groceries", amountCents: -6_000 },
-    ]
-    const baseline = resolveCardStatementBaseline(start, 15, 10, 120_000, cardTransactions)
-    expect(baseline.hasFullCycleCoverage).toBe(true)
-    expect(baseline.unpaidStatementBalanceCents).toBe(0)
-
-    const payment = buildKnownCardPayment(start, 15, 10, baseline.unpaidStatementBalanceCents, cardTransactions)
-    expect(payment.expectedPaymentCents).toBe(6_000)
-  })
-
   it("proposes the next payment from observed card-payment history", () => {
     expect(suggestCardPaymentFromHistory([
       { date: "2026-05-13", description: "Payment Received - Thank You", amountCents: 100_000 },
@@ -148,6 +118,53 @@ describe("credit card payment planning", () => {
       occurrenceCount: 3,
       nextPaymentDate: "2026-08-13",
     })
+  })
+})
+
+describe("resolveCardOpeningBalance", () => {
+  const today = new Date("2026-08-10T00:00:00.000Z")
+  const anchorDate = new Date("2026-08-05T00:00:00.000Z")
+
+  it("adds real charges that occurred after the anchor date", () => {
+    const result = resolveCardOpeningBalance(120_000, anchorDate, [
+      { date: new Date("2026-08-06T00:00:00.000Z"), description: "Coffee", amountCents: -500 },
+      { date: new Date("2026-08-09T00:00:00.000Z"), description: "Groceries", amountCents: -14_500 },
+    ], today)
+    expect(result.openingBalanceCents).toBe(135_000)
+  })
+
+  it("does not double-count a charge that predates the anchor", () => {
+    const result = resolveCardOpeningBalance(120_000, anchorDate, [
+      { date: new Date("2026-08-01T00:00:00.000Z"), description: "Old charge before anchor", amountCents: -9_999_00 },
+      { date: new Date("2026-08-06T00:00:00.000Z"), description: "Coffee", amountCents: -500 },
+    ], today)
+    expect(result.openingBalanceCents).toBe(120_500)
+  })
+
+  it("reduces the balance for a refund after the anchor", () => {
+    const result = resolveCardOpeningBalance(120_000, anchorDate, [
+      { date: new Date("2026-08-06T00:00:00.000Z"), description: "Return refund", amountCents: 2_000 },
+    ], today)
+    expect(result.openingBalanceCents).toBe(118_000)
+  })
+
+  it("falls back to the flat manual balance when there is no anchor date on record", () => {
+    const result = resolveCardOpeningBalance(120_000, null, [
+      { date: new Date("2026-08-06T00:00:00.000Z"), description: "Coffee", amountCents: -500 },
+    ], today)
+    expect(result.openingBalanceCents).toBe(120_000)
+  })
+
+  it("feeds into buildKnownCardPayment to reflect the true owed amount despite partial history", () => {
+    // The original bug: a mid-cycle CSV import only has 5 days of history, but the
+    // anchor lets us roll the bank-verified balance forward without double-counting.
+    const cardTransactions = [
+      { date: new Date("2026-08-06T00:00:00.000Z"), description: "Coffee", amountCents: -500 },
+      { date: new Date("2026-08-09T00:00:00.000Z"), description: "Groceries", amountCents: -14_500 },
+    ]
+    const { openingBalanceCents } = resolveCardOpeningBalance(120_000, anchorDate, cardTransactions, today)
+    const payment = buildKnownCardPayment(today, 15, 10, openingBalanceCents, cardTransactions)
+    expect(payment.expectedPaymentCents).toBe(135_000)
   })
 })
 

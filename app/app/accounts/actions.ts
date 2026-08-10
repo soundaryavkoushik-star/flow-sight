@@ -30,6 +30,7 @@ interface AccountInput {
   balanceDate: string
   paymentAccountId?: string
   statementBalanceCents?: number
+  statementBalanceDate?: string
   minimumPaymentCents?: number
   statementClosingDay?: number
   paymentDueDay?: number
@@ -68,7 +69,8 @@ export async function createAccount(input: AccountInput) {
       const account = await tx.account.create({ data: { userId: id, name: input.name.trim(), type: input.type, isLiability: input.type === "credit_card", source: "manual", anchorBalanceCents: input.balanceCents, anchorDate: date } })
       await tx.actualBalanceObservation.create({ data: { userId: id, accountId: account.id, balanceCents: input.balanceCents, observedAt: date } })
       if (input.type === "credit_card") {
-        await tx.creditCardSettings.create({ data: { userId: id, accountId: account.id, statementBalanceCents: input.statementBalanceCents!, minimumPaymentCents: input.minimumPaymentCents, statementClosingDay: input.statementClosingDay ?? estimatedClosingDay(input.paymentDueDay!), paymentDueDay: input.paymentDueDay!, paymentStrategy: input.paymentStrategy!, fixedPaymentCents: input.fixedPaymentCents } })
+        const statementBalanceDate = (input.statementBalanceDate ? parseDate(input.statementBalanceDate) : null) ?? date
+        await tx.creditCardSettings.create({ data: { userId: id, accountId: account.id, statementBalanceCents: input.statementBalanceCents!, statementBalanceDate, minimumPaymentCents: input.minimumPaymentCents, statementClosingDay: input.statementClosingDay ?? estimatedClosingDay(input.paymentDueDay!), paymentDueDay: input.paymentDueDay!, paymentStrategy: input.paymentStrategy!, fixedPaymentCents: input.fixedPaymentCents } })
       }
       return account
     })
@@ -81,23 +83,25 @@ export async function createAccount(input: AccountInput) {
   }
 }
 
-export async function confirmCardPaymentProposal(input: { accountId: string; expectedPaymentCents: number; nextPaymentDate: string }) {
+export async function confirmCardPaymentProposal(input: { accountId: string; expectedPaymentCents: number; nextPaymentDate: string; statementBalanceDate?: string }) {
   const id = await userId()
   if (!id) return { ok: false as const, message: "Your session expired. Please sign in again." }
   const date = parseDate(input.nextPaymentDate)
   if (!date || !Number.isSafeInteger(input.expectedPaymentCents) || input.expectedPaymentCents <= 0) {
     return { ok: false as const, message: "Add a valid expected payment and date." }
   }
+  const statementBalanceDate = (input.statementBalanceDate ? parseDate(input.statementBalanceDate) : null) ?? new Date()
   const account = await prisma.account.findFirst({ where: { id: input.accountId, userId: id, type: "credit_card" }, select: { id: true } })
   if (!account) return { ok: false as const, message: "Credit-card account not found." }
   try {
     await prisma.creditCardSettings.upsert({
       where: { accountId: account.id },
-      update: { statementBalanceCents: input.expectedPaymentCents, paymentDueDay: date.getUTCDate(), paymentStrategy: "full_statement" },
+      update: { statementBalanceCents: input.expectedPaymentCents, statementBalanceDate, paymentDueDay: date.getUTCDate(), paymentStrategy: "full_statement" },
       create: {
         userId: id,
         accountId: account.id,
         statementBalanceCents: input.expectedPaymentCents,
+        statementBalanceDate,
         statementClosingDay: 1,
         paymentDueDay: date.getUTCDate(),
         paymentStrategy: "full_statement",
@@ -127,7 +131,8 @@ export async function updateAccount(input: AccountInput & { accountId: string })
       await tx.actualBalanceObservation.upsert({ where: { accountId_observedAt: { accountId: account.id, observedAt: date } }, update: { balanceCents: input.balanceCents }, create: { userId: id, accountId: account.id, balanceCents: input.balanceCents, observedAt: date } })
       if (account.type === "credit_card" && account.creditCardSettings) {
         const statementClosingDay = input.statementClosingDay ?? estimatedClosingDay(input.paymentDueDay!)
-        await tx.creditCardSettings.upsert({ where: { accountId: account.id }, update: { statementBalanceCents: input.statementBalanceCents!, minimumPaymentCents: input.minimumPaymentCents, statementClosingDay, paymentDueDay: input.paymentDueDay!, paymentStrategy: input.paymentStrategy!, fixedPaymentCents: input.fixedPaymentCents }, create: { userId: id, accountId: account.id, statementBalanceCents: input.statementBalanceCents!, minimumPaymentCents: input.minimumPaymentCents, statementClosingDay, paymentDueDay: input.paymentDueDay!, paymentStrategy: input.paymentStrategy!, fixedPaymentCents: input.fixedPaymentCents } })
+        const statementBalanceDate = (input.statementBalanceDate ? parseDate(input.statementBalanceDate) : null) ?? date
+        await tx.creditCardSettings.upsert({ where: { accountId: account.id }, update: { statementBalanceCents: input.statementBalanceCents!, statementBalanceDate, minimumPaymentCents: input.minimumPaymentCents, statementClosingDay, paymentDueDay: input.paymentDueDay!, paymentStrategy: input.paymentStrategy!, fixedPaymentCents: input.fixedPaymentCents }, create: { userId: id, accountId: account.id, statementBalanceCents: input.statementBalanceCents!, statementBalanceDate, minimumPaymentCents: input.minimumPaymentCents, statementClosingDay, paymentDueDay: input.paymentDueDay!, paymentStrategy: input.paymentStrategy!, fixedPaymentCents: input.fixedPaymentCents } })
       }
     })
     revalidateAccounts()

@@ -63,7 +63,7 @@ function AccountEditor({ account, paymentAccounts, onClose, onSaved }: { account
     if (!Number.isSafeInteger(cents)) { setError("Enter a valid current balance."); return }
     setSaving(true)
     setError(null)
-    const payload = { name, type, balanceCents: cents, balanceDate, statementBalanceCents: cents, minimumPaymentCents, statementClosingDay: closingDay ? Number(closingDay) : undefined, paymentDueDay: Number(dueDay), paymentStrategy: strategy, fixedPaymentCents }
+    const payload = { name, type, balanceCents: cents, balanceDate, statementBalanceCents: cents, statementBalanceDate: balanceDate, minimumPaymentCents, statementClosingDay: closingDay ? Number(closingDay) : undefined, paymentDueDay: Number(dueDay), paymentStrategy: strategy, fixedPaymentCents }
     const result = isNew ? await createAccount(payload) : await updateAccount({ ...payload, accountId: account.id })
     setSaving(false)
     if (!result.ok) { setError(result.message); return }
