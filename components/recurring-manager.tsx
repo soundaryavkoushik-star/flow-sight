@@ -161,7 +161,7 @@ function RecurringGroup({ title, items, highlightedIds, workingId, onEdit, onTog
           ? "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]"
           : item.confidence === "estimated"
             ? "bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]"
-            : "bg-[#F0F1F3] text-[#625852]"
+            : "bg-[oklch(var(--primary)/.14)] text-[oklch(var(--primary))]"
         return <div key={item.id} data-recurring-id={item.id} className={`flex flex-col gap-3 p-4 transition-[background-color,box-shadow] duration-700 hover:bg-muted/25 sm:flex-row sm:items-center ${item.confidence === "estimated" ? "border-l-2 border-dashed border-l-[oklch(var(--fs-estimate))]/50" : ""} ${item.status === "dismissed" ? "opacity-70" : ""} ${highlightedIds.has(item.id) ? "relative z-10 bg-primary/[0.11] shadow-[inset_3px_0_0_oklch(var(--primary)),0_0_0_1px_oklch(var(--primary)/.3),0_8px_24px_oklch(var(--primary)/.1)]" : ""}`}>
         <div className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconTone}`}><ItemIcon className="h-[18px] w-[18px]" strokeWidth={2} /></div>
         <div className="flex-1 min-w-0">

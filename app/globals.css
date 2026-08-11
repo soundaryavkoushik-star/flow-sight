@@ -113,10 +113,36 @@
 }
 
 @layer components {
+  /* Signed-in workspace: warm, low-contrast surfaces with brighter cards.
+     Semantic colors retain their existing meaning and saturation. */
+  .fs-app {
+    --background: 97.4% 0.007 88;
+    --card: 99.35% 0.0025 92;
+    --card-foreground: 24.53% 0.0105 151.3;
+    --secondary: 95.7% 0.007 88;
+    --muted: 95.7% 0.007 88;
+    --border: 90.8% 0.007 88;
+    --input: 87.5% 0.008 88;
+    background: oklch(var(--background));
+  }
+
   /* The marketing page carries slightly brighter semantic colors than the
      working app. They remain meaning-led (Clear / Watch / Tight / Estimate),
      but need enough chroma to hold their own against the quiet neutral page. */
   .fs-landing {
+    /* Landing palette: neutral-alabaster ground + one terracotta-clay accent.
+       Product-state colors remain semantic and are not used as decoration. */
+    --background: 98% 0.004 106;
+    --muted: 96% 0.004 106;
+    --secondary: 96% 0.004 106;
+    --border: 91.8% 0.005 106;
+    --input: 88% 0.006 106;
+    --primary: 66.73% 0.1252 31.6;
+    --primary-foreground: 100% 0 0;
+    --accent: 66.73% 0.1252 31.6;
+    --ring: 66.73% 0.1252 31.6;
+    --fs-brand: 66.73% 0.1252 31.6;
+    --fs-action: 66.73% 0.1252 31.6;
     --fs-green: 55% 0.14 148.7;
     --fs-green-bg: 95% 0.055 148.7;
     --fs-red: 55% 0.16 22;
@@ -127,6 +153,59 @@
     --fs-estimate-bg: 95% 0.04 267.8;
     --fs-transfer: 58% 0.16 245.8;
     --fs-transfer-bg: 95% 0.04 238.7;
+    font-family: "Inter", system-ui, sans-serif;
+  }
+
+  /* A quiet, fixed paper grain keeps the alabaster ground from feeling flat.
+     It is intentionally texture-only: no hue, no interaction, no app impact. */
+  .fs-landing::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    pointer-events: none;
+    opacity: 0.026;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.72' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.72'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 180px 180px;
+    mix-blend-mode: multiply;
+  }
+
+  .fs-landing .fs-clay-field {
+    background-color: color-mix(in oklab, oklch(var(--background)) 94%, oklch(var(--primary)) 6%);
+  }
+
+  .fs-landing .fs-feature-field {
+    background-color: color-mix(in oklab, oklch(var(--background)) 95.5%, oklch(var(--primary)) 4.5%);
+  }
+
+  .fs-landing .fs-layered-card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.84));
+    border-color: rgba(29,34,30,0.075);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.92),
+      inset 0 -1px 0 rgba(29,34,30,0.028),
+      0 18px 46px rgba(29,34,30,0.055);
+  }
+
+  .fs-landing .fs-hero-app-shell {
+    background: rgba(251,250,247,0.90);
+    border-color: rgba(29,34,30,0.075);
+  }
+
+  .fs-landing .fs-hero-sidebar {
+    background: rgba(246,242,235,0.92);
+    border-color: rgba(29,34,30,0.075);
+  }
+
+  .fs-landing .fs-hero-main {
+    background: rgba(251,250,247,0.86);
+  }
+
+  .fs-landing .fs-hero-product-card {
+    background: rgba(255,255,255,0.88);
+    border-color: rgba(29,34,30,0.075);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.78);
   }
 
   .fs-shimmer {
@@ -258,15 +337,15 @@
     box-shadow: 0 0 0 3px rgba(29, 34, 30, 0.16);
   }
 
-  /* Primary button per spec: dark neutral default, subtle color shift on
-     hover, no glow. Clay is reserved for sparing accents, not every CTA. */
+  /* Terracotta clay carries brand actions and editorial emphasis while the
+     Clear / Watch / Tight colors remain meaning-led product signals. */
   .fs-landing .fs-brand-action {
-    background: #1D221E;
-    color: #F9F9F8;
+    background: oklch(var(--fs-action));
+    color: #fff;
   }
 
   .fs-landing .fs-brand-action:hover {
-    background: #2B312C;
+    background: color-mix(in oklab, oklch(var(--fs-action)) 88%, #202321 12%);
   }
 
   .fs-landing .fs-brand-action:active {

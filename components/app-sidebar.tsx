@@ -35,7 +35,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
   return (
     <aside
       className={cn(
-        "flex h-full shrink-0 flex-col bg-card/80 shadow-[8px_0_30px_rgba(74,65,60,0.035)] backdrop-blur-sm transition-[width] duration-200",
+        "flex h-full shrink-0 flex-col bg-card/88 shadow-[8px_0_30px_rgba(74,65,60,0.035)] transition-[width] duration-200",
         collapsed ? "w-[60px]" : "w-[232px]"
       )}
     >
@@ -47,6 +47,11 @@ export function AppSidebar({ user }: AppSidebarProps) {
         {!collapsed && (
           <Link href="/app/dashboard" className="flex min-w-0 items-center rounded-lg px-1.5 py-1">
             <Image src="/cusp-logo.svg?v=2" alt="Cusp" width={138} height={32} loading="eager" className="h-8 w-auto" />
+          </Link>
+        )}
+        {collapsed && (
+          <Link href="/app/dashboard" className="flex h-6 w-6 items-center justify-center rounded-md" aria-label="Cusp dashboard">
+            <Image src="/cusp-mark.svg?v=1" alt="Cusp" width={24} height={24} loading="eager" className="h-6 w-6" />
           </Link>
         )}
         <Button

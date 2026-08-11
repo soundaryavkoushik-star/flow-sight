@@ -35,10 +35,14 @@ export function explainLowestPoint(days: ForecastDay[], lowestDate: string): For
   const names = new Intl.ListFormat("en-US", { style: "long", type: "conjunction" })
     .format(expenses.map((event) => event.name))
   const lowPointDate = formatEventDate(lowestDate)
+  const allRecurring = expenses.every((event) => event.recurring || event.source === "recurring")
+  const allConfirmed = expenses.every((event) => event.confidence === "confirmed")
+  const allEstimated = expenses.every((event) => event.confidence === "estimated")
+  const timingVerb = !allRecurring ? (expenses.length === 1 ? "lands" : "land") : allConfirmed ? "are due" : allEstimated ? "are expected" : "include confirmed and estimated charges"
 
   return [{
     date: lowestDate,
-    headline: `${names} ${expenses.length === 1 ? "is" : "are"} expected${timing}, bringing your projected balance to its low on ${lowPointDate}.`,
+    headline: `${names} ${expenses.length === 1 && allRecurring && allConfirmed ? "is due" : expenses.length === 1 && allRecurring && allEstimated ? "is expected" : timingVerb}${timing}, bringing your projected balance to its low on ${lowPointDate}.`,
     eventIds: expenses.map((event) => event.id),
   }]
 }

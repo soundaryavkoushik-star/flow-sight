@@ -367,7 +367,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
         ? "bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]"
         : event.amountCents > 0
           ? "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]"
-          : "bg-primary/[0.10] text-primary",
+          : "bg-[oklch(var(--primary)/.14)] text-[oklch(var(--primary))]",
       rowTone: event.confidence === "estimated"
         ? "hover:bg-[oklch(var(--fs-estimate-bg))]/70"
         : event.amountCents > 0
@@ -670,7 +670,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,29,58,0.08)" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#625852" }} tickLine={false} axisLine={false} interval={2} />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#625852" }} tickLine={false} axisLine={false} interval={horizonDays === 90 ? 13 : horizonDays === 60 ? 9 : 4} />
                 <YAxis tick={{ fontSize: 10, fill: "#625852" }} tickLine={false} axisLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
                 <Tooltip
                   content={<ChartTooltip />}
@@ -728,7 +728,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
                   {cascadeSteps.map((step, index) => <tr key={`${step.label}:${index}`} onClick={() => setSelectedDate(step.day)} className="cursor-pointer border-t border-border transition-colors hover:bg-muted/40">
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2.5">
-                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${step.confidence === "estimated" ? "bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]" : step.amountCents > 0 ? "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]" : "bg-primary/[0.10] text-primary"}`}>{step.amountCents > 0 ? <Landmark className="h-3.5 w-3.5" /> : <ReceiptText className="h-3.5 w-3.5" />}</span>
+                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${step.confidence === "estimated" ? "bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]" : step.amountCents > 0 ? "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]" : "bg-[oklch(var(--primary)/.14)] text-[oklch(var(--primary))]"}`}>{step.amountCents > 0 ? <Landmark className="h-3.5 w-3.5" /> : <ReceiptText className="h-3.5 w-3.5" />}</span>
                         <div className="min-w-0">
                           <span className="font-medium">{step.label}</span>
                           {step.confidence === "estimated" ? <span className="ml-1.5 inline-flex items-center rounded-full bg-[oklch(var(--fs-estimate-bg))] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[oklch(var(--fs-estimate))]">Estimated</span> : <span className="ml-1.5 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Confirmed</span>}

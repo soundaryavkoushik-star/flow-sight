@@ -61,28 +61,15 @@ function CategoryIcon({ category, transfer, review, estimated }: { category: str
                       : category === "Variable / side income" || category === "Business income"
                         ? BriefcaseBusiness
                         : ReceiptText
-  const spendingTone: Record<string, string> = {
-    Groceries: "bg-[#EEF3E3] text-[#365E1C]",
-    Dining: "bg-[#FAEEE7] text-[#9A4E2D]",
-    Transport: "bg-[#F3EADF] text-[#7A5A45]",
-    Utilities: "bg-[oklch(var(--fs-amber-bg))] text-[oklch(var(--fs-amber))]",
-    Housing: "bg-[#F0ECF6] text-[#66527F]",
-    Subscriptions: "bg-[#F6ECF1] text-[#87506A]",
-    Insurance: "bg-[#E8F2F0] text-[#376B62]",
-    "Debt payments": "bg-[#EEF0F3] text-[#625852]",
-    Shopping: "bg-[#F2EDF6] text-[#705583]",
-    Health: "bg-[#E8F2F3] text-[#397078]",
-    Other: "bg-[#F0F1F3] text-[#625852]",
-  }
   const tone = transfer
     ? "bg-[#F0EEE9] text-[#625852]"
     : review
       ? "bg-[#F8EAF0] text-[#B44455]"
       : estimated
-        ? "bg-[oklch(var(--fs-amber-bg))] text-[oklch(var(--fs-amber))]"
+        ? "bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]"
         : ["Regular paycheck", "Variable / side income", "Business income", "Investment income", "Benefits"].includes(category)
           ? "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]"
-          : spendingTone[category] ?? "bg-[#F0F1F3] text-[#625852]"
+          : "bg-[oklch(var(--primary)/.14)] text-[oklch(var(--primary))]"
   return <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon className="h-[18px] w-[18px]" strokeWidth={2} /></span>
 }
 

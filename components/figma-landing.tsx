@@ -17,7 +17,8 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { ConditionBanner } from "@/components/condition-banner";
 
-const display: React.CSSProperties = { fontFamily: "'Bricolage Grotesque', sans-serif" };
+const display: React.CSSProperties = { fontFamily: "'Inter', sans-serif" };
+const editorialItalic: React.CSSProperties = { fontFamily: "'Fraunces', serif", fontStyle: "italic", fontWeight: 400 };
 const mono: React.CSSProperties = { fontFamily: "'DM Mono', monospace" };
 const SCENARIO_MOTION_MS = 600;
 
@@ -71,24 +72,24 @@ function useInView<T extends HTMLElement>(threshold = 0.35) {
 /* ── Hero: real dashboard recreation in Clear state. Matches treasury.sh's
    actual hero, verified live: the frame and its content render at final
    position immediately on load — no scroll-linked motion, no stagger. ── */
-function HeroDashboard() {
+function HeroDashboard({ play }: { play: boolean }) {
   const navItems = ["Dashboard", "Forecast", "Scenarios", "Transactions", "Accounts"];
-  /* The runway's CSS draw/pulse animations fire at mount; a brief delay just
-     lets the page settle so the draw-in is visible instead of instant. */
+  /* The runway waits until the hero reveal is complete, then latches on so
+     scrolling back never resets or replays the product story. */
   const [runwayPlay, setRunwayPlay] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const timer = window.setTimeout(() => setRunwayPlay(true), 300);
+    if (!play || runwayPlay || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setTimeout(() => setRunwayPlay(true), 120);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [play, runwayPlay]);
   return (
-    <div className="h-full overflow-hidden rounded-[24px] border border-border bg-card" style={{ boxShadow: "0 24px 70px rgba(0, 0, 0, 0.06), 0 0 72px rgba(29, 34, 30, 0.10)" }}>
+    <div className="fs-hero-app-shell h-full overflow-hidden rounded-[24px] border" style={{ boxShadow: "0 24px 70px rgba(0, 0, 0, 0.06), 0 0 72px rgba(212, 117, 74, 0.10)" }}>
       <div className="grid h-full sm:grid-cols-[180px_1fr] lg:grid-cols-[190px_1fr]">
-        <aside className="hidden border-r border-border bg-card px-4 py-5 sm:flex sm:flex-col">
+        <aside className="fs-hero-sidebar hidden border-r px-4 py-5 sm:flex sm:flex-col">
           <div className="px-2"><Image src="/cusp-logo.svg?v=2" alt="Cusp" width={130} height={30} loading="eager" className="h-7 w-auto" /></div>
           <nav className="mt-4 flex flex-col gap-0.5">{navItems.map((item, index) => <div key={item} className={`relative rounded-xl px-3 py-2 text-[13px] leading-5 ${index === 0 ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground"}`}>{item}</div>)}</nav>
         </aside>
-        <main className="min-w-0 bg-muted/40 p-5 sm:p-6">
+        <main className="fs-hero-main min-w-0 p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div><h3 className="text-[24px] font-medium leading-tight" style={display}>Good morning, Jordan.</h3><p className="mt-1.5 text-[13px] text-muted-foreground">Wednesday, July 24 · Here&apos;s your financial picture.</p></div>
           </div>
@@ -109,23 +110,23 @@ function HeroDashboard() {
 
           {/* Stat cards — same four cards as the real Dashboard */}
           <div className="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-            <div className="rounded-2xl border border-border bg-card px-3.5 py-3">
+            <div className="fs-hero-product-card rounded-2xl border px-3.5 py-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-mono">Current balance</p>
               <p className="text-xl font-bold text-foreground leading-none font-mono">$2,740</p>
               <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">Across active included accounts.</p>
             </div>
-            <div className="rounded-2xl border border-border bg-card px-3.5 py-3">
+            <div className="fs-hero-product-card rounded-2xl border px-3.5 py-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-mono">Safe to Spend</p>
               <p className="text-xl font-bold text-[oklch(var(--fs-green))] leading-none font-mono">$1,340</p>
               <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">Protects your plan through Aug 23.</p>
             </div>
-            <div className="rounded-2xl border border-border bg-card px-3.5 py-3">
+            <div className="fs-hero-product-card rounded-2xl border px-3.5 py-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-mono">Safety buffer</p>
               <p className="text-lg font-semibold leading-none text-[oklch(var(--fs-green))]">Intact</p>
               <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">$750 protected</p>
               <span className="mt-2 inline-flex items-center gap-0.5 text-[11px] font-medium text-primary">Adjust <ArrowRight size={11} /></span>
             </div>
-            <div className="rounded-2xl border border-border bg-card px-3.5 py-3">
+            <div className="fs-hero-product-card rounded-2xl border px-3.5 py-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-mono">Next important event</p>
               <p className="text-sm font-semibold text-foreground leading-tight truncate">Harbor View Apartments Rent</p>
               <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">Aug 4 · −$1,650</p>
@@ -133,7 +134,7 @@ function HeroDashboard() {
           </div>
 
           {/* Cash-flow runway — same gradient line, sizes, and low-point pulse animation as the real Dashboard */}
-          <section className="mt-3 overflow-hidden rounded-2xl border border-border bg-card p-4">
+          <section className="fs-hero-product-card mt-3 overflow-hidden rounded-2xl border p-4">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-primary">Cash-flow runway</p>
               <h4 className="mt-1 text-sm font-semibold">The moments shaping your next 30 days</h4>
@@ -175,7 +176,9 @@ function easeOutCubic(t: number) {
    notch) completes it in one motion. */
 const HERO_FADE_RANGE = 60;
 const HERO_FADE_TRAVEL = 28;
-const HERO_MOCKUP_TOP = 64;
+/* The nav is 64px tall. Stop the revealed wrapper 8px below it; its own 8px
+   top inset creates a compact 16px visual gap without losing viewport fit. */
+const HERO_MOCKUP_TOP = 72;
 const HERO_PIN_HOLD = 300;
 
 function ExpandingLandingHero({ isSignedIn, navigate }: { isSignedIn: boolean; navigate: (href: string) => void }) {
@@ -225,7 +228,8 @@ function ExpandingLandingHero({ isSignedIn, navigate }: { isSignedIn: boolean; n
       <div ref={pinRef} className="relative">
         <div className="md:sticky md:top-0 pt-24 pb-8">
           <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[620px] overflow-hidden">
-            <div className="absolute left-1/2 top-[-330px] h-[620px] w-[min(980px,120vw)] -translate-x-1/2 rounded-full bg-primary/[0.04] blur-[120px]" />
+            <div className="absolute left-[7%] top-[-280px] h-[610px] w-[760px] rounded-full bg-primary/[0.13] blur-[130px]" />
+            <div className="absolute right-[-8%] top-[-90px] h-[480px] w-[560px] rounded-full bg-primary/[0.075] blur-[115px]" />
           </div>
           <div
             className="relative z-10 mx-auto max-w-[1080px] px-5 motion-reduce:!opacity-100 motion-reduce:!transform-none"
@@ -235,7 +239,7 @@ function ExpandingLandingHero({ isSignedIn, navigate }: { isSignedIn: boolean; n
               <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />Now in private beta
               </span>
-              <h1 className="mx-auto max-w-[720px] text-[44px] font-medium leading-[1.08] tracking-[-0.02em] sm:text-[58px]" style={display}>Your money, before it happens.</h1>
+              <h1 className="mx-auto max-w-[940px] text-[40px] font-medium leading-[1.08] tracking-[-0.02em] sm:whitespace-nowrap sm:text-[50px]" style={display}>Your money, <span className="text-primary" style={editorialItalic}>before it happens.</span></h1>
               <p className="mx-auto mt-4 max-w-[520px] text-[17px] leading-relaxed text-muted-foreground">
                 Cusp looks days and weeks ahead of your balance, so you see what&apos;s coming instead of finding out the morning of.
               </p>
@@ -253,7 +257,7 @@ function ExpandingLandingHero({ isSignedIn, navigate }: { isSignedIn: boolean; n
               only the headline above it animates as you scroll. */}
           <div
             ref={mockupRef}
-            className="relative z-10 mx-auto mt-8 max-w-7xl px-5 will-change-transform sm:mt-9 motion-reduce:!transform-none"
+            className="relative z-10 mx-auto mt-8 max-w-7xl px-5 pt-2 will-change-transform sm:mt-9 motion-reduce:!transform-none"
             style={{
               marginBottom: mockupLift > 0 ? `${-mockupLift}px` : undefined,
               transform: `translateY(${-mockupLift * eased}px)`,
@@ -261,15 +265,22 @@ function ExpandingLandingHero({ isSignedIn, navigate }: { isSignedIn: boolean; n
           >
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute left-1/2 top-[-34%] h-[650px] w-[min(1240px,106vw)] -translate-x-1/2 rounded-full opacity-90"
-              style={{ background: "radial-gradient(ellipse, rgba(29, 34, 30, 0.12) 0%, rgba(29, 34, 30, 0.04) 44%, transparent 74%)" }}
+              className="pointer-events-none absolute left-[-5%] top-[4%] h-[72%] w-[62%] rounded-full bg-primary/[0.30] blur-[100px]"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-[-8%] right-[-6%] h-[66%] w-[58%] rounded-full bg-primary/[0.20] blur-[96px]"
             />
             <div
               data-hero-frame="cusp-native-v3"
               className="relative z-10 mx-auto h-[600px] w-full max-w-6xl overflow-hidden rounded-[24px] md:h-auto md:aspect-[16/10]"
-              style={{ boxShadow: "0 28px 80px rgba(29, 34, 30, 0.10)" }}
+              style={{
+                background: "linear-gradient(180deg, rgba(255,255,255,0.94), rgba(255,255,255,0.80))",
+                border: "1px solid rgba(29,34,30,0.07)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.94), inset 0 -1px 0 rgba(29,34,30,0.035), 0 28px 80px rgba(29,34,30,0.10), 0 0 135px rgba(212,117,74,0.22)",
+              }}
             >
-              <HeroDashboard />
+              <HeroDashboard play={fadeProgress >= 1} />
             </div>
           </div>
         </div>
@@ -288,7 +299,7 @@ function WhyDifferent() {
     <Reveal as="section" className="relative px-5 pb-16 pt-8">
       <div className="mx-auto max-w-5xl text-center">
         <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>A different kind of money view</p>
-        <h2 className="text-[34px] font-medium leading-[1.1] tracking-tight sm:text-[42px]" style={display}>Review the past. <span className="text-primary">Plan the next move.</span></h2>
+        <h2 className="text-[34px] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[42px]" style={display}>Review the past. <span className="text-primary" style={editorialItalic}>Plan the next move.</span></h2>
       </div>
       <div className="mx-auto mt-10 max-w-3xl">
         <div className="mx-auto mb-5 flex w-fit rounded-full border border-border bg-card p-1 shadow-sm" role="tablist" aria-label="Compare financial views">
@@ -325,7 +336,7 @@ const CONDITION_COPY: Record<ConditionKey, { label: string; title: string; detai
   },
   watch: {
     label: "Watch",
-    title: "Your balance is approaching your safety buffer.",
+    title: "Your balance may feel tight around August 6.",
     detail: "Rent, an auto loan, and insurance land within three days of each other, five days before your next paycheck.",
     icon: Eye,
     iconBg: "bg-[oklch(var(--fs-amber-bg))]",
@@ -361,7 +372,7 @@ function ConditionSystem() {
       <div className="mx-auto grid max-w-5xl gap-12 lg:grid-cols-2 lg:items-center">
         <div>
           <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>The state system</p>
-          <h2 className="text-[34px] font-medium leading-[1.15] tracking-tight sm:text-[42px]" style={display}>
+          <h2 className="text-[34px] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[42px]" style={display}>
             Know when you&apos;re<br />
             <span className="relative inline-block h-[1.2em] overflow-hidden align-bottom">
               <AnimatePresence initial={false}>
@@ -483,11 +494,11 @@ function ForecastSection() {
   const [cardRef, cardInView] = useInView<HTMLDivElement>(0.25);
 
   return (
-    <Reveal as="section" className="relative overflow-hidden border-y border-border px-5 py-16" style={{ backgroundColor: "#F5F7F6" }}>
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(circle at 18% 28%, oklch(var(--fs-green) / 0.10), transparent 27%), radial-gradient(circle at 82% 72%, oklch(var(--fs-red) / 0.09), transparent 28%), radial-gradient(circle at 50% 58%, oklch(var(--fs-amber) / 0.10), transparent 38%)" }} />
+    <Reveal as="section" className="fs-clay-field relative overflow-hidden px-5 py-16">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(circle at 25% 52%, oklch(var(--fs-brand) / 0.13), transparent 34%), radial-gradient(circle at 80% 58%, oklch(var(--fs-brand) / 0.08), transparent 36%)" }} />
       <div className="relative z-10 mx-auto max-w-2xl text-center">
         <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>One real forecast</p>
-        <h2 className="text-[32px] font-medium leading-[1.1] tracking-tight sm:text-[40px]" style={display}>See the pressure <span className="text-primary">before it arrives.</span></h2>
+        <h2 className="text-[34px] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[42px]" style={display}>See the pressure <span className="text-primary" style={editorialItalic}>before it arrives.</span></h2>
         <p className="mx-auto mt-5 max-w-xl text-[16px] leading-relaxed text-muted-foreground">What happens, why it happens, and the exact day behind it — one forecast, inspected three ways.</p>
       </div>
 
@@ -526,10 +537,10 @@ function ForecastSection() {
                     <AreaChart data={[...chartData]} margin={{ top: 16, right: 8, left: -18, bottom: 0 }}>
                       <XAxis dataKey="day" tick={{ fontSize: 9, fill: "#8a8f8b" }} tickLine={false} axisLine={false} interval={Math.max(1, Math.floor(chartData.length / 6))} />
                       <YAxis tick={{ fontSize: 9, fill: "#8a8f8b" }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v / 1000}k`} />
-                      <Tooltip content={<ScenarioTooltip />} cursor={{ stroke: "#BB6C43", strokeWidth: 1, strokeDasharray: "3 3", opacity: 0.5 }} isAnimationActive={false} />
+                      <Tooltip content={<ScenarioTooltip />} cursor={{ stroke: "#D4754A", strokeWidth: 1, strokeDasharray: "3 3", opacity: 0.5 }} isAnimationActive={false} />
                       <ReferenceLine x="Jul 24" stroke="#c78a3a" strokeDasharray="4 3" strokeWidth={1.25} />
                       <ReferenceLine y={750} stroke="#c78a3a" strokeDasharray="5 4" strokeWidth={1.1} />
-                      <Area type="monotone" dataKey="projected" stroke="#BB6C43" strokeWidth={2.25} fill="#BB6C4314" dot={false} isAnimationActive animationDuration={900} animationEasing="ease-out" connectNulls={false} />
+                      <Area type="monotone" dataKey="projected" stroke="#D4754A" strokeWidth={2.25} fill="#D4754A14" dot={false} isAnimationActive animationDuration={900} animationEasing="ease-out" connectNulls={false} />
                       <ReferenceDot x="Aug 15" y={369} r={5} fill="oklch(var(--fs-red))" stroke="#fff" strokeWidth={2} />
                     </AreaChart>
                   </ResponsiveContainer>}
@@ -694,7 +705,7 @@ function MechanicCard({ eyebrow, title, body, demo: Demo, className = "" }: {
 }) {
   const [ref, inView] = useInView<HTMLDivElement>(0.35);
   return (
-    <div ref={ref} className={`rounded-2xl border border-border bg-card p-4 sm:p-5 md:h-full ${className}`}>
+    <div ref={ref} className={`fs-layered-card rounded-2xl border p-4 sm:p-5 md:h-full ${className}`}>
       <p className="text-[11px] uppercase tracking-[0.15em] text-primary" style={mono}>{eyebrow}</p>
       <h3 className="mt-2 text-lg font-medium leading-snug">{title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
@@ -705,14 +716,15 @@ function MechanicCard({ eyebrow, title, body, demo: Demo, className = "" }: {
 
 function HowCuspKnows() {
   return (
-    <Reveal as="section" className="relative px-5 py-16" id="features">
+    <Reveal as="section" className="fs-feature-field relative overflow-hidden px-5 py-16" id="features">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(circle at 25% 52%, oklch(var(--fs-brand) / 0.11), transparent 35%), radial-gradient(circle at 80% 58%, oklch(var(--fs-brand) / 0.07), transparent 37%)" }} />
       <div className="relative mx-auto mb-12 max-w-3xl text-center">
         <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>What your forecast already knows</p>
-        <h2 className="text-[36px] font-medium leading-[1.1] tracking-tight sm:text-[44px]" style={display}>The work happens quietly.<br />The assumptions stay <span className="text-primary">visible.</span></h2>
+        <h2 className="text-[34px] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[42px]" style={display}>The work happens quietly.<br />The assumptions stay <span className="text-primary" style={editorialItalic}>visible.</span></h2>
         <p className="mx-auto mt-5 max-w-2xl text-[16px] leading-relaxed text-muted-foreground">Cusp finds the shape in your activity, then makes every useful assumption available for you to inspect.</p>
       </div>
       <div className="relative mx-auto grid max-w-6xl gap-4 md:auto-rows-[404px] md:grid-cols-2">
-        {mechanics.map((mechanic, index) => <MechanicCard key={mechanic.eyebrow} {...mechanic} className={index % 2 === 0 ? "bg-card" : "bg-card/85"} />)}
+        {mechanics.map((mechanic) => <MechanicCard key={mechanic.eyebrow} {...mechanic} />)}
       </div>
     </Reveal>
   );
@@ -734,8 +746,8 @@ function EditorialPause() {
     return () => observer.disconnect();
   }, []);
   return (
-    <div ref={rootRef} className="px-5 py-8 text-center">
-      <p className={`mx-auto max-w-2xl text-[32px] font-medium leading-[1.3] tracking-tight transition-[opacity,filter] duration-1000 ease-out motion-reduce:transition-none sm:text-[42px] ${visible ? "opacity-100 blur-0" : "opacity-0 blur-[4px]"}`} style={display}>
+    <div ref={rootRef} className="bg-background px-5 py-12 text-center sm:py-14">
+      <p className={`mx-auto max-w-xl text-[24px] font-normal leading-[1.35] text-muted-foreground transition-[opacity,transform] duration-1000 ease-out motion-reduce:transition-none sm:text-[30px] ${visible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}`} style={editorialItalic}>
         You don&apos;t discover the future. You arrive in it.
       </p>
     </div>
@@ -770,13 +782,27 @@ const trustItems = [
 ];
 
 const faqs = [
-  { question: "What do Clear, Watch and Tight mean?", answer: "They're the three states Cusp uses to describe your forecast. Clear means your forecast is comfortably on track. Watch means something ahead deserves attention. Tight means your projected balance crosses your safety buffer before it recovers." },
-  { question: "Is Cusp a budgeting app?", answer: "No. Cusp does not set spending limits or organize the experience around categories. It projects the balance forward and identifies the day it runs lowest so that day can be planned around rather than discovered." },
-  { question: "How does the forecast work?", answer: "It combines the current balances, transactions, recurring activity and safety buffer you provide. Confirmed and estimated events are labelled separately." },
-  { question: "How is Safe to Spend calculated?", answer: "Cusp takes the lowest balance in your 30-day forecast and protects the safety buffer you choose." },
-  { question: "Do I need to connect my bank?", answer: "No. You can start with a CSV from your bank or enter your balance, income and bills manually." },
-  { question: "Can I export/delete my data?", answer: "Yes. Cusp includes data export and account deletion controls." },
+  { category: "Getting started", question: "What is Cusp?", answer: "Cusp is a personal cash-flow forecasting tool. It projects your balance forward using the income, bills, and patterns you’ve confirmed, so you see a tight day coming before it arrives—not the morning of." },
+  { category: "Getting started", question: "Is Cusp a budgeting app?", answer: "No. Cusp doesn’t categorize spending or set limits. It projects your balance forward and finds the day it runs lowest, so that day is something you plan around instead of discover." },
+  { category: "Getting started", question: "Do I need to connect my bank?", answer: "No. Start with a CSV export or enter your income and bills manually. Bank connectivity may come later—it’s never required to start." },
+  { category: "Getting started", question: "Does Cusp work with irregular or mixed income?", answer: "Yes. You can flag irregular or variable income during setup, and the forecast treats it with appropriately wider uncertainty rather than assuming it is as predictable as a fixed salary." },
+  { category: "Forecasts and decisions", question: "What do Clear, Watch, Tight, and Update Needed mean?", answer: "Clear means you’re comfortably above your safety buffer. Watch means something ahead deserves attention. Tight means your projected balance crosses that buffer. Update Needed is different: it means your data is missing or out of date, so the forecast can’t be fully trusted until it’s resolved." },
+  { category: "Forecasts and decisions", question: "How is Safe to Spend calculated?", answer: "Cusp takes the lowest balance in your forecast window, then subtracts your safety buffer. It’s the largest amount you could spend today without a future day dropping below that buffer." },
+  { category: "Forecasts and decisions", question: "Can I test a purchase before making it?", answer: "Yes. Scenario Planner runs a hypothetical purchase against your real forecast and can show the safest date to make it without changing your actual data." },
+  { category: "Forecasts and decisions", question: "Why does my forecast look wrong?", answer: "Common causes include a balance that hasn’t been updated recently, a bill or income pattern that hasn’t been confirmed, or an estimated amount that still carries a wide range. See the full troubleshooting guide in Learn." },
+  { category: "Credit cards and transactions", question: "How does Cusp handle credit cards and transfers?", answer: "Card purchases are tracked as they happen, and Cusp estimates one payment on the statement due date rather than projecting every charge independently. Transfers between your own accounts are matched and linked so they aren’t counted as new income or a second expense. Cusp never links an ambiguous transfer automatically." },
+  { category: "Security and privacy", question: "Is my financial data secure?", answer: "Cusp never asks for your bank login. You bring data through CSV upload or manual entry, so no bank credential is stored. Your data is encrypted in transit and at rest." },
+  { category: "Security and privacy", question: "Do you sell my data?", answer: "No. Your financial information is never sold or shared with third parties." },
+  { category: "Security and privacy", question: "Can I export or delete my data?", answer: "Yes. You can export or delete your data at any time from Settings." },
+  { category: "Beta and billing", question: "Is Cusp free during beta?", answer: "Yes. Explore your forecast and help shape Cusp at no cost during the private beta." },
+  { category: "Beta and billing", question: "Will I need a payment method?", answer: "No. Pricing will be published in advance of any change, and you’ll choose whether to opt in. Nothing switches to paid without your action." },
+  { category: "Beta and billing", question: "How can I contact support?", answer: "Email hello@cusp.sh and we’ll help." },
 ];
+
+const faqGroups = faqs.reduce<Record<string, typeof faqs>>((groups, item) => {
+  (groups[item.category] ??= []).push(item)
+  return groups
+}, {})
 
 function ScenarioTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value?: number; dataKey?: string; color?: string }>; label?: string }) {
   if (!active || !payload?.length) return null;
@@ -815,11 +841,11 @@ function ScenarioPlanner({ scenario, setScenario, scenarioUsesRecommendedDate, s
       : { label: scenario === 0 ? "Baseline" : "Clear", condition: scenario === 0 ? "update_needed" as const : "clear" as const, className: "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]" };
 
   return (
-    <Reveal as="section" className="relative px-5 py-16">
+    <Reveal as="section" className="relative bg-background px-5 py-16">
       <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.72fr_1.28fr] lg:items-center">
         <div>
           <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>Before you spend</p>
-          <h2 className="text-[36px] font-medium leading-[1.1] tracking-tight sm:text-[44px]" style={display}>Test a purchase <span className="text-primary">before your balance does.</span></h2>
+          <h2 className="text-[34px] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[42px]" style={display}>Test a purchase <span className="text-primary" style={editorialItalic}>before your balance does.</span></h2>
           <p className="mt-5 text-[16px] leading-relaxed text-muted-foreground">A weekend trip. A new laptop. Enter it, and watch your baseline forecast shift into a new projected low — the actual financial picture with this purchase in it, not just a yes or no.</p>
           <div className="mt-7 grid grid-cols-2 gap-2" aria-label="Scenario demo">
             {scenarios.map((item, index) => <button type="button" onClick={() => { setScenario(index); setScenarioUsesRecommendedDate(() => false); }} key={item.label} aria-pressed={scenario === index} className={`rounded-xl border px-3 py-2.5 text-left text-xs transition-[background-color,border-color,color,transform] duration-200 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${scenario === index ? "border-primary/40 bg-primary/[0.10] font-medium text-primary" : "border-border bg-card text-muted-foreground hover:border-primary/25 hover:text-foreground"}`}>{item.label}</button>)}
@@ -844,37 +870,21 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
   const router = useRouter();
   const navigate = router.push;
   const primaryHref = isSignedIn ? "/app/dashboard" : "/sign-up";
-  const primaryLabel = isSignedIn ? "Open dashboard" : "Get Cusp";
+  const primaryLabel = isSignedIn ? "Open dashboard" : "Get early access";
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scenario, setScenario] = useState(0);
   const [scenarioUsesRecommendedDate, setScenarioUsesRecommendedDate] = useState(false);
-  const [activeSection, setActiveSection] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const sectionVisibility = useRef(new Map<string, number>());
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  useEffect(() => {
-    const ids = ["features", "security", "faq"];
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => sectionVisibility.current.set(entry.target.id, entry.isIntersecting ? entry.intersectionRatio : 0));
-      const mostVisible = ids.reduce((best, id) => (sectionVisibility.current.get(id) ?? 0) > (sectionVisibility.current.get(best) ?? 0) ? id : best, "");
-      setActiveSection((sectionVisibility.current.get(mostVisible) ?? 0) > 0 ? mostVisible : "");
-    }, { rootMargin: "-20% 0px -45% 0px", threshold: [0.15, 0.3, 0.5, 0.7] });
-    ids.forEach((id) => {
-      const section = document.getElementById(id);
-      if (section) observer.observe(section);
-    });
-    return () => observer.disconnect();
   }, []);
 
   /* Global entrance system: opacity 0→1, translateY 18px→0, ~560ms, one
@@ -915,12 +925,6 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
 
   return (
     <div className="fs-landing relative min-h-screen bg-background text-foreground">
-      {/* Ambient background glow */}
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute left-1/2 top-[-18%] h-[720px] w-[1100px] -translate-x-1/2 rounded-full bg-primary/[0.16] blur-[130px]" />
-        <div className="absolute right-[-15%] top-[45%] h-[560px] w-[560px] rounded-full bg-primary/[0.11] blur-[120px]" />
-        <div className="absolute left-[-12%] bottom-[-8%] h-[500px] w-[500px] rounded-full bg-[oklch(var(--fs-amber))]/[0.08] blur-[110px]" />
-      </div>
       {/* NAV */}
       <nav className={`fixed inset-x-0 top-0 z-50 border-b transition-[background-color,border-color] duration-200 ${scrolled ? "border-border bg-background/90 backdrop-blur-xl" : "border-transparent bg-transparent"}`}>
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
@@ -928,10 +932,8 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
             <Image src="/cusp-logo.svg?v=2" alt="Cusp" width={125} height={29} loading="eager" className="h-7 w-auto" />
           </button>
           <div className="hidden md:flex items-center gap-7">
-            <a href="#features" aria-current={activeSection === "features" ? "location" : undefined} className={`relative py-2 text-sm transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left after:bg-primary after:transition-transform after:duration-200 ${activeSection === "features" ? "font-medium text-foreground after:scale-x-100" : "text-muted-foreground hover:text-foreground after:scale-x-0"}`}>Product</a>
+            <Link href="/features" className="relative py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">Features</Link>
             <Link href="/learn" className="relative py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">Learn</Link>
-            <a href="#security" aria-current={activeSection === "security" ? "location" : undefined} className={`relative py-2 text-sm transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left after:bg-primary after:transition-transform after:duration-200 ${activeSection === "security" ? "font-medium text-foreground after:scale-x-100" : "text-muted-foreground hover:text-foreground after:scale-x-0"}`}>Security</a>
-            <a href="#faq" aria-current={activeSection === "faq" ? "location" : undefined} className={`relative py-2 text-sm transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left after:bg-primary after:transition-transform after:duration-200 ${activeSection === "faq" ? "font-medium text-foreground after:scale-x-100" : "text-muted-foreground hover:text-foreground after:scale-x-0"}`}>FAQ</a>
           </div>
           <div className="hidden md:flex items-center gap-3">
             {!isSignedIn && <button onClick={() => navigate("/sign-in")} className="px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">Sign in</button>}
@@ -943,10 +945,8 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
         </div>
         {mobileOpen && (
           <div className="mx-3 mb-3 flex flex-col gap-4 rounded-2xl border border-border bg-background/95 px-5 py-5 shadow-xl backdrop-blur-2xl md:hidden">
-            <a href="#features" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Product</a>
+            <Link href="/features" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Features</Link>
             <Link href="/learn" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Learn</Link>
-            <a href="#security" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Security</a>
-            <a href="#faq" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>FAQ</a>
             {!isSignedIn && <button onClick={() => navigate("/sign-in")} className="text-left text-sm text-muted-foreground">Sign in</button>}
             <button onClick={() => navigate(primaryHref)} className="fs-brand-action text-sm px-4 py-2.5 rounded-xl font-medium">{primaryLabel}</button>
           </div>
@@ -988,7 +988,7 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-10">
             <p className="text-primary text-xs font-medium uppercase tracking-[0.15em] mb-3" style={mono}>Security</p>
-            <h2 className="text-[28px] font-medium tracking-tight sm:text-[34px]" style={display}>Start <span className="text-primary">without handing over</span> your bank login.</h2>
+            <h2 className="text-[34px] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[42px]" style={display}>Start <span className="text-primary" style={editorialItalic}>without handing over</span> your bank login.</h2>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {trustItems.map(({ icon: Icon, title, desc }) => (
@@ -1009,7 +1009,7 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
         <div className="mx-auto max-w-6xl">
           <div className="mx-auto mb-10 max-w-2xl text-center">
             <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>Pricing</p>
-            <h2 className="text-[28px] font-medium leading-[1.1] tracking-tight sm:text-[34px]" style={display}>Free during the <span className="text-primary">private beta.</span></h2>
+            <h2 className="text-[34px] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[42px]" style={display}>Free during the <span className="text-primary" style={editorialItalic}>private beta.</span></h2>
             <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">Explore the forecast and help shape Cusp at no cost. Pricing is published before any paid plan begins.</p>
           </div>
           <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-3">
@@ -1029,19 +1029,26 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
       </Reveal>
 
       {/* 10. FAQ */}
-      <Reveal as="section" className="relative px-5 py-16" id="faq">
-        <div className="mx-auto max-w-3xl">
-          <div className="text-center mb-12">
-            <p className="text-primary text-xs font-medium uppercase tracking-[0.15em] mb-3" style={mono}>Common questions</p>
-            <h2 className="text-[36px] font-medium tracking-tight sm:text-[44px]" style={display}>A few things to <span className="text-primary">know.</span></h2>
+      <Reveal as="section" className="relative overflow-hidden bg-[color-mix(in_oklab,var(--background)_96%,var(--primary)_4%)] px-5 py-12 sm:py-14" id="faq">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_top,rgba(212,117,74,0.14),transparent_68%)]" aria-hidden="true" />
+        <div className="relative mx-auto max-w-5xl">
+          <div className="mb-8 text-center sm:mb-9">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.15em] text-primary" style={mono}>Common questions</p>
+            <h2 className="text-[34px] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[42px]" style={display}>A few things to <span className="text-primary" style={editorialItalic}>know.</span></h2>
           </div>
-          <div className="divide-y divide-border border-y border-border">
-            {faqs.map((item, index) => (
-              <div key={item.question} data-stagger-child className="py-5">
-                <button type="button" aria-expanded={openFaq === index} aria-controls={`faq-answer-${index}`} onClick={() => setOpenFaq((current) => current === index ? null : index)} className="flex w-full items-center justify-between gap-4 text-left font-semibold text-foreground"><span>{item.question}</span><ChevronDown size={18} className={`shrink-0 text-primary transition-transform duration-200 ${openFaq === index ? "rotate-180" : ""}`} /></button>
-                <div id={`faq-answer-${index}`} aria-hidden={openFaq !== index} className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${openFaq === index ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}><div className="overflow-hidden"><p className="text-sm text-muted-foreground leading-relaxed pt-3 pr-10">{item.answer}</p></div></div>
+          <div className="mx-auto max-w-2xl space-y-7 sm:space-y-8">
+            {Object.entries(faqGroups).map(([category, items]) => <section key={category}>
+              <p className="mb-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-foreground/60">{category}</p>
+              <div className="space-y-3">
+                {items.map((item) => {
+                  const index = faqs.indexOf(item)
+                  return <div key={item.question} data-stagger-child className={`rounded-[22px] border bg-card px-5 shadow-[0_1px_2px_rgba(29,34,30,0.035)] transition-[border-color,box-shadow,background-color] duration-200 sm:px-7 ${openFaq === index ? "border-primary/35 bg-primary/[0.025] shadow-[0_10px_26px_rgba(29,34,30,0.055)]" : "border-border hover:border-primary/25 hover:shadow-[0_6px_18px_rgba(29,34,30,0.04)]"}`}>
+                    <button type="button" aria-expanded={openFaq === index} aria-controls={`faq-answer-${index}`} onClick={() => setOpenFaq((current) => current === index ? null : index)} className="flex w-full items-start justify-between gap-4 py-4 text-left text-sm font-medium text-foreground outline-none hover:underline focus-visible:rounded-md focus-visible:ring-[3px] focus-visible:ring-primary/20"><span>{item.question}</span><ChevronDown size={16} className={`shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200 ${openFaq === index ? "rotate-180 text-primary" : ""}`} /></button>
+                    <div id={`faq-answer-${index}`} aria-hidden={openFaq !== index} className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${openFaq === index ? "grid-rows-[1fr] pb-4 opacity-100" : "grid-rows-[0fr] opacity-0"}`}><div className="overflow-hidden"><p className="max-w-3xl pr-7 text-sm leading-6 text-muted-foreground">{item.answer}</p></div></div>
+                  </div>
+                })}
               </div>
-            ))}
+            </section>)}
           </div>
         </div>
       </Reveal>
@@ -1051,7 +1058,7 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
         <div className="relative z-10 max-w-xl mx-auto text-center">
           <div className="bg-card border border-border rounded-3xl px-8 py-14">
             <p className="text-primary text-xs font-medium uppercase tracking-[0.15em] mb-5" style={mono}>Early access</p>
-            <h2 className="text-[36px] font-medium tracking-tight leading-[1.1] mb-4 sm:text-[44px]" style={display}>See it <span className="text-primary">before it happens.</span></h2>
+            <h2 className="mb-4 text-[34px] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[42px]" style={display}>See it <span className="text-primary" style={editorialItalic}>before it happens.</span></h2>
             <p className="text-muted-foreground mb-8 max-w-xs mx-auto text-sm">Join the beta and be among the first to see your tightest day before it gets here.</p>
             {isSignedIn ? (
               <button type="button" onClick={() => navigate("/app/dashboard")} className="fs-brand-action px-6 py-3 rounded-xl text-sm font-medium">Open dashboard</button>
@@ -1087,7 +1094,7 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
             <div>
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-[0.15em] mb-4" style={mono}>Product</p>
               <div className="space-y-2.5">
-                <a href="#features" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
+                <Link href="/features" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Features</Link>
                 <a href="#pricing" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
                 <Link href="/learn" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Learn</Link>
                 <a href="#security" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Security</a>

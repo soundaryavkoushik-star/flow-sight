@@ -17,11 +17,11 @@ export const metadata: Metadata = {
   applicationName: "Cusp",
   icons: {
     icon: [
-      { url: "/favicon.ico?v=5", sizes: "32x32" },
-      { url: "/icon.svg?v=5", type: "image/svg+xml" },
+      { url: "/cusp-tab-icon-v1.svg", type: "image/svg+xml" },
+      { url: "/cusp-favicon-v1.ico", type: "image/x-icon", sizes: "32x32" },
     ],
-    shortcut: "/favicon.ico?v=5",
-    apple: "/apple-icon.png?v=5",
+    shortcut: "/cusp-tab-icon-v1.svg",
+    apple: "/apple-icon.png?v=8",
   },
   keywords: ["cash flow forecast", "personal finance", "safe to spend", "upcoming bills"],
   openGraph: {
@@ -46,7 +46,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link
-          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&display=swap"
           rel="stylesheet"
         />
       </head>

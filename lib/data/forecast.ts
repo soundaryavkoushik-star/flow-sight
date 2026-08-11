@@ -94,7 +94,7 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     prisma.transaction.findMany({
       where: { userId, date: { gte: historyStart, lt: end } },
       orderBy: { date: "asc" },
-      include: { account: { select: { isLiability: true } } },
+      include: { account: { select: { isLiability: true, anchorDate: true } } },
     }),
     prisma.forecastSnapshot.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 100, select: { createdAt: true, forecastStartDate: true, forecastEndDate: true, projectedDays: true, includedAccountIds: true } }),
     prisma.actualBalanceObservation.findMany({ where: { userId }, orderBy: { observedAt: "desc" }, take: 500, select: { accountId: true, balanceCents: true, observedAt: true, createdAt: true } }),
@@ -251,7 +251,13 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     return !matchingImportedPayment && !matchingLinkedTransfer
   })
   const events: FinancialEvent[] = [...transactions.filter((transaction) =>
-    transaction.date >= start
+    // The opening balance is current through the balance date. Same-day
+    // activity entered after that snapshot is still new activity and must be
+    // included; older same-day rows are already reflected in the balance.
+    (transaction.date > start
+    || (transaction.date.getTime() === start.getTime()
+      && Boolean(transaction.account?.anchorDate)
+      && transaction.createdAt > transaction.account!.anchorDate!))
     && !transaction.account?.isLiability
     && (!confirmedTransferTransactionIds.has(transaction.id) || cashToLiabilityTransferIds.has(transaction.id)),
   ).map((transaction) => ({

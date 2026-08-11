@@ -38,7 +38,7 @@ export function RecurringReviewPanel({ suggestions }: { suggestions: Suggestion[
               ? "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]"
               : item.minAmountCents !== item.maxAmountCents
                 ? "bg-[oklch(var(--fs-amber-bg))] text-[oklch(var(--fs-amber))]"
-                : "bg-[#F0F1F3] text-[#625852]"
+                : "bg-[oklch(var(--primary)/.14)] text-[oklch(var(--primary))]"
             return (
             <label key={item.id} className={`flex items-start gap-3 rounded-xl border border-dashed p-4 cursor-pointer transition-[background-color,border-color,box-shadow,opacity] ${isSelected ? "border-primary/30 bg-primary/[0.035] shadow-[inset_0_0_0_1px_rgba(212,117,74,0.14)]" : "border-[oklch(var(--fs-amber))]/30 bg-muted/20 opacity-70 hover:opacity-100"}`}>
               <input type="checkbox" checked={selected.has(item.id)} onChange={(event) => setSelected((current) => { const next = new Set(current); if (event.target.checked) next.add(item.id); else next.delete(item.id); return next })} className="mt-1" />
