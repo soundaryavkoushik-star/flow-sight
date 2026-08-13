@@ -534,7 +534,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
               const row = <>
                 <span className={`relative mt-0.5 block shrink-0 rounded-full border-[3px] border-card ${isLow ? `fs-runway-low h-6 w-6 ${lowPointDotColor}` : point.key === "bills" ? "ml-1.5 h-3 w-3 bg-muted-foreground/40" : point.key === "recovery" ? "ml-1 h-4 w-4 bg-[oklch(var(--fs-green))]" : "ml-1 h-4 w-4 bg-foreground"}`} />
                 <span className="min-w-0 flex-1">
-                  <span className={`block text-xs ${isLow ? "font-bold text-foreground group-hover:text-primary group-hover:underline" : "font-medium text-muted-foreground"}`}>{point.label}</span>
+                  <span className={`flex items-center gap-0.5 text-xs ${isLow ? "font-bold text-foreground underline underline-offset-2" : "font-medium text-muted-foreground"}`}>{point.label}{isLow && <ChevronRight className="h-3 w-3" aria-hidden="true" />}</span>
                   <span className={`mt-0.5 block font-mono ${isLow ? "text-[28px] font-bold leading-none" : point.key === "bills" ? "text-[15px] font-medium text-muted-foreground" : "text-[15px] font-medium"}`}>{point.value}</span>
                   <span className="mt-0.5 block text-[10px] text-muted-foreground">{point.detail}</span>
                 </span>

@@ -1,3 +1,12 @@
+@import "@fontsource-variable/bricolage-grotesque/wght.css";
+@import "@fontsource-variable/dm-sans/wght.css";
+@import "@fontsource-variable/dm-sans/wght-italic.css";
+@import "@fontsource/dm-mono/400.css";
+@import "@fontsource/dm-mono/500.css";
+@import "@fontsource-variable/fraunces/wght.css";
+@import "@fontsource-variable/fraunces/wght-italic.css";
+@import "@fontsource-variable/inter/wght.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -157,7 +166,7 @@
     --fs-estimate-bg: 95% 0.04 267.8;
     --fs-transfer: 58% 0.16 245.8;
     --fs-transfer-bg: 95% 0.04 238.7;
-    font-family: "Inter", system-ui, sans-serif;
+    font-family: "Inter Variable", system-ui, sans-serif;
   }
 
   /* A quiet, fixed paper grain keeps the alabaster ground from feeling flat.

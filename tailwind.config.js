@@ -62,9 +62,10 @@ module.exports = {
         sm: "calc(var(--radius) - 4px)"
       },
       fontFamily: {
-        sans: ["DM Sans", "system-ui", "sans-serif"],
-        display: ["Bricolage Grotesque", "system-ui", "sans-serif"],
+        sans: ["DM Sans Variable", "system-ui", "sans-serif"],
+        display: ["Bricolage Grotesque Variable", "system-ui", "sans-serif"],
         mono: ["DM Mono", "ui-monospace", "monospace"],
+        serif: ["Fraunces Variable", "Georgia", "serif"],
       },
       keyframes: {
         "accordion-down": {
