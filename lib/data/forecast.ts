@@ -7,6 +7,7 @@ import { measureForecasts } from "@/lib/analytics/forecast-measurement"
 import { rollForwardAnchors } from "@/lib/forecast/anchors"
 import { financialDateKey } from "@/lib/forecast/timezone"
 import { recurringDisplayName } from "@/lib/financial/recurring-label"
+import { merchantDisplayName } from "@/lib/financial/merchant-name"
 import { buildKnownCardPayment, isMatchingCardPayment, resolveCardOpeningBalance } from "@/lib/forecast/credit-cards"
 
 export interface DashboardForecast {
@@ -266,7 +267,7 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
     amountCents: transaction.amountCents,
     type: transaction.amountCents >= 0 ? "income" as const : "expense" as const,
     source: transaction.source ? "csv" as const : "transaction" as const,
-    name: transaction.description,
+    name: merchantDisplayName(transaction.description),
     accountId: transaction.accountId ?? undefined,
     confidence: "confirmed" as const,
   })), ...recurring.filter((item) => item.frequency === "irregular" && item.nextExpected && !creditCardAccountIds.has(item.accountId ?? "")).map((item) => ({ id: item.id, date: dateKey(item.nextExpected!), amountCents: item.amountCents, type: "income" as const, source: "manual" as const, name: recurringDisplayName(item.name, item.type), accountId: item.accountId ?? undefined, confidence: item.dateConfidence === "confirmed" ? "confirmed" as const : "estimated" as const, amountEstimated: item.incomeConfidence !== null })),
@@ -309,7 +310,7 @@ export async function loadDashboardForecast(userId: string, days = 30): Promise<
   const balanceAgeDays = Math.max(0, Math.floor((start.getTime() - currentBalanceDate.getTime()) / 86_400_000))
   const excludedEvents = recurring.flatMap((series) => series.exceptions
     .filter((exception) => exception.action === "skip" && exception.originalDate >= start && exception.originalDate < end)
-    .map((exception) => ({ name: series.name, date: dateKey(exception.originalDate), amountCents: series.amountCents })))
+    .map((exception) => ({ name: recurringDisplayName(series.name, series.type), date: dateKey(exception.originalDate), amountCents: series.amountCents })))
 
   return {
     timezone,

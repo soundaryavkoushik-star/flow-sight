@@ -35,7 +35,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
   return (
     <aside
       className={cn(
-        "flex h-full shrink-0 flex-col bg-card/88 shadow-[8px_0_30px_rgba(74,65,60,0.035)] transition-[width] duration-200",
+        "fs-app-sidebar flex h-full shrink-0 flex-col shadow-[8px_0_30px_rgba(74,65,60,0.035)] transition-[width] duration-200",
         collapsed ? "w-[60px]" : "w-[232px]"
       )}
     >
@@ -81,7 +81,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-[color,background-color,box-shadow] duration-150",
                 collapsed && "justify-center px-2",
                 active
-                  ? "bg-primary/10 font-medium text-primary shadow-[inset_0_0_0_1px_rgba(187,108,67,0.08)]"
+                  ? "bg-card font-medium text-foreground shadow-[inset_0_0_0_1px_oklch(var(--border)),0_1px_2px_oklch(var(--foreground)/.04)]"
                   : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
               )}
             >

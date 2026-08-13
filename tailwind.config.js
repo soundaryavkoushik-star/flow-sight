@@ -47,13 +47,13 @@ module.exports = {
         },
         // Cusp brand tokens
         flow: {
-          green: "#1F8E55",
-          "green-dim": "#187343",
-          teal: "#3D8171",
-          amber: "#E6A100",
-          red: "#D23A57",
-          estimate: "#557CC5",
-          transfer: "#238ACF",
+          green: "oklch(var(--fs-green))",
+          "green-dim": "oklch(var(--fs-green) / 0.82)",
+          teal: "oklch(var(--fs-green))",
+          amber: "oklch(var(--fs-amber))",
+          red: "oklch(var(--fs-red))",
+          estimate: "oklch(var(--fs-estimate))",
+          transfer: "oklch(var(--fs-transfer))",
         }
       },
       borderRadius: {

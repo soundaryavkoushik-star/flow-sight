@@ -116,14 +116,18 @@
   /* Signed-in workspace: warm, low-contrast surfaces with brighter cards.
      Semantic colors retain their existing meaning and saturation. */
   .fs-app {
-    --background: 97.4% 0.007 88;
-    --card: 99.35% 0.0025 92;
+    --background: 98.35% 0.004 88;
+    --card: 100% 0 0;
     --card-foreground: 24.53% 0.0105 151.3;
     --secondary: 95.7% 0.007 88;
     --muted: 95.7% 0.007 88;
     --border: 90.8% 0.007 88;
     --input: 87.5% 0.008 88;
     background: oklch(var(--background));
+  }
+
+  .fs-app-sidebar {
+    background: oklch(95.7% 0.007 88);
   }
 
   /* The marketing page carries slightly brighter semantic colors than the
@@ -177,6 +181,38 @@
 
   .fs-landing .fs-feature-field {
     background-color: color-mix(in oklab, oklch(var(--background)) 95.5%, oklch(var(--primary)) 4.5%);
+  }
+
+  /* Features-page chapter fields. Like the landing page, these use one
+     alabaster ground and one brand-colored light source. Related product
+     surfaces share a field so the page reads in chapters, not stripes. */
+  .fs-landing .fs-features-hero {
+    background:
+      radial-gradient(ellipse 48% 58% at 22% 54%, oklch(var(--fs-brand) / 0.15), transparent 72%),
+      radial-gradient(ellipse 42% 54% at 82% 62%, oklch(var(--fs-brand) / 0.085), transparent 74%),
+      oklch(var(--background));
+  }
+
+  .fs-landing .fs-features-field-paper {
+    background: oklch(var(--background));
+  }
+
+  .fs-landing .fs-features-field-clay {
+    background:
+      radial-gradient(ellipse 44% 64% at 8% 48%, oklch(var(--fs-brand) / 0.075), transparent 75%),
+      color-mix(in oklab, oklch(var(--background)) 96%, oklch(var(--fs-brand)) 4%);
+  }
+
+  .fs-landing .fs-features-field-soft {
+    background:
+      radial-gradient(ellipse 46% 66% at 92% 44%, oklch(var(--fs-brand) / 0.06), transparent 76%),
+      color-mix(in oklab, oklch(var(--background)) 98%, oklch(var(--fs-brand)) 2%);
+  }
+
+  .fs-landing .fs-features-field-deep {
+    background:
+      radial-gradient(ellipse 46% 70% at 20% 52%, oklch(var(--fs-brand) / 0.10), transparent 76%),
+      color-mix(in oklab, oklch(var(--background)) 94.5%, oklch(var(--fs-brand)) 5.5%);
   }
 
   .fs-landing .fs-layered-card {

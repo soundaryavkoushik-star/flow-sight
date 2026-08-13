@@ -3,14 +3,14 @@
 import { useEffect, useMemo, useState } from "react"
 import { CalendarClock, Landmark, List, Pause, Pencil, Play, Plus, ReceiptText, Trash2, X } from "lucide-react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { deleteRecurringSeries, saveRecurringSeries, setRecurringSeriesActive, type RecurringSeriesInput } from "@/app/app/transactions/actions"
 import { amountColorClass } from "@/lib/financial/amount-style"
 import { ConfidencePill } from "@/components/financial-display"
 import { ActionToast } from "@/components/ui/toast"
-import { recurringFrequencyLabel } from "@/lib/financial/recurring-label"
+import { recurringDisplayName, recurringFrequencyLabel } from "@/lib/financial/recurring-label"
 import { FinancialCalendar, type CalendarEvent } from "@/components/financial-calendar"
+import { InlineInfo } from "@/components/ui/inline-info"
 
 export interface ManagedRecurringItem {
   id: string
@@ -133,7 +133,7 @@ function recurringCalendarEvents(item: ManagedRecurringItem, horizonDays: number
   const end = new Date()
   end.setDate(end.getDate() + horizonDays)
   for (let occurrence = 0; cursor <= end && occurrence < 20; occurrence += 1) {
-    result.push({ id: `${item.id}:${occurrence}`, recurringItemId: item.id, date: localDateKey(cursor), name: item.name, amountCents: item.type === "income" ? Math.abs(item.amountCents) : -Math.abs(item.amountCents), confidence: item.confidence })
+    result.push({ id: `${item.id}:${occurrence}`, recurringItemId: item.id, date: localDateKey(cursor), name: recurringDisplayName(item.name, item.type), amountCents: item.type === "income" ? Math.abs(item.amountCents) : -Math.abs(item.amountCents), confidence: item.confidence })
     if (item.frequency === "weekly" || item.frequency === "biweekly") cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + (item.frequency === "weekly" ? 7 : 14))
     else if (item.frequency === "annual") cursor = new Date(cursor.getFullYear() + 1, cursor.getMonth(), anchorDay)
     else {
@@ -154,6 +154,7 @@ function RecurringGroup({ title, items, highlightedIds, workingId, onEdit, onTog
     <h3 className="mb-2 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{title} · {items.length}</h3>
     <div className="rounded-2xl border border-border bg-card divide-y divide-border">
       {items.map((item) => {
+        const displayName = recurringDisplayName(item.name, item.type)
         const amountEstimated = item.incomeConfidence !== null || (item.minAmountCents !== null && item.maxAmountCents !== null && item.minAmountCents !== item.maxAmountCents)
         const dateOnlyEstimate = item.confidence === "estimated" && !amountEstimated
         const ItemIcon = item.type === "income" ? Landmark : item.confidence === "estimated" ? CalendarClock : ReceiptText
@@ -166,11 +167,11 @@ function RecurringGroup({ title, items, highlightedIds, workingId, onEdit, onTog
         <div className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconTone}`}><ItemIcon className="h-[18px] w-[18px]" strokeWidth={2} /></div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="font-medium truncate">{item.name}</p>
+            <p className="font-medium truncate" title={item.source === "CSV pattern" ? item.name : undefined}>{displayName}</p>
             {dateOnlyEstimate
               ? <span className="inline-flex rounded-full bg-[oklch(var(--fs-estimate-bg))] px-2 py-0.5 text-[10px] font-medium text-[oklch(var(--fs-estimate))]">Confirmed amount · Estimated date</span>
               : <ConfidencePill confidence={item.confidence} />}
-            {item.confidence === "estimated" && <Link href="/learn/forecast#confirmed-and-estimated" className="text-[10px] text-primary hover:underline">Learn why</Link>}
+            {item.confidence === "estimated" && <InlineInfo label={`Why ${displayName} is estimated`}>{amountEstimated && item.occurrenceCount && item.minAmountCents !== null && item.maxAmountCents !== null ? <p>The last {item.occurrenceCount} payments ranged from {money(Math.min(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)))} to {money(Math.max(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)))}.</p> : dateOnlyEstimate ? <p>The payment amount looks stable, but its date has varied.</p> : <p>The amount or date may change.</p>}</InlineInfo>}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{item.type === "income" ? "Income" : "Bill"} · {recurringFrequencyLabel(item.frequency)} · Next {item.nextExpected ? new Date(`${item.nextExpected}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "date not set"}</p>
           <p className="text-[11px] text-muted-foreground/75 mt-1">{item.accountName ?? "No account assigned"} · {item.source}</p>

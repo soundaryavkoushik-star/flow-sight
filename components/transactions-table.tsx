@@ -21,6 +21,7 @@ import { TransactionCategorySelect } from "@/components/transaction-category-sel
 import { SPENDING_CATEGORIES, isForecastIncomeCategory, suggestTransactionCategory } from "@/lib/analytics/categories"
 import { setTransactionsCategory } from "@/app/app/transactions/actions"
 import { amountColorClass } from "@/lib/financial/amount-style"
+import { merchantDisplayName } from "@/lib/financial/merchant-name"
 
 export interface TransactionRow {
   id: string
@@ -62,9 +63,9 @@ function CategoryIcon({ category, transfer, review, estimated }: { category: str
                         ? BriefcaseBusiness
                         : ReceiptText
   const tone = transfer
-    ? "bg-[#F0EEE9] text-[#625852]"
+    ? "bg-[oklch(var(--fs-transfer-bg))] text-[oklch(var(--fs-transfer))]"
     : review
-      ? "bg-[#F8EAF0] text-[#B44455]"
+      ? "bg-[oklch(var(--fs-amber-bg))] text-[oklch(var(--fs-amber))]"
       : estimated
         ? "bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]"
         : ["Regular paycheck", "Variable / side income", "Business income", "Investment income", "Benefits"].includes(category)
@@ -89,6 +90,7 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
   })
 
   const detailsFor = (transaction: TransactionRow) => {
+    const displayName = merchantDisplayName(transaction.description)
     const category = transaction.categoryName ?? suggestTransactionCategory(transaction.description, transaction.amountCents)
     const transfer = transaction.transferStatus === "confirmed"
     const cardPayment = Boolean(transaction.unmatchedCardPayment) && !transfer
@@ -103,13 +105,13 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
         : "bg-card hover:bg-muted/25"
     const date = new Date(`${transaction.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
     const amount = `${transaction.estimated ? "~" : ""}${transaction.amountCents >= 0 ? "+" : "−"}${money(transaction.amountCents)}`
-    return { category, transfer, cardPayment, review, selectedRow, amountClass, rowClass, date, amount }
+    return { category, transfer, cardPayment, review, selectedRow, amountClass, rowClass, date, amount, displayName }
   }
 
   const categoryControl = (transaction: TransactionRow, transfer: boolean, cardPayment: boolean) => transfer
-    ? <span className="inline-flex rounded-lg bg-[#F0EEE9] px-2.5 py-1.5 text-xs font-medium text-muted-foreground">Between accounts</span>
+    ? <span className="inline-flex rounded-lg bg-[oklch(var(--fs-transfer-bg))] px-2.5 py-1.5 text-xs font-medium text-[oklch(var(--fs-transfer))]">Between accounts</span>
     : cardPayment
-      ? <span className="inline-flex rounded-lg bg-[#F0EEE9] px-2.5 py-1.5 text-xs font-medium text-muted-foreground">Card payment · Source not matched</span>
+      ? <span className="inline-flex rounded-lg bg-[oklch(var(--fs-transfer-bg))] px-2.5 py-1.5 text-xs font-medium text-[oklch(var(--fs-transfer))]">Card payment · Source not matched</span>
     : <TransactionCategorySelect transactionId={transaction.id} description={transaction.description} amountCents={transaction.amountCents} currentCategory={transaction.categoryName} />
 
   return <>
@@ -156,7 +158,7 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
                 <div className="flex min-w-0 items-center gap-3">
                   <CategoryIcon category={details.category} transfer={details.transfer || details.cardPayment} review={details.review} estimated={Boolean(transaction.estimated)} />
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-foreground">{transaction.description}</p>
+                    <p className="truncate font-medium text-foreground" title={transaction.description}>{details.displayName}</p>
                     <p className={`mt-0.5 text-xs ${details.review ? "font-medium text-[oklch(var(--fs-amber))]" : "text-muted-foreground"}`}>{details.date}{transaction.estimated ? " · estimated" : details.cardPayment ? " · card payment" : details.review ? " · needs review" : ""}</p>
                   </div>
                 </div>
@@ -179,7 +181,7 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
             <CategoryIcon category={details.category} transfer={details.transfer || details.cardPayment} review={details.review} estimated={Boolean(transaction.estimated)} />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0"><p className="truncate text-sm font-medium">{transaction.description}</p><p className={`mt-0.5 text-xs ${details.review ? "text-[oklch(var(--fs-amber))]" : "text-muted-foreground"}`}>{details.date}{transaction.estimated ? " · estimated" : details.cardPayment ? " · card payment" : details.review ? " · needs review" : ""}</p></div>
+                <div className="min-w-0"><p className="truncate text-sm font-medium" title={transaction.description}>{details.displayName}</p><p className={`mt-0.5 text-xs ${details.review ? "text-[oklch(var(--fs-amber))]" : "text-muted-foreground"}`}>{details.date}{transaction.estimated ? " · estimated" : details.cardPayment ? " · card payment" : details.review ? " · needs review" : ""}</p></div>
                 <span className={`shrink-0 font-mono text-sm font-medium ${details.amountClass}`}>{details.amount}</span>
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">{categoryControl(transaction, details.transfer, details.cardPayment)}<span className="text-xs text-muted-foreground">{transaction.accountName ?? "Unassigned"}</span></div>

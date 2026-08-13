@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useId, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -11,7 +11,7 @@ import {
   TrendingUp, Plus, Upload, AlertTriangle,
   ChevronRight, X,
   CalendarDays, Pencil, GitBranch,
-  Info, WalletCards, ReceiptText, Landmark,
+  WalletCards, ReceiptText, Landmark,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { DashboardForecast } from "@/lib/data/forecast"
@@ -20,8 +20,10 @@ import { runScenario } from "@/lib/forecast/scenarios"
 import { determineForecastCondition } from "@/lib/forecast/condition"
 import { decisionRoomNote } from "@/lib/forecast/scenario-presentation"
 import { amountColorClass, amountDotClass } from "@/lib/financial/amount-style"
+import { merchantDisplayName } from "@/lib/financial/merchant-name"
 import { ActionToast } from "@/components/ui/toast"
 import { ConditionBanner, conditionTone, safeToSpendTone } from "@/components/condition-banner"
+import { InlineInfo } from "@/components/ui/inline-info"
 
 /* ── DATA ── */
 
@@ -71,64 +73,11 @@ function AnimatedMetric({ value, format = (metric) => Math.round(metric).toLocal
   return <span ref={ref}>{format(displayed)}</span>
 }
 
-function InfoTip({ label, children }: { label: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false)
-  const id = useId()
-  const containerRef = useRef<HTMLSpanElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const close = (event: KeyboardEvent | PointerEvent) => {
-      if (event instanceof KeyboardEvent && event.key === "Escape") {
-        setOpen(false)
-        return
-      }
-      if (event instanceof PointerEvent && !containerRef.current?.contains(event.target as Node)) setOpen(false)
-    }
-    document.addEventListener("keydown", close)
-    document.addEventListener("pointerdown", close)
-    return () => {
-      document.removeEventListener("keydown", close)
-      document.removeEventListener("pointerdown", close)
-    }
-  }, [open])
-
-  return (
-    <span
-      ref={containerRef}
-      className="relative inline-flex shrink-0"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
-      <button
-        type="button"
-        aria-label={label}
-        aria-describedby={open ? id : undefined}
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-        onFocus={() => setOpen(true)}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <Info className="h-3.5 w-3.5" aria-hidden="true" />
-      </button>
-      {open && (
-        <span
-          id={id}
-          role="tooltip"
-          className="absolute left-0 top-full z-50 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card p-3 text-left text-xs font-normal leading-relaxed text-foreground shadow-xl"
-        >
-          {children}
-        </span>
-      )}
-    </span>
-  )
-}
-
 function LabelWithInfo({ label, explanation, infoLabel }: { label: string; explanation: string; infoLabel?: string }) {
   return (
     <span className="inline-flex items-center gap-0.5">
       <span>{label}</span>
-      <InfoTip label={infoLabel ?? `Learn about ${label}`}>{explanation}</InfoTip>
+      <InlineInfo label={infoLabel ?? `Learn about ${label}`}>{explanation}</InlineInfo>
     </span>
   )
 }
@@ -299,6 +248,11 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
       : `A new low point appears within the additional ${additionalHorizonDays} days, later than your ${baselineWindowDays}-day forecast.`)
     : null
   const condition = determineForecastCondition(data.forecast, data.safetyBufferCents, data.freshness.status)
+  const lowPointDotColor = condition === "tight"
+    ? "bg-[oklch(var(--fs-red))]"
+    : condition === "watch"
+      ? "bg-[oklch(var(--fs-amber))]"
+      : "bg-[oklch(var(--fs-green))]"
   const todayForecastDate = data.forecast.days[0]?.date ?? data.input.settings.startDate
   const conditionLabel = condition === "update_needed"
     ? "Update needed"
@@ -334,7 +288,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
   const resultExplanation = data.forecast.explanations[0]?.headline
   const effectiveBufferCents = bufferPreviewCents ?? data.safetyBufferCents
   const previewSafeToSpendCents = Math.max(0, data.forecast.lowestBalanceCents - effectiveBufferCents)
-  const allForecastEvents = data.forecast.days.flatMap((day) => day.events.map((event) => ({ ...event, day: day.date })))
+  const allForecastEvents = data.forecast.days.flatMap((day) => day.events.map((event) => ({ ...event, name: merchantDisplayName(event.name), day: day.date })))
   const confirmedEventCount = allForecastEvents.filter((event) => event.confidence === "confirmed").length
   const estimatedEventCount = allForecastEvents.filter((event) => event.confidence === "estimated").length
   const coverageState = "Forecast ready"
@@ -419,6 +373,20 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
     { key: "low", label: "Lowest point", value: money(data.forecast.lowestBalanceCents), detail: runwayDate(data.forecast.lowestBalanceDate) },
     { key: "recovery", label: recoveryLabel, value: recoveryDay ? money(recoveryDay.endingBalanceCents) : money(data.forecast.lowestBalanceCents), detail: runwayDate(recoveryDay?.date) },
   ]
+  // Derived directly from the 4-column grid the dots render in, so the overlay can never
+  // diverge from the dots' actual rendered centers.
+  const RUNWAY_COLUMNS = 4
+  const runwayColumnCenterPercent = (index: number) => ((index + 0.5) / RUNWAY_COLUMNS) * 100
+  const runwayGridPercents: Record<string, number> = {
+    today: runwayColumnCenterPercent(0),
+    bills: runwayColumnCenterPercent(1),
+    low: runwayColumnCenterPercent(2),
+    recovery: runwayColumnCenterPercent(3),
+  }
+  const runwaySegments = {
+    billsToLow: condition === "tight" ? "oklch(var(--fs-red))" : condition === "watch" ? "oklch(var(--fs-amber))" : null,
+    lowToRecovery: condition !== "clear" ? "oklch(var(--fs-green))" : null,
+  }
   const runwayCaption = billWindow && billWindow.count > 0 && nextPaydayDay
     ? `${billWindow.count === 1 ? "One bill lands" : `${billWindow.count} bills land`} before ${nextPaydayDay.events.find((event) => event.amountCents > 0)?.name ?? "your next income"} on ${runwayDate(nextPaydayDay.date)}.`
     : "See the events and timing behind your projected low point."
@@ -532,13 +500,21 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
         </div>
 
         <div className="relative mt-10 hidden pb-2 pt-3 sm:block">
-          <div className="fs-runway-line absolute left-[6%] right-[6%] top-[22px] h-1 rounded-full" style={{ background: "linear-gradient(90deg, oklch(var(--fs-green)) 0 22%, oklch(var(--fs-amber)) 22% 60%, oklch(var(--fs-red)) 60% 70%, oklch(var(--fs-green)) 70% 100%)" }} />
+          <div className="fs-runway-line absolute left-[6%] right-[6%] top-[22px] h-1 rounded-full bg-border" />
+          {runwaySegments.billsToLow && <div
+            className="absolute top-[22px] h-1 rounded-full"
+            style={{ left: `${runwayGridPercents.bills}%`, width: `${runwayGridPercents.low - runwayGridPercents.bills}%`, background: runwaySegments.billsToLow }}
+          />}
+          {runwaySegments.lowToRecovery && <div
+            className="absolute top-[22px] h-1 rounded-full"
+            style={{ left: `${runwayGridPercents.low}%`, width: `${runwayGridPercents.recovery - runwayGridPercents.low}%`, background: runwaySegments.lowToRecovery }}
+          />}
           <div className="relative grid grid-cols-4">
             {runwayPoints.map((point) => {
               const isLow = point.key === "low"
               const content = <>
-                <span className={`relative block rounded-full border-[3px] border-card ${isLow ? "fs-runway-low h-6 w-6 bg-[oklch(var(--fs-red))]" : point.key === "bills" ? "mt-1.5 h-3 w-3 bg-muted-foreground/40" : point.key === "recovery" ? "mt-1 h-4 w-4 bg-[oklch(var(--fs-green))]" : "mt-1 h-4 w-4 bg-foreground"}`} />
-                <span className={`mt-3 block text-xs ${isLow ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>{point.label}</span>
+                <span className={`relative block rounded-full border-[3px] border-card ${isLow ? `fs-runway-low h-6 w-6 ${lowPointDotColor}` : point.key === "bills" ? "mt-1.5 h-3 w-3 bg-muted-foreground/40" : point.key === "recovery" ? "mt-1 h-4 w-4 bg-[oklch(var(--fs-green))]" : "mt-1 h-4 w-4 bg-foreground"}`} />
+                <span className={`mt-3 block text-xs ${isLow ? "font-bold text-foreground group-hover:text-primary group-hover:underline" : "font-medium text-muted-foreground"}`}>{point.label}</span>
                 <span className={`mt-0.5 block font-mono ${isLow ? "text-[28px] font-bold leading-none text-foreground" : point.key === "bills" ? "text-[15px] font-medium text-muted-foreground" : "text-[15px] font-medium text-foreground"}`}>{point.value}</span>
                 <span className="mt-0.5 block text-[10px] text-muted-foreground">{point.detail}</span>
               </>
@@ -550,21 +526,31 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
         </div>
 
         <div className="relative mt-7 sm:hidden">
-          <div className="fs-runway-line-y absolute bottom-5 left-[10px] top-5 w-1 rounded-full" style={{ background: "linear-gradient(180deg, oklch(var(--fs-green)) 0 22%, oklch(var(--fs-amber)) 22% 60%, oklch(var(--fs-red)) 60% 70%, oklch(var(--fs-green)) 70% 100%)" }} />
-          <div className="relative space-y-6">
-            {runwayPoints.map((point) => {
+          <div className="fs-runway-line-y absolute bottom-5 left-[10px] top-5 w-1 rounded-full bg-border" />
+          <div className="relative flex flex-col">
+            {runwayPoints.map((point, index) => {
               const isLow = point.key === "low"
+              const connectorColor = index === 2 ? runwaySegments.billsToLow : index === 3 ? runwaySegments.lowToRecovery : null
               const row = <>
-                <span className={`relative mt-0.5 block shrink-0 rounded-full border-[3px] border-card ${isLow ? "fs-runway-low h-6 w-6 bg-[oklch(var(--fs-red))]" : point.key === "bills" ? "ml-1.5 h-3 w-3 bg-muted-foreground/40" : point.key === "recovery" ? "ml-1 h-4 w-4 bg-[oklch(var(--fs-green))]" : "ml-1 h-4 w-4 bg-foreground"}`} />
+                <span className={`relative mt-0.5 block shrink-0 rounded-full border-[3px] border-card ${isLow ? `fs-runway-low h-6 w-6 ${lowPointDotColor}` : point.key === "bills" ? "ml-1.5 h-3 w-3 bg-muted-foreground/40" : point.key === "recovery" ? "ml-1 h-4 w-4 bg-[oklch(var(--fs-green))]" : "ml-1 h-4 w-4 bg-foreground"}`} />
                 <span className="min-w-0 flex-1">
-                  <span className={`block text-xs ${isLow ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>{point.label}</span>
+                  <span className={`block text-xs ${isLow ? "font-bold text-foreground group-hover:text-primary group-hover:underline" : "font-medium text-muted-foreground"}`}>{point.label}</span>
                   <span className={`mt-0.5 block font-mono ${isLow ? "text-[28px] font-bold leading-none" : point.key === "bills" ? "text-[15px] font-medium text-muted-foreground" : "text-[15px] font-medium"}`}>{point.value}</span>
                   <span className="mt-0.5 block text-[10px] text-muted-foreground">{point.detail}</span>
                 </span>
               </>
-              return isLow
-                ? <Link key={point.key} href={`/app/forecast?date=${encodeURIComponent(data.forecast.lowestBalanceDate)}&detail=1`} className="flex gap-4 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/30" aria-label={`Explore lowest point of ${point.value} on ${point.detail} in Forecast`}>{row}</Link>
-                : <div key={point.key} className="flex gap-4">{row}</div>
+              return (
+                <div key={point.key} className="flex flex-col">
+                  {index > 0 && (
+                    <div className="relative h-6">
+                      {connectorColor && <span className="absolute left-[10px] h-full w-1 rounded-full" style={{ background: connectorColor }} />}
+                    </div>
+                  )}
+                  {isLow
+                    ? <Link href={`/app/forecast?date=${encodeURIComponent(data.forecast.lowestBalanceDate)}&detail=1`} className="group flex gap-4 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/30" aria-label={`Explore lowest point of ${point.value} on ${point.detail} in Forecast`}>{row}</Link>
+                    : <div className="flex gap-4">{row}</div>}
+                </div>
+              )
             })}
           </div>
         </div>
@@ -577,7 +563,6 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
             </div> : <p>{runwayCaption}</p>}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
-            {(condition === "tight" || condition === "watch") && <Link href={`/app/forecast?date=${encodeURIComponent(data.forecast.lowestBalanceDate)}&detail=1`} className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:underline">Review low point <ChevronRight className="h-3 w-3" /></Link>}
             {condition === "update_needed" && <Link href="/app/accounts" className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:underline">Refresh balance <ChevronRight className="h-3 w-3" /></Link>}
             <Link href="/app/scenarios" className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:underline">Test a decision <ChevronRight className="h-3 w-3" /></Link>
           </div>
@@ -661,28 +646,28 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
               >
                 <defs>
                   <linearGradient id="dashGrad1" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#BB6C43" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#BB6C43" stopOpacity={0} />
+                    <stop offset="5%" stopColor="oklch(var(--primary))" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="oklch(var(--primary))" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="dashGrad2" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#BB6C43" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#BB6C43" stopOpacity={0} />
+                    <stop offset="5%" stopColor="oklch(var(--primary))" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="oklch(var(--primary))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,29,58,0.08)" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#625852" }} tickLine={false} axisLine={false} interval={horizonDays === 90 ? 13 : horizonDays === 60 ? 9 : 4} />
-                <YAxis tick={{ fontSize: 10, fill: "#625852" }} tickLine={false} axisLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: "oklch(var(--muted-foreground))" }} tickLine={false} axisLine={false} interval={horizonDays === 90 ? 13 : horizonDays === 60 ? 9 : 4} />
+                <YAxis tick={{ fontSize: 10, fill: "oklch(var(--muted-foreground))" }} tickLine={false} axisLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
                 <Tooltip
                   content={<ChartTooltip />}
-                  cursor={{ stroke: "#BB6C43", strokeWidth: 1, strokeDasharray: "3 3", opacity: 0.65 }}
+                  cursor={{ stroke: "oklch(var(--primary))", strokeWidth: 1, strokeDasharray: "3 3", opacity: 0.65 }}
                   animationDuration={180}
                 />
-                <ReferenceLine x={forecastData[0]?.day} stroke="#CA8A04" strokeDasharray="4 3" strokeWidth={1.5} />
+                <ReferenceLine x={forecastData[0]?.day} stroke="oklch(var(--fs-amber))" strokeDasharray="4 3" strokeWidth={1.5} />
                 {data.safetyBufferConfigured && data.safetyBufferCents > 0 && <ReferenceLine y={data.safetyBufferCents / 100} stroke="oklch(var(--fs-amber))" strokeDasharray="5 4" strokeWidth={1.25} />}
                 {(condition === "tight" || condition === "watch") && recoveryDay && recoveryDay.date !== data.forecast.lowestBalanceDate && <ReferenceDot x={new Date(`${recoveryDay.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} y={recoveryDay.endingBalanceCents / 100} r={4} fill="oklch(var(--fs-green))" stroke="#fff" strokeWidth={1.5} />}
                 <ReferenceDot x={lowestDateShort} y={data.forecast.lowestBalanceCents / 100} r={5} fill="oklch(var(--fs-red))" stroke="#fff" strokeWidth={2} />
-                {selectedDay && <ReferenceDot x={new Date(`${selectedDay.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} y={selectedDay.endingBalanceCents / 100} r={5} fill="#BB6C43" stroke="#FFFFFF" strokeWidth={2} />}
-                <Area type="monotone" dataKey="projected" stroke="#BB6C43" strokeWidth={2} strokeDasharray="5 3" fill="url(#dashGrad2)" dot={false} connectNulls={false} />
+                {selectedDay && <ReferenceDot x={new Date(`${selectedDay.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} y={selectedDay.endingBalanceCents / 100} r={5} fill="oklch(var(--primary))" stroke="oklch(var(--card))" strokeWidth={2} />}
+                <Area type="monotone" dataKey="projected" stroke="oklch(var(--primary))" strokeWidth={2} strokeDasharray="5 3" fill="url(#dashGrad2)" dot={false} connectNulls={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>}
@@ -783,7 +768,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
               </div>
             </div>
             <div className="border-t border-border mt-5 pt-5">
-              <div className="flex items-center justify-between mb-2"><div className="inline-flex items-center text-xs font-semibold"><label htmlFor="buffer-preview">Safety buffer</label><InfoTip label="Learn about Safety buffer">The amount you want Cusp to keep available when calculating Safe to Spend. It is not treated as available spending money.</InfoTip></div><span className="text-xs font-mono text-foreground">{money(effectiveBufferCents)}</span></div>
+              <div className="flex items-center justify-between mb-2"><div className="inline-flex items-center text-xs font-semibold"><label htmlFor="buffer-preview">Safety buffer</label><InlineInfo label="Learn about safety buffer">The amount you want Cusp to keep available when calculating Safe to Spend. It is not treated as available spending money.</InlineInfo></div><span className="text-xs font-mono text-foreground">{money(effectiveBufferCents)}</span></div>
               <input id="buffer-preview" type="range" min={0} max={Math.max(100000, Math.ceil(data.forecast.lowestBalanceCents / 10000) * 10000)} step={5000} value={effectiveBufferCents} onChange={(event) => { setBufferPreviewCents(Number(event.target.value)); setBufferMessage(null) }} className="w-full accent-primary" />
               <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">Preview how much remains safe to spend while keeping this amount available.</p>
               {bufferPreviewCents !== null && bufferPreviewCents !== data.safetyBufferCents && (
@@ -887,7 +872,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
                   {selectedDay.events.map((event) => (
                     <button key={event.id} type="button" onClick={() => editForecastEvent(event)} className="w-full rounded-xl border border-border p-4 flex items-start gap-3 text-left hover:border-primary/30 hover:bg-primary/[0.04] transition-colors">
                       <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${amountDotClass(event.amountCents >= 0 ? "income" : "spending")}`} />
-                      <div className="flex-1 min-w-0"><p className="font-medium truncate">{event.name}</p><p className="text-xs text-muted-foreground mt-1">{event.confidence === "confirmed" ? "Confirmed" : event.amountEstimated ? "Estimated" : "Confirmed amount · Estimated date"} · {event.recurring ? "Recurring" : event.source}</p>{event.confidence === "estimated" && event.estimateEvidence && <p className="text-[11px] text-muted-foreground mt-1">Based on {event.estimateEvidence.occurrenceCount} occurrences ranging {money(Math.min(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}–{money(Math.max(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}.</p>}</div>
+                      <div className="flex-1 min-w-0"><p className="font-medium truncate">{merchantDisplayName(event.name)}</p><p className="text-xs text-muted-foreground mt-1">{event.confidence === "confirmed" ? "Confirmed" : event.amountEstimated ? "Estimated" : "Confirmed amount · Estimated date"} · {event.recurring ? "Recurring" : event.source}</p>{event.confidence === "estimated" && event.estimateEvidence && <p className="text-[11px] text-muted-foreground mt-1">Based on {event.estimateEvidence.occurrenceCount} occurrences ranging {money(Math.min(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}–{money(Math.max(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}.</p>}</div>
                       <div className="text-right"><span className={`font-semibold font-mono ${amountColorClass(event.amountCents >= 0 ? "income" : "spending")}`}>{event.amountCents >= 0 ? "+" : "−"}{money(Math.abs(event.amountCents))}</span><p className="text-[10px] text-muted-foreground mt-1">{event.recurring ? "Manage recurring" : "Edit"}</p></div>
                     </button>
                   ))}

@@ -1,6 +1,8 @@
+import { merchantDisplayName } from "@/lib/financial/merchant-name"
+
 export function recurringDisplayName(name: string, type: string) {
   if (type === "income" && /^monthly\s+salary$/i.test(name.trim())) return "Salary paycheck"
-  return name
+  return merchantDisplayName(name)
 }
 
 export function recurringFrequencyLabel(frequency: string) {

@@ -16,19 +16,12 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ConditionBanner } from "@/components/condition-banner";
+import { RunwayPreview } from "@/components/runway-preview";
 
 const display: React.CSSProperties = { fontFamily: "'Inter', sans-serif" };
 const editorialItalic: React.CSSProperties = { fontFamily: "'Fraunces', serif", fontStyle: "italic", fontWeight: 400 };
 const mono: React.CSSProperties = { fontFamily: "'DM Mono', monospace" };
 const SCENARIO_MOTION_MS = 600;
-
-/* ── Hero's compact Clear-state cash-flow runway ── */
-const HERO_RUNWAY = [
-  { key: "today", label: "Today", value: "$2,740", detail: "Jul 24" },
-  { key: "bills", label: "Next bill", value: "Rent", detail: "Aug 4" },
-  { key: "low", label: "Lowest point", value: "$1,840", detail: "Aug 12" },
-  { key: "recovery", label: "Recovers", value: "$2,950", detail: "Aug 20" },
-] as const;
 
 /* ── Timeline motif — appears exactly 3 times (hero, final CTA, + reserve) ── */
 function TimelineMotif({ label, size = "default" }: { label: string; size?: "default" | "large" }) {
@@ -133,28 +126,13 @@ function HeroDashboard({ play }: { play: boolean }) {
             </div>
           </div>
 
-          {/* Cash-flow runway — same gradient line, sizes, and low-point pulse animation as the real Dashboard */}
+          {/* Cash-flow runway — same neutral rail and Clear-state semantics as the real Dashboard */}
           <section className="fs-hero-product-card mt-3 overflow-hidden rounded-2xl border p-4">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-primary">Cash-flow runway</p>
               <h4 className="mt-1 text-sm font-semibold">The moments shaping your next 30 days</h4>
             </div>
-            <div className="relative mt-1 pb-1 pt-1">
-              <div className={`absolute left-[6%] right-[6%] top-[22px] h-1 rounded-full transition-opacity duration-300 ${runwayPlay ? "fs-runway-line" : "opacity-0"}`} style={{ background: "linear-gradient(90deg, oklch(var(--fs-green)) 0 22%, oklch(var(--fs-amber)) 22% 60%, oklch(var(--fs-red)) 60% 70%, oklch(var(--fs-green)) 70% 100%)" }} />
-              <div className="relative grid grid-cols-4">
-                {HERO_RUNWAY.map((point) => {
-                  const isLow = point.key === "low";
-                  return (
-                    <div key={point.key} className="flex min-w-0 flex-col items-center text-center">
-                      <span className={`relative block rounded-full border-[3px] border-card ${isLow ? `${runwayPlay ? "fs-runway-low" : "opacity-0"} h-6 w-6 bg-foreground` : point.key === "bills" ? "mt-1.5 h-3 w-3 bg-muted-foreground/40" : point.key === "recovery" ? "mt-1 h-4 w-4 bg-[oklch(var(--fs-green))]" : "mt-1 h-4 w-4 bg-foreground"}`} />
-                      <span className={`mt-2 block text-xs ${isLow ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>{point.label}</span>
-                      <span className={`mt-0.5 block font-mono ${isLow ? "text-[24px] font-bold leading-none text-foreground" : point.key === "bills" ? "text-[15px] font-medium text-muted-foreground" : "text-[15px] font-medium text-foreground"}`}>{point.value}</span>
-                      <span className="mt-0.5 block text-[10px] text-muted-foreground">{point.detail}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <RunwayPreview play={runwayPlay} compact />
           </section>
         </main>
       </div>
@@ -726,6 +704,11 @@ function HowCuspKnows() {
       <div className="relative mx-auto grid max-w-6xl gap-4 md:auto-rows-[404px] md:grid-cols-2">
         {mechanics.map((mechanic) => <MechanicCard key={mechanic.eyebrow} {...mechanic} />)}
       </div>
+      <div className="relative mt-8 flex justify-center">
+        <Link href="/features" className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-medium text-foreground shadow-[0_8px_24px_rgba(15,29,58,0.05)] transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[0_12px_30px_rgba(15,29,58,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
+          See all features <ArrowRight className="h-4 w-4 text-primary" />
+        </Link>
+      </div>
     </Reveal>
   );
 }
@@ -1104,9 +1087,8 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
             <div>
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-[0.15em] mb-4" style={mono}>Company</p>
               <div className="space-y-2.5">
-                {["About", "Contact"].map((t) => (
-                  <a key={t} href="#" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">{t}</a>
-                ))}
+                <Link href="/about" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">About</Link>
+                <a href="mailto:hello@cusp.sh" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Contact</a>
               </div>
             </div>
             <div>

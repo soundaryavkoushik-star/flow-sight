@@ -149,7 +149,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   return <div className="p-4 sm:p-6 max-w-5xl mx-auto">
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
       <div><h1 className="text-2xl font-bold tracking-tight">Transactions</h1><p className="mt-1 text-sm text-muted-foreground">Review activity and manage what Cusp expects next.</p></div>
-      <div className="flex flex-wrap gap-2"><CsvImportPanel autoOpen={query.import === "1"} {...csvProps} /><ManualTransactionPanel accounts={accountOptions} /></div>
+      {tab === "activity" && <div className="flex flex-wrap gap-2"><CsvImportPanel autoOpen={query.import === "1"} {...csvProps} /><ManualTransactionPanel accounts={accountOptions} /></div>}
     </div>
 
     <nav className="flex gap-1 border-b border-border mb-6" aria-label="Transaction sections">
