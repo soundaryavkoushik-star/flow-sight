@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { CircleCheck, Zap } from "lucide-react"
 import { formatCurrencyCents } from "@/lib/financial/currency"
 
 export function ConfidencePill({ confidence }: { confidence: "confirmed" | "estimated" }) {
-  return <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${confidence === "confirmed" ? "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]" : "bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]"}`}>{confidence === "confirmed" ? "Confirmed" : "Estimated"}</span>
+  return <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${confidence === "confirmed" ? "border-[oklch(var(--fs-green))]/20 bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]" : "border-[oklch(var(--fs-estimate))]/20 bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]"}`}>{confidence === "confirmed" ? <><CircleCheck className="h-2.5 w-2.5" />Confirmed</> : <><Zap className="h-2.5 w-2.5" />Estimated</>}</span>
 }
 
 export function AmountReveal({ cents, prefix = "", estimated = false, className = "" }: { cents: number; prefix?: string; estimated?: boolean; className?: string }) {

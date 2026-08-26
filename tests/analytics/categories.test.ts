@@ -10,6 +10,7 @@ describe("spending categories", () => {
 
   it("distinguishes earned income from gifts and refunds", () => {
     expect(suggestMoneyInCategory("Payroll Direct Deposit - Meridian Corp")).toBe("Regular paycheck")
+    expect(suggestMoneyInCategory("ACH CREDIT NORTHSTAR STUDIO PAYROL DIR DEP")).toBe("Regular paycheck")
     expect(suggestMoneyInCategory("Venmo - Birthday Gift")).toBe("Gift")
     expect(suggestMoneyInCategory("IRS Tax Refund")).toBe("Refund / Reimbursement")
     expect(suggestMoneyInCategory("Invoice 1042 - Corner Bakery")).toBe("Variable / side income")

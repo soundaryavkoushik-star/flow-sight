@@ -69,6 +69,10 @@ const fakeTx = {
 
 vi.mock("@/lib/data/prisma", () => ({
   prisma: {
+    rateLimitBucket: {
+      upsert: vi.fn(async () => ({ count: 1 })),
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+    },
     $transaction: async (callback: (tx: typeof fakeTx) => Promise<unknown>) => callback(fakeTx),
   },
 }))

@@ -37,6 +37,22 @@ model UserProfile {
   updatedAt       DateTime @updatedAt
 }
 
+// Durable fixed-window counters for authenticated server operations. These are
+// operational security records, not financial data, and expire automatically.
+model RateLimitBucket {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String
+  windowStart DateTime
+  count       Int      @default(1)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, action, windowStart])
+  @@index([expiresAt])
+}
+
 // Accounts — checking, savings, loans, investments, etc.
 model Account {
   id           String        @id @default(cuid())

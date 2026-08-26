@@ -2,6 +2,8 @@ import { Bell, CheckCircle, AlertTriangle, Clock3 } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { loadDashboardForecast } from "@/lib/data/forecast"
 
+export const metadata: Metadata = { title: "Alerts" }
+
 export default async function AlertsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -15,3 +17,4 @@ export default async function AlertsPage() {
 }
 
 function EmptyAlerts({ title, detail }: { title: string; detail: string }) { return <div className="flex flex-col items-center justify-center py-20 text-center"><div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5"><Bell className="h-8 w-8 text-primary" /></div><h2 className="text-xl font-semibold mb-2 flex items-center gap-2">{title === "Nothing needs your attention" && <CheckCircle className="h-5 w-5 text-[oklch(var(--fs-green))]" />}{title}</h2><p className="text-muted-foreground text-sm max-w-sm">{detail}</p></div> }
+import type { Metadata } from "next"

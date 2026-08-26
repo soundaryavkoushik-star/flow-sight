@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/data/prisma"
+import { checkRateLimit, RATE_LIMITS, rateLimitMessage } from "@/lib/security/rate-limit"
 
 function parseDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
@@ -59,6 +60,8 @@ function estimatedClosingDay(paymentDueDay: number) {
 export async function createAccount(input: AccountInput) {
   const id = await userId()
   if (!id) return { ok: false as const, message: "Your session expired. Please sign in again." }
+  const rateLimit = await checkRateLimit(id, RATE_LIMITS.dataCreation)
+  if (!rateLimit.allowed) return { ok: false as const, message: rateLimitMessage(rateLimit) }
   const date = parseDate(input.balanceDate)
   if (!input.name.trim() || !date || !Number.isSafeInteger(input.balanceCents)) return { ok: false as const, message: "Add a name, current balance, and balance date." }
   if (input.type === "credit_card" && !validCardSettings(input)) return { ok: false as const, message: "Add a current balance and payment due day from 1 to 31." }

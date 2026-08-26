@@ -7,6 +7,7 @@ import { determineForecastCondition, type ForecastCondition } from "@/lib/foreca
 import { financialDateKey, isValidTimeZone } from "@/lib/forecast/timezone"
 import { addDays, addMonthsAnchored, toDateKey } from "@/lib/forecast/utils"
 import { loadDashboardForecast } from "@/lib/data/forecast"
+import { checkRateLimit, RATE_LIMITS, rateLimitMessage } from "@/lib/security/rate-limit"
 
 type Frequency = "weekly" | "biweekly" | "monthly" | "annual" | "irregular"
 
@@ -76,6 +77,8 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<SaveOn
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) return { ok: false, message: "Your session expired. Please sign in again." }
+  const rateLimit = await checkRateLimit(user.id, RATE_LIMITS.onboarding)
+  if (!rateLimit.allowed) return { ok: false, message: rateLimitMessage(rateLimit) }
   if (!payload.accountName.trim()) return { ok: false, message: "Name the account this balance belongs to." }
 
   const timezone = isValidTimeZone(payload.timezone) ? payload.timezone : "UTC"

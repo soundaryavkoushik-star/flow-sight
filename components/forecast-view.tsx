@@ -11,7 +11,7 @@ import {
   TrendingUp, Plus, Upload, AlertTriangle,
   ChevronRight, X,
   CalendarDays, Pencil, GitBranch,
-  WalletCards, ReceiptText, Landmark,
+  WalletCards,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { DashboardForecast } from "@/lib/data/forecast"
@@ -19,11 +19,13 @@ import { confirmForecastEstimate, deleteForecastTransaction, recordForecastVisit
 import { runScenario } from "@/lib/forecast/scenarios"
 import { determineForecastCondition } from "@/lib/forecast/condition"
 import { decisionRoomNote } from "@/lib/forecast/scenario-presentation"
-import { amountColorClass, amountDotClass } from "@/lib/financial/amount-style"
+import { amountColorClass } from "@/lib/financial/amount-style"
 import { merchantDisplayName } from "@/lib/financial/merchant-name"
 import { ActionToast } from "@/components/ui/toast"
 import { ConditionBanner, conditionTone, safeToSpendTone } from "@/components/condition-banner"
 import { InlineInfo } from "@/components/ui/inline-info"
+import { ConfidencePill } from "@/components/financial-display"
+import { FinancialEventIcon } from "@/components/financial-event-visual"
 
 /* ── DATA ── */
 
@@ -317,11 +319,8 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
       days: `${event.day === todayForecastDate ? "Today · pending" : new Date(`${event.day}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}${event.confidence === "estimated" ? event.amountEstimated ? " · estimated" : " · date estimated" : ""}`,
       color: event.amountCents > 0 ? "text-[oklch(var(--fs-green))]" : "text-foreground",
       isIncome: event.amountCents > 0,
-      iconTone: event.confidence === "estimated"
-        ? "bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]"
-        : event.amountCents > 0
-          ? "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]"
-          : "bg-[oklch(var(--primary)/.14)] text-[oklch(var(--primary))]",
+      amountCents: event.amountCents,
+      confidence: event.confidence,
       rowTone: event.confidence === "estimated"
         ? "hover:bg-[oklch(var(--fs-estimate-bg))]/70"
         : event.amountCents > 0
@@ -353,20 +352,23 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
     return !best || candidate.totalCents > best.totalCents ? candidate : best
   }, null)
   const nextPaydayDay = data.forecast.days.slice(lowPointIndex + 1).find((day) => day.events.some((event) => event.amountCents > 0)) ?? null
-  const recoveryDay = data.forecast.days.slice(lowPointIndex + 1).find((day) => day.endingBalanceCents >= data.currentBalanceCents)
-    ?? data.forecast.days.at(-1)
-    ?? null
+  const recoveredDay = data.forecast.days.slice(lowPointIndex + 1).find((day) => day.endingBalanceCents >= data.currentBalanceCents) ?? null
+  const recoveryDay = recoveredDay ?? data.forecast.days.at(-1) ?? null
   const runwayDate = (date?: string | null) => date
     ? new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : "—"
-  const billWindowStart = billWindow ? daysThroughLow[billWindow.start]?.date : null
-  const billWindowEnd = billWindow ? daysThroughLow[billWindow.end]?.date : null
+  const billWindowEventDates = billWindow
+    ? daysThroughLow
+        .slice(billWindow.start, billWindow.end + 1)
+        .filter((day) => day.events.some((event) => event.amountCents < 0))
+        .map((day) => day.date)
+    : []
+  const billWindowStart = billWindowEventDates.at(0) ?? null
+  const billWindowEnd = billWindowEventDates.at(-1) ?? null
   const billWindowDates = billWindowStart
     ? `${runwayDate(billWindowStart)}${billWindowEnd && billWindowEnd !== billWindowStart ? `–${runwayDate(billWindowEnd)}` : ""}`
     : "No cluster ahead"
-  const recoveryLabel = recoveryDay?.endingBalanceCents !== undefined && recoveryDay.endingBalanceCents >= data.currentBalanceCents
-    ? "Recovers"
-    : "End of outlook"
+  const recoveryLabel = recoveredDay ? "Recovers" : "End of outlook"
   const runwayPoints = [
     { key: "today", label: "Today opens", value: money(data.currentBalanceCents), detail: runwayDate(todayForecastDate) },
     { key: "bills", label: billWindow && billWindow.count > 1 ? `${billWindow.count} bills cluster` : billWindow?.count === 1 ? "Next bill" : "No bill cluster", value: billWindow ? `−${money(billWindow.totalCents)}` : "Nothing due", detail: billWindowDates },
@@ -385,8 +387,23 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
   }
   const runwaySegments = {
     billsToLow: condition === "tight" ? "oklch(var(--fs-red))" : condition === "watch" ? "oklch(var(--fs-amber))" : null,
-    lowToRecovery: condition !== "clear" ? "oklch(var(--fs-green))" : null,
+    lowToRecovery: condition === "clear"
+      ? null
+        : recoveredDay
+        ? "oklch(var(--fs-green))"
+        : condition === "tight"
+          ? "oklch(var(--fs-red))"
+          : condition === "watch"
+            ? "oklch(var(--fs-amber))"
+            : "oklch(var(--muted-foreground))",
   }
+  const runwayEndDotColor = recoveredDay
+    ? "bg-[oklch(var(--fs-green))]"
+    : condition === "tight"
+      ? "bg-[oklch(var(--fs-red))]"
+      : condition === "watch"
+        ? "bg-[oklch(var(--fs-amber))]"
+        : "bg-foreground"
   const runwayCaption = billWindow && billWindow.count > 0 && nextPaydayDay
     ? `${billWindow.count === 1 ? "One bill lands" : `${billWindow.count} bills land`} before ${nextPaydayDay.events.find((event) => event.amountCents > 0)?.name ?? "your next income"} on ${runwayDate(nextPaydayDay.date)}.`
     : "See the events and timing behind your projected low point."
@@ -513,7 +530,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
             {runwayPoints.map((point) => {
               const isLow = point.key === "low"
               const content = <>
-                <span className={`relative block rounded-full border-[3px] border-card ${isLow ? `fs-runway-low h-6 w-6 ${lowPointDotColor}` : point.key === "bills" ? "mt-1.5 h-3 w-3 bg-muted-foreground/40" : point.key === "recovery" ? "mt-1 h-4 w-4 bg-[oklch(var(--fs-green))]" : "mt-1 h-4 w-4 bg-foreground"}`} />
+                <span className={`relative block rounded-full border-[3px] border-card ${isLow ? `fs-runway-low h-6 w-6 ${lowPointDotColor}` : point.key === "bills" ? "mt-1.5 h-3 w-3 bg-muted-foreground/40" : point.key === "recovery" ? `mt-1 h-4 w-4 ${runwayEndDotColor}` : "mt-1 h-4 w-4 bg-foreground"}`} />
                 <span className={`mt-3 block text-xs ${isLow ? "font-bold text-foreground group-hover:text-primary group-hover:underline" : "font-medium text-muted-foreground"}`}>{point.label}</span>
                 <span className={`mt-0.5 block font-mono ${isLow ? "text-[28px] font-bold leading-none text-foreground" : point.key === "bills" ? "text-[15px] font-medium text-muted-foreground" : "text-[15px] font-medium text-foreground"}`}>{point.value}</span>
                 <span className="mt-0.5 block text-[10px] text-muted-foreground">{point.detail}</span>
@@ -532,7 +549,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
               const isLow = point.key === "low"
               const connectorColor = index === 2 ? runwaySegments.billsToLow : index === 3 ? runwaySegments.lowToRecovery : null
               const row = <>
-                <span className={`relative mt-0.5 block shrink-0 rounded-full border-[3px] border-card ${isLow ? `fs-runway-low h-6 w-6 ${lowPointDotColor}` : point.key === "bills" ? "ml-1.5 h-3 w-3 bg-muted-foreground/40" : point.key === "recovery" ? "ml-1 h-4 w-4 bg-[oklch(var(--fs-green))]" : "ml-1 h-4 w-4 bg-foreground"}`} />
+                <span className={`relative mt-0.5 block shrink-0 rounded-full border-[3px] border-card ${isLow ? `fs-runway-low h-6 w-6 ${lowPointDotColor}` : point.key === "bills" ? "ml-1.5 h-3 w-3 bg-muted-foreground/40" : point.key === "recovery" ? `ml-1 h-4 w-4 ${runwayEndDotColor}` : "ml-1 h-4 w-4 bg-foreground"}`} />
                 <span className="min-w-0 flex-1">
                   <span className={`flex items-center gap-0.5 text-xs ${isLow ? "font-bold text-foreground underline underline-offset-2" : "font-medium text-muted-foreground"}`}>{point.label}{isLow && <ChevronRight className="h-3 w-3" aria-hidden="true" />}</span>
                   <span className={`mt-0.5 block font-mono ${isLow ? "text-[28px] font-bold leading-none" : point.key === "bills" ? "text-[15px] font-medium text-muted-foreground" : "text-[15px] font-medium"}`}>{point.value}</span>
@@ -559,7 +576,7 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
           <div className="max-w-3xl text-xs text-muted-foreground">
             {visibleAlerts.length > 0 ? <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[oklch(var(--fs-amber))]" />
-              <p><span className="font-medium text-foreground">{primaryAlertMessage}</span>{visibleAlerts.length > 1 && <Link href="/app/alerts" className="ml-1 font-medium text-primary hover:underline">View {visibleAlerts.length - 1} more</Link>}</p>
+              <p><span className="font-medium text-foreground">{primaryAlertMessage}</span>{visibleAlerts.length > 1 && <Link href="/app/alerts" className="ml-1 font-medium text-primary hover:underline">View {visibleAlerts.length - 1} more alerts</Link>}</p>
             </div> : <p>{runwayCaption}</p>}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -710,20 +727,21 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
                     <td className="px-3 py-2.5 text-right text-muted-foreground">—</td>
                     <td className="px-3 py-2.5 text-right font-mono font-semibold">{money(data.forecast.days[0]?.openingBalanceCents ?? data.currentBalanceCents)}</td>
                   </tr>
-                  {cascadeSteps.map((step, index) => <tr key={`${step.label}:${index}`} onClick={() => setSelectedDate(step.day)} className="cursor-pointer border-t border-border transition-colors hover:bg-muted/40">
+                  {cascadeSteps.map((step, index) => {
+                    return <tr key={`${step.label}:${index}`} onClick={() => setSelectedDate(step.day)} className="cursor-pointer border-t border-border transition-colors hover:bg-muted/40">
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2.5">
-                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${step.confidence === "estimated" ? "bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]" : step.amountCents > 0 ? "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]" : "bg-[oklch(var(--primary)/.14)] text-[oklch(var(--primary))]"}`}>{step.amountCents > 0 ? <Landmark className="h-3.5 w-3.5" /> : <ReceiptText className="h-3.5 w-3.5" />}</span>
+                        <FinancialEventIcon name={step.label} amountCents={step.amountCents} confidence={step.confidence} className="h-7 w-7" />
                         <div className="min-w-0">
                           <span className="font-medium">{step.label}</span>
-                          {step.confidence === "estimated" ? <span className="ml-1.5 inline-flex items-center rounded-full bg-[oklch(var(--fs-estimate-bg))] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[oklch(var(--fs-estimate))]">Estimated</span> : <span className="ml-1.5 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Confirmed</span>}
+                          <span className="ml-1.5"><ConfidencePill confidence={step.confidence} /></span>
                           <span className="block text-[10px] text-muted-foreground">{new Date(`${step.day}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                         </div>
                       </div>
                     </td>
                     <td className={`px-3 py-2.5 text-right font-mono ${step.amountCents > 0 ? "text-[oklch(var(--fs-green))]" : "text-foreground"}`}>{step.confidence === "estimated" ? "~" : ""}{step.amountCents >= 0 ? "+" : "−"}{money(Math.abs(step.amountCents))}</td>
                     <td className="px-3 py-2.5 text-right font-mono font-semibold">{money(step.resultingBalanceCents)}</td>
-                  </tr>)}
+                  </tr>})}
                 </tbody>
               </table>
             </div>
@@ -802,9 +820,9 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
               {upcoming.length === 0 && (
                 <p className="text-xs text-muted-foreground">No recurring events in this forecast window.</p>
               )}
-              {upcoming.map(({ id, day, name, amount, days, color, isIncome, iconTone, rowTone }) => (
+              {upcoming.map(({ id, day, name, amount, days, color, amountCents, confidence, rowTone }) => (
                 <button key={id} type="button" onClick={() => setSelectedDate(day)} className={`w-full flex items-center gap-3 text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring p-2 -m-2 transition-colors ${rowTone}`}>
-                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconTone}`}>{isIncome ? <Landmark className="h-3.5 w-3.5" /> : <ReceiptText className="h-3.5 w-3.5" />}</span>
+                  <FinancialEventIcon name={name} amountCents={amountCents} confidence={confidence} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{name}</p>
                     <p className="text-xs text-muted-foreground">{days}</p>
@@ -871,8 +889,8 @@ export function ForecastView({ name, data, view = "dashboard", initialSelectedDa
                 <div className="space-y-2">
                   {selectedDay.events.map((event) => (
                     <button key={event.id} type="button" onClick={() => editForecastEvent(event)} className="w-full rounded-xl border border-border p-4 flex items-start gap-3 text-left hover:border-primary/30 hover:bg-primary/[0.04] transition-colors">
-                      <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${amountDotClass(event.amountCents >= 0 ? "income" : "spending")}`} />
-                      <div className="flex-1 min-w-0"><p className="font-medium truncate">{merchantDisplayName(event.name)}</p><p className="text-xs text-muted-foreground mt-1">{event.confidence === "confirmed" ? "Confirmed" : event.amountEstimated ? "Estimated" : "Confirmed amount · Estimated date"} · {event.recurring ? "Recurring" : event.source}</p>{event.confidence === "estimated" && event.estimateEvidence && <p className="text-[11px] text-muted-foreground mt-1">Based on {event.estimateEvidence.occurrenceCount} occurrences ranging {money(Math.min(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}–{money(Math.max(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}.</p>}</div>
+                      <FinancialEventIcon name={merchantDisplayName(event.name)} amountCents={event.amountCents} confidence={event.confidence} />
+                      <div className="flex-1 min-w-0"><div className="flex flex-wrap items-center gap-1.5"><p className="font-medium truncate">{merchantDisplayName(event.name)}</p>{event.amountEstimated || event.confidence === "confirmed" ? <ConfidencePill confidence={event.amountEstimated ? "estimated" : "confirmed"} /> : null}</div><p className="text-xs text-muted-foreground mt-1">{event.confidence === "estimated" && !event.amountEstimated ? "Confirmed amount · Estimated date" : event.recurring ? "Recurring" : event.source}</p>{event.confidence === "estimated" && event.estimateEvidence && <p className="text-[11px] text-muted-foreground mt-1">Based on {event.estimateEvidence.occurrenceCount} occurrences ranging {money(Math.min(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}–{money(Math.max(Math.abs(event.estimateEvidence.minAmountCents), Math.abs(event.estimateEvidence.maxAmountCents)))}.</p>}</div>
                       <div className="text-right"><span className={`font-semibold font-mono ${amountColorClass(event.amountCents >= 0 ? "income" : "spending")}`}>{event.amountCents >= 0 ? "+" : "−"}{money(Math.abs(event.amountCents))}</span><p className="text-[10px] text-muted-foreground mt-1">{event.recurring ? "Manage recurring" : "Edit"}</p></div>
                     </button>
                   ))}

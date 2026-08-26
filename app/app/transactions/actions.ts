@@ -6,6 +6,7 @@ import { prisma } from "@/lib/data/prisma"
 import { categoriesForDirection, exactDescriptionRuleKey, normalizeTransactionDescription, SPENDING_CATEGORIES, suggestTransactionCategory, TRANSACTION_CATEGORIES } from "@/lib/analytics/categories"
 import { randomUUID } from "node:crypto"
 import { normalizeMerchant, recurringEvidenceConfidence } from "@/lib/csv/parse"
+import { checkRateLimit, RATE_LIMITS, rateLimitMessage } from "@/lib/security/rate-limit"
 
 export interface CsvTransactionInput {
   date: string
@@ -74,6 +75,8 @@ export async function importCsvTransactions(input: CsvImportInput): Promise<CsvI
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, message: "Your session expired. Please sign in again." }
+  const rateLimit = await checkRateLimit(user.id, RATE_LIMITS.csvImport)
+  if (!rateLimit.allowed) return { ok: false, message: rateLimitMessage(rateLimit) }
   if (!input.filename.toLowerCase().endsWith(".csv")) return { ok: false, message: "Choose a CSV file to continue." }
   if (input.rows.length === 0 || input.rows.length > 10_000) return { ok: false, message: "The file must contain between 1 and 10,000 valid transactions." }
 
@@ -190,6 +193,8 @@ export async function createManualTransaction(input: ManualTransactionInput) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, message: "Your session expired. Please sign in again." }
+  const rateLimit = await checkRateLimit(user.id, RATE_LIMITS.dataCreation)
+  if (!rateLimit.allowed) return { ok: false as const, message: rateLimitMessage(rateLimit) }
   const date = parseDate(input.date)
   if (!date || !input.description.trim() || !Number.isSafeInteger(input.amountCents) || input.amountCents === 0) return { ok: false as const, message: "Add a valid date, description, and amount." }
 
@@ -336,6 +341,8 @@ export async function saveRecurringSeries(input: RecurringSeriesInput) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, message: "Your session expired. Please sign in again." }
+  const rateLimit = await checkRateLimit(user.id, RATE_LIMITS.recurringMutation)
+  if (!rateLimit.allowed) return { ok: false as const, message: rateLimitMessage(rateLimit) }
   const nextExpected = parseDate(input.nextExpected)
   const signedAmount = Math.abs(input.amountCents) * (input.type === "bill" ? -1 : 1)
   if (!input.name.trim() || !nextExpected || !Number.isSafeInteger(input.amountCents) || input.amountCents === 0 || !["weekly", "biweekly", "monthly", "annual"].includes(input.frequency)) {
@@ -369,6 +376,8 @@ export async function setRecurringSeriesActive(id: string, active: boolean) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, message: "Your session expired. Please sign in again." }
+  const rateLimit = await checkRateLimit(user.id, RATE_LIMITS.recurringMutation)
+  if (!rateLimit.allowed) return { ok: false as const, message: rateLimitMessage(rateLimit) }
   const result = await prisma.recurringSeries.updateMany({ where: { id, userId: user.id, status: { in: ["confirmed", "dismissed"] } }, data: { status: active ? "confirmed" : "dismissed" } })
   if (result.count === 0) return { ok: false as const, message: "We couldn’t find that recurring item." }
   revalidateRecurringPaths()
@@ -379,6 +388,8 @@ export async function deleteRecurringSeries(id: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, message: "Your session expired. Please sign in again." }
+  const rateLimit = await checkRateLimit(user.id, RATE_LIMITS.recurringMutation)
+  if (!rateLimit.allowed) return { ok: false as const, message: rateLimitMessage(rateLimit) }
   const result = await prisma.recurringSeries.deleteMany({ where: { id, userId: user.id } })
   if (result.count === 0) return { ok: false as const, message: "We couldn’t find that recurring item." }
   revalidateRecurringPaths()
@@ -400,6 +411,8 @@ export async function confirmRecurringSuggestions(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, message: "Your session expired. Please sign in again." }
+  const rateLimit = await checkRateLimit(user.id, RATE_LIMITS.recurringMutation)
+  if (!rateLimit.allowed) return { ok: false as const, message: rateLimitMessage(rateLimit) }
   if (items.length > 100 || dismissedItems.length > 100 || replacements.length > 25) return { ok: false as const, message: "Too many recurring items were selected." }
 
   for (const item of [...items, ...dismissedItems]) {
@@ -473,6 +486,8 @@ export async function undoRecurringReconciliation(reconciliationId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user || !/^[0-9a-f-]{36}$/i.test(reconciliationId)) return { ok: false as const, message: "That reconciliation could not be found." }
+  const rateLimit = await checkRateLimit(user.id, RATE_LIMITS.recurringMutation)
+  if (!rateLimit.allowed) return { ok: false as const, message: rateLimitMessage(rateLimit) }
   try {
     await prisma.$transaction(async (tx) => {
       const replaced = await tx.recurringSeries.findMany({ where: { userId: user.id, reconciliationId, status: "replaced" } })

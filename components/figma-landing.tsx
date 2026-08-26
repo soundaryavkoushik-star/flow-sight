@@ -11,12 +11,14 @@ import {
   ArrowRight, Unplug, ShieldCheck, Eye,
   X, Menu, CheckCircle, ChevronDown,
   CircleCheck, AlertTriangle, Link2,
-  House, CarFront, Play, Zap, WalletCards,
+  WalletCards,
   TrendingUp, ListTree, ArrowDownToLine,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ConditionBanner } from "@/components/condition-banner";
 import { RunwayPreview } from "@/components/runway-preview";
+import { ConfidencePill } from "@/components/financial-display";
+import { FinancialEventIcon } from "@/components/financial-event-visual";
 
 const display: React.CSSProperties = { fontFamily: "'Inter', sans-serif" };
 const editorialItalic: React.CSSProperties = { fontFamily: "'Fraunces', serif", fontStyle: "italic", fontWeight: 400 };
@@ -80,7 +82,7 @@ function HeroDashboard({ play }: { play: boolean }) {
       <div className="grid h-full sm:grid-cols-[180px_1fr] lg:grid-cols-[190px_1fr]">
         <aside className="fs-hero-sidebar hidden border-r px-4 py-5 sm:flex sm:flex-col">
           <div className="px-2"><Image src="/cusp-logo.svg?v=2" alt="Cusp" width={130} height={30} loading="eager" className="h-7 w-auto" /></div>
-          <nav className="mt-4 flex flex-col gap-0.5">{navItems.map((item, index) => <div key={item} className={`relative rounded-xl px-3 py-2 text-[13px] leading-5 ${index === 0 ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground"}`}>{item}</div>)}</nav>
+          <nav className="mt-4 flex flex-col gap-0.5">{navItems.map((item, index) => <div key={item} className={`relative rounded-xl px-3 py-2 text-[13px] leading-5 ${index === 0 ? "bg-card font-medium text-foreground shadow-[inset_0_0_0_1px_oklch(var(--border)),0_1px_2px_oklch(var(--foreground)/.04)]" : "text-muted-foreground"}`}>{item}</div>)}</nav>
         </aside>
         <main className="fs-hero-main min-w-0 p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
@@ -407,11 +409,11 @@ function ConditionSystem() {
    Matches the app's own Step by Step numbers: Rent −1650→1090, Auto Loan
    −410→680, Insurance −180→500, Netflix −18→482, Electricity ~−113→369. */
 const STEP_EVENTS = [
-  { label: "Rent", day: "Aug 4", change: -1650, balance: 1090, estimated: false, icon: House, iconClass: "bg-primary/[0.12] text-primary" },
-  { label: "Auto Loan", day: "Aug 5", change: -410, balance: 680, estimated: false, icon: CarFront, iconClass: "bg-[oklch(var(--fs-amber-bg))] text-[oklch(var(--fs-amber))]" },
-  { label: "Insurance", day: "Aug 6", change: -180, balance: 500, estimated: false, icon: ShieldCheck, iconClass: "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]" },
-  { label: "Netflix", day: "Aug 12", change: -18, balance: 482, estimated: false, icon: Play, iconClass: "bg-[oklch(var(--fs-red-bg))] text-[oklch(var(--fs-red))]" },
-  { label: "Electricity", day: "Aug 15", change: -113, balance: 369, estimated: true, icon: Zap, iconClass: "bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]" },
+  { label: "Rent", day: "Aug 4", change: -1650, balance: 1090, estimated: false },
+  { label: "Auto Loan", day: "Aug 5", change: -410, balance: 680, estimated: false },
+  { label: "Insurance", day: "Aug 6", change: -180, balance: 500, estimated: false },
+  { label: "Netflix", day: "Aug 12", change: -18, balance: 482, estimated: false },
+  { label: "Electricity", day: "Aug 15", change: -113, balance: 369, estimated: true },
 ] as const;
 
 const FORECAST_CHART_MASTER = [
@@ -450,11 +452,11 @@ const ledgerRow = {
 };
 
 function EstimatedTag() {
-  return <span className="inline-flex items-center gap-1 rounded-full border border-[oklch(var(--fs-estimate))]/20 bg-[oklch(var(--fs-estimate-bg))] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[oklch(var(--fs-estimate))]"><Zap size={9} />Estimated</span>;
+  return <ConfidencePill confidence="estimated" />;
 }
 
 function ConfirmedTag() {
-  return <span className="inline-flex items-center gap-1 rounded-full border border-[oklch(var(--fs-green))]/20 bg-[oklch(var(--fs-green-bg))] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[oklch(var(--fs-green))]"><CircleCheck size={9} />Confirmed</span>;
+  return <ConfidencePill confidence="confirmed" />;
 }
 
 function ForecastSection() {
@@ -540,7 +542,7 @@ function ForecastSection() {
                 {stepRows.map((row) => (
                   <motion.div key={row.label} variants={ledgerRow} className="group flex items-center justify-between border-b border-border/60 px-1 py-2.5 text-sm last:border-0 hover:bg-muted/35">
                     <span className="flex min-w-0 items-center gap-2.5">
-                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${row.iconClass}`}><row.icon size={15} /></span>
+                      <FinancialEventIcon name={row.label} amountCents={row.change} confidence={row.estimated ? "estimated" : "confirmed"} />
                       <span className="min-w-0"><span className="flex flex-wrap items-center gap-1.5 font-medium text-foreground">{row.label}{row.estimated ? <EstimatedTag /> : <ConfirmedTag />}</span><span className="mt-0.5 block text-[10px] text-muted-foreground">{row.day}</span></span>
                     </span>
                     <span className="flex shrink-0 items-baseline gap-3 font-mono">
@@ -779,7 +781,7 @@ const faqs = [
   { category: "Security and privacy", question: "Can I export or delete my data?", answer: "Yes. You can export or delete your data at any time from Settings." },
   { category: "Beta and billing", question: "Is Cusp free during beta?", answer: "Yes. Explore your forecast and help shape Cusp at no cost during the private beta." },
   { category: "Beta and billing", question: "Will I need a payment method?", answer: "No. Pricing will be published in advance of any change, and you’ll choose whether to opt in. Nothing switches to paid without your action." },
-  { category: "Beta and billing", question: "How can I contact support?", answer: "Email hello@cusp.sh and we’ll help." },
+  { category: "Beta and billing", question: "How can I contact support?", answer: "Email support@cusp.sh and we’ll help." },
 ];
 
 const faqGroups = faqs.reduce<Record<string, typeof faqs>>((groups, item) => {
@@ -922,7 +924,7 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
             {!isSignedIn && <button onClick={() => navigate("/sign-in")} className="px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">Sign in</button>}
             <button onClick={() => navigate(primaryHref)} className="fs-brand-action inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl font-medium">{primaryLabel} <ArrowRight size={14} /></button>
           </div>
-          <button className="md:hidden text-muted-foreground p-1" onClick={() => setMobileOpen(!mobileOpen)}>
+          <button className="md:hidden text-muted-foreground p-1" onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={mobileOpen}>
             {mobileOpen ? <X size={19} /> : <Menu size={19} />}
           </button>
         </div>
@@ -1088,14 +1090,14 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-[0.15em] mb-4" style={mono}>Company</p>
               <div className="space-y-2.5">
                 <Link href="/about" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">About</Link>
-                <a href="mailto:hello@cusp.sh" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Contact</a>
+                <a href="mailto:support@cusp.sh" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Contact</a>
               </div>
             </div>
             <div>
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-[0.15em] mb-4" style={mono}>Legal</p>
               <div className="space-y-2.5">
                 <Link href="/privacy" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy</Link>
-                <a href="#" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Terms</a>
+                <Link href="/terms" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Terms</Link>
               </div>
             </div>
           </div>

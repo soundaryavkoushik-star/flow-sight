@@ -12,6 +12,7 @@ import type { DashboardForecast } from "@/lib/data/forecast"
 import { ActionToast } from "@/components/ui/toast"
 import { safeToSpendTone } from "@/components/condition-banner"
 import { dismissSafetyBufferPrompt, updateSafetyBuffer } from "@/app/app/forecast/actions"
+import { FinancialEventIcon } from "@/components/financial-event-visual"
 
 const scenarioPresets = [
   { name: "Weekend trip", amount: "480" },
@@ -254,7 +255,7 @@ export default function ScenarioPlanner({ data }: { data: DashboardForecast | nu
           <div><p className="font-mono text-[10px] uppercase tracking-[0.14em] text-primary">Why this happens</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{timingExplanation}</p></div>
           <Link href={`/app/forecast?range=${horizonDays}&date=${encodeURIComponent(decisionLowDate)}&detail=1`} className="shrink-0 text-xs font-medium text-primary hover:underline">Review day <ArrowRight className="inline h-3.5 w-3.5" /></Link>
         </div>
-        {eventsBeforeLowPoint.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{eventsBeforeLowPoint.map((event) => <span key={`${event.id}:${event.day}`} className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground"><span className="font-medium text-foreground">{event.name}</span> · −{money(Math.abs(event.amountCents))}</span>)}</div>}
+        {eventsBeforeLowPoint.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{eventsBeforeLowPoint.map((event) => <span key={`${event.id}:${event.day}`} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background py-1 pl-1 pr-2.5 text-[11px] text-muted-foreground"><FinancialEventIcon name={event.name} amountCents={event.amountCents} confidence={event.confidence} className="h-5 w-5" iconClassName="h-3 w-3" /><span className="font-medium text-foreground">{event.name}</span> · −{money(Math.abs(event.amountCents))}</span>)}</div>}
       </div>}
       </section>
 

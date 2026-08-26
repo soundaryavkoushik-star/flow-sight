@@ -1,11 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { CalendarClock, CheckCircle, Landmark, ReceiptText, Repeat2 } from "lucide-react"
+import { CheckCircle, Repeat2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { confirmRecurringSuggestions, type RecurringConfirmationInput } from "@/app/app/transactions/actions"
 import { amountColorClass } from "@/lib/financial/amount-style"
+import { FinancialEventIcon } from "@/components/financial-event-visual"
 
 type Suggestion = RecurringConfirmationInput & { id: string }
 
@@ -33,16 +34,10 @@ export function RecurringReviewPanel({ suggestions }: { suggestions: Suggestion[
         <div className="mt-5 space-y-3">
           {suggestions.map((item) => {
             const isSelected = selected.has(item.id)
-            const ItemIcon = item.type === "income" ? Landmark : item.minAmountCents === item.maxAmountCents ? ReceiptText : CalendarClock
-            const iconTone = item.type === "income"
-              ? "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]"
-              : item.minAmountCents !== item.maxAmountCents
-                ? "bg-[oklch(var(--fs-amber-bg))] text-[oklch(var(--fs-amber))]"
-                : "bg-[oklch(var(--primary)/.14)] text-[oklch(var(--primary))]"
             return (
             <label key={item.id} className={`flex items-start gap-3 rounded-xl border border-dashed p-4 cursor-pointer transition-[background-color,border-color,box-shadow,opacity] ${isSelected ? "border-primary/30 bg-primary/[0.035] shadow-[inset_0_0_0_1px_rgba(212,117,74,0.14)]" : "border-[oklch(var(--fs-amber))]/30 bg-muted/20 opacity-70 hover:opacity-100"}`}>
               <input type="checkbox" checked={selected.has(item.id)} onChange={(event) => setSelected((current) => { const next = new Set(current); if (event.target.checked) next.add(item.id); else next.delete(item.id); return next })} className="mt-1" />
-              <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconTone}`}><ItemIcon className="h-[18px] w-[18px]" strokeWidth={2} /></span>
+              <FinancialEventIcon name={item.name} amountCents={item.amountCents} confidence="estimated" className="h-10 w-10 rounded-xl" iconClassName="h-[18px] w-[18px]" />
               <span className="flex-1"><span className="block text-sm font-medium">{item.name}</span><span className="block text-xs text-muted-foreground mt-1"><span className="capitalize">{item.type}</span> · <span className="capitalize">{item.frequency}</span> · Next estimated {new Date(`${item.nextExpected}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span><span className="block text-[11px] text-muted-foreground mt-1">Estimated from {item.occurrenceCount} occurrences ranging {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Math.min(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)) / 100)}–{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Math.max(Math.abs(item.minAmountCents), Math.abs(item.maxAmountCents)) / 100)}.</span></span>
               <span className={`font-mono text-[15px] font-medium tabular-nums ${amountColorClass(item.type === "income" ? "income" : "spending")}`}>~{item.amountCents > 0 ? "+" : "−"}{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Math.abs(item.amountCents) / 100)}</span>
             </label>

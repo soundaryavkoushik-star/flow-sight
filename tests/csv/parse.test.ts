@@ -105,6 +105,18 @@ describe("recurring suggestions", () => {
     expect(suggestions[0]).toMatchObject({ minAmountCents: -167_500, maxAmountCents: -165_000, occurrenceCount: 3, evidenceStartDate: "2026-04-03", evidenceEndDate: "2026-06-01" })
   })
 
+  it("detects biweekly payroll when the bank truncates PAYROLL to PAYROL", () => {
+    const suggestions = suggestRecurring([
+      { date: "2026-06-05", description: "ACH CREDIT NORTHSTAR STUDIO PAYROL DIR DEP", amountCents: 240_000 },
+      { date: "2026-06-19", description: "ACH CREDIT NORTHSTAR STUDIO PAYROL DIR DEP", amountCents: 240_000 },
+      { date: "2026-07-03", description: "ACH CREDIT NORTHSTAR STUDIO PAYROL DIR DEP", amountCents: 240_000 },
+      { date: "2026-07-17", description: "ACH CREDIT NORTHSTAR STUDIO PAYROL DIR DEP", amountCents: 240_000 },
+    ], "account", "2026-07-18")
+
+    expect(suggestions).toHaveLength(1)
+    expect(suggestions[0]).toMatchObject({ type: "income", frequency: "biweekly", amountCents: 240_000, occurrenceCount: 4, nextExpected: "2026-07-31" })
+  })
+
   it("keeps the calendar day when projecting monthly suggestions", () => {
     const suggestions = suggestRecurring([
       { date: "2026-01-31", description: "Month End Bill", amountCents: -10_000 },

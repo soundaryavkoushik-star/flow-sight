@@ -1,4 +1,5 @@
 import Link from "next/link"
+import type { Metadata } from "next"
 import { ArrowLeftRight } from "lucide-react"
 import type { Prisma } from "@prisma/client"
 import { CsvImportPanel } from "@/components/csv-import-panel"
@@ -16,6 +17,8 @@ import { detectTransferSuggestions, isUnmatchedCardPayment } from "@/lib/transfe
 import { recurringDisplayName } from "@/lib/financial/recurring-label"
 
 const PAGE_SIZE = 25
+
+export const metadata: Metadata = { title: "Transactions" }
 
 export default async function TransactionsPage({ searchParams }: { searchParams: Promise<{ import?: string; account?: string; tab?: string; edit?: string; q?: string; type?: string; category?: string; page?: string }> }) {
   const query = await searchParams

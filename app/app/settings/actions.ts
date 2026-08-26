@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/data/prisma"
+import { checkRateLimit, RATE_LIMITS, rateLimitMessage } from "@/lib/security/rate-limit"
 
 export interface PersonalizationPreferences {
   safetyBufferCents: number
@@ -44,6 +45,8 @@ export async function deleteFinancialData() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, message: "Your session expired. Please sign in again." }
+  const rateLimit = await checkRateLimit(user.id, RATE_LIMITS.dataDeletion)
+  if (!rateLimit.allowed) return { ok: false as const, message: rateLimitMessage(rateLimit) }
 
   try {
     await prisma.$transaction([

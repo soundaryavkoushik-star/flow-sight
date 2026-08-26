@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/data/prisma"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit"
 
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const rateLimit = await checkRateLimit(user.id, RATE_LIMITS.dataExport)
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many exports. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds), "Cache-Control": "private, no-store" } },
+    )
+  }
 
   const [profile, accounts, transactions, categories, categoryRules, recurringSeries, recurringExceptions, forecastSnapshots, actualBalanceObservations, recurringSuggestionDecisions, transactionTransfers, creditCardSettings] = await prisma.$transaction([
     prisma.userProfile.findUnique({ where: { userId: user.id } }),

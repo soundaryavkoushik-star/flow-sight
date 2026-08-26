@@ -14,6 +14,8 @@ const passwordRules = [
   { label: "One number", test: (p: string) => /[0-9]/.test(p) },
 ]
 
+const LEGAL_VERSION = "2026-08-20"
+
 export default function SignUpPage() {
   const router = useRouter()
   const [name, setName] = useState("")
@@ -39,11 +41,17 @@ export default function SignUpPage() {
     setLoading(true)
 
     const supabase = createClient()
+    const legalAcceptedAt = new Date().toISOString()
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { display_name: name },
+        data: {
+          display_name: name,
+          terms_version: LEGAL_VERSION,
+          privacy_version: LEGAL_VERSION,
+          legal_accepted_at: legalAcceptedAt,
+        },
         emailRedirectTo: `${window.location.origin}/api/auth/confirm`,
       },
     })
@@ -135,19 +143,17 @@ export default function SignUpPage() {
           </div>
 
           <div className="bg-background/60 backdrop-blur-sm border border-border rounded-2xl p-5">
-            <div className="flex items-center gap-1 mb-3">
-              {[...Array(5)].map((_, i) => (
-                <svg key={i} className="text-primary" width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              ))}
+            <div className="mb-3 flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-primary">Private beta</p>
             </div>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-              &ldquo;I can see the bills and paydays ahead without maintaining a budget.&rdquo;
-            </p>
-            <p className="text-xs text-muted-foreground/60">A calmer way to plan the next few weeks.</p>
+            <p className="text-sm font-medium leading-relaxed text-foreground">Help shape a forecast people can actually understand.</p>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">Cusp is still being refined with early users. If a number looks wrong or unclear, we want to hear about it.</p>
+            <p className="mt-4 border-t border-border pt-3 text-[11px] text-muted-foreground">Free during beta · No automatic paid conversion</p>
           </div>
         </div>
 
-        <p className="relative text-xs text-muted-foreground/50">© {new Date().getFullYear()} Cusp, Inc.</p>
+        <p className="relative text-xs text-muted-foreground/50">© {new Date().getFullYear()} Cusp</p>
       </div>
 
       {/* Right panel — form */}
@@ -217,7 +223,7 @@ export default function SignUpPage() {
 
             <label className="flex items-start gap-3 text-xs text-muted-foreground leading-relaxed cursor-pointer">
               <input type="checkbox" checked={acceptedTerms} onChange={e => setAcceptedTerms(e.target.checked)} className="mt-0.5" />
-              <span>I agree to the <a href="#" className="text-foreground underline underline-offset-2">Terms of Service</a> and <a href="#" className="text-foreground underline underline-offset-2">Privacy Policy</a>.</span>
+              <span>I agree to the <Link href="/terms" target="_blank" rel="noreferrer" className="text-foreground underline underline-offset-2">Terms of Service</Link> and <Link href="/privacy" target="_blank" rel="noreferrer" className="text-foreground underline underline-offset-2">Privacy Policy</Link>.</span>
             </label>
 
             <button type="submit" disabled={loading}

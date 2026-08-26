@@ -10,6 +10,7 @@ function deleteManyFor(model: string) {
 }
 
 const prismaMock = {
+  rateLimitBucket: { upsert: vi.fn(async () => ({ count: 1 })), deleteMany: vi.fn(async () => ({ count: 0 })) },
   forecastSnapshot: { deleteMany: deleteManyFor("forecastSnapshot") },
   actualBalanceObservation: { deleteMany: deleteManyFor("actualBalanceObservation") },
   recurringException: { deleteMany: deleteManyFor("recurringException") },

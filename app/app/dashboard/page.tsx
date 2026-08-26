@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server"
 import { ForecastView } from "@/components/forecast-view"
 import { loadDashboardForecast } from "@/lib/data/forecast"
 
+export const metadata: Metadata = { title: "Dashboard" }
+
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -10,3 +12,4 @@ export default async function DashboardPage() {
 
   return <ForecastView name={name} data={data} view="dashboard" />
 }
+import type { Metadata } from "next"

@@ -13,7 +13,9 @@ export const SPENDING_CATEGORIES = [
 ] as const
 
 export const MONEY_IN_CATEGORIES = [
-  { name: "Regular paycheck", color: "#2D8B5A", keywords: ["payroll", "paycheck", "salary", "direct deposit"] },
+  // Some bank exports truncate PAYROLL to PAYROL; the shorter stem safely
+  // recognizes both forms without broadening this to generic "pay" matches.
+  { name: "Regular paycheck", color: "#2D8B5A", keywords: ["payrol", "paycheck", "salary", "direct deposit"] },
   { name: "Variable / side income", color: "#3B82F6", keywords: ["freelance", "contract", "invoice", "side income", "side hustle", "commission"] },
   { name: "Business income", color: "#0F766E", keywords: ["business income", "merchant payout", "stripe payout"] },
   { name: "Investment income", color: "#0891B2", keywords: ["dividend", "interest payment", "capital gain"] },

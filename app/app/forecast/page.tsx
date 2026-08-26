@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server"
 import { ForecastView } from "@/components/forecast-view"
 import { loadDashboardForecast } from "@/lib/data/forecast"
 
+export const metadata: Metadata = { title: "Forecast" }
+
 function horizon(value: string | undefined) {
   return value === "60" || value === "90" ? Number(value) : 30
 }
@@ -18,3 +20,4 @@ export default async function ForecastPage({ searchParams }: { searchParams: Pro
 
   return <ForecastView name={name} data={data} view="forecast" initialSelectedDate={initialSelectedDate} />
 }
+import type { Metadata } from "next"

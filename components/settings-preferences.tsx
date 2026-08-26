@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Download, Save, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +11,7 @@ import { deleteFinancialData, savePreferences, type PersonalizationPreferences }
 import { createClient } from "@/lib/supabase/client"
 
 export function SettingsPreferences({ initial }: { initial: PersonalizationPreferences }) {
+  const router = useRouter()
   const [preferences, setPreferences] = useState(initial)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -24,7 +26,7 @@ export function SettingsPreferences({ initial }: { initial: PersonalizationPrefe
 
     {message && <p className="text-sm text-muted-foreground" role="status">{message}</p>}<Button disabled={saving} onClick={async () => { setSaving(true); setMessage(null); const result = await savePreferences(preferences); setSaving(false); setMessage(result.ok ? "Your preferences are saved." : result.message) }}><Save className="h-4 w-4" /> {saving ? "Saving…" : "Save preferences"}</Button>
 
-    <Card><CardContent className="pt-6 space-y-5"><div><h3 className="font-semibold">Your data</h3><p className="text-sm text-muted-foreground mt-1">Download a copy whenever you like, or remove your financial information from Cusp.</p></div><a href="/api/data-export" download className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-input bg-background px-4 text-sm font-medium shadow-xs hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Download className="h-4 w-4" /> Download my data</a><div className="rounded-xl border border-destructive/30 bg-destructive/[0.04] p-4 space-y-3"><div><h4 className="text-sm font-semibold">Delete financial data</h4><p className="text-xs text-muted-foreground mt-1">This permanently removes your accounts, transactions, recurring events, and preferences. It does not delete your sign-in identity.</p></div><div><Label htmlFor="delete-confirmation">Type DELETE to confirm</Label><Input id="delete-confirmation" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} className="mt-2 max-w-[240px]" autoComplete="off" /></div><Button variant="destructive" disabled={deleting || deleteConfirmation !== "DELETE"} onClick={async () => { if (!window.confirm("Permanently delete all of your financial data?")) return; setDeleting(true); setMessage(null); const result = await deleteFinancialData(); if (!result.ok) { setDeleting(false); setMessage(result.message); return } await createClient().auth.signOut(); window.location.assign("/") }}><Trash2 className="h-4 w-4" /> {deleting ? "Deleting…" : "Delete financial data"}</Button></div></CardContent></Card>
+    <Card><CardContent className="pt-6 space-y-5"><div><h3 className="font-semibold">Your data</h3><p className="text-sm text-muted-foreground mt-1">Download a copy whenever you like, or remove your financial information from Cusp.</p></div><a href="/api/data-export" download className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-input bg-background px-4 text-sm font-medium shadow-xs hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Download className="h-4 w-4" /> Download my data</a><div className="rounded-xl border border-destructive/30 bg-destructive/[0.04] p-4 space-y-3"><div><h4 className="text-sm font-semibold">Delete financial data</h4><p className="text-xs text-muted-foreground mt-1">This permanently removes your accounts, transactions, recurring events, and preferences. It does not delete your sign-in identity.</p></div><div><Label htmlFor="delete-confirmation">Type DELETE to confirm</Label><Input id="delete-confirmation" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} className="mt-2 max-w-[240px]" autoComplete="off" /></div><Button variant="destructive" disabled={deleting || deleteConfirmation !== "DELETE"} onClick={async () => { if (!window.confirm("Permanently delete all of your financial data?")) return; setDeleting(true); setMessage(null); const result = await deleteFinancialData(); if (!result.ok) { setDeleting(false); setMessage(result.message); return } await createClient().auth.signOut(); router.replace("/"); router.refresh() }}><Trash2 className="h-4 w-4" /> {deleting ? "Deleting…" : "Delete financial data"}</Button></div></CardContent></Card>
   </div>
 }
 

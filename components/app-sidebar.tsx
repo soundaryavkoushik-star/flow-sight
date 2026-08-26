@@ -8,7 +8,7 @@ import type { User } from "@supabase/supabase-js"
 import {
   TrendingUp, Wallet, ArrowLeftRight,
   LayoutDashboard, GitBranch, Settings, ChevronLeft,
-  ChevronRight, LogOut
+  ChevronRight, LogOut, Menu, X
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -29,13 +29,35 @@ interface AppSidebarProps {
 export function AppSidebar({ user }: AppSidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const initials = (user.email ?? "?").slice(0, 2).toUpperCase()
 
-  return (
+  return <>
+    <header className="relative z-50 flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-4 md:hidden">
+      <Link href="/app/dashboard" aria-label="Cusp dashboard">
+        <Image src="/cusp-logo.svg?v=2" alt="Cusp" width={125} height={29} loading="eager" className="h-7 w-auto" />
+      </Link>
+      <Button variant="ghost" size="icon" onClick={() => setMobileOpen((value) => !value)} aria-label={mobileOpen ? "Close app navigation" : "Open app navigation"} aria-expanded={mobileOpen}>
+        {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </Button>
+      {mobileOpen && <div className="absolute inset-x-3 top-[58px] rounded-2xl border border-border bg-card p-2 shadow-xl">
+        <nav className="space-y-1">
+          {NAV_ITEMS.map(({ href, label, Icon }) => {
+            const active = pathname.startsWith(href)
+            return <Link key={href} href={href} onClick={() => setMobileOpen(false)} className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm", active ? "bg-background font-medium text-foreground shadow-[inset_0_0_0_1px_oklch(var(--border))]" : "text-muted-foreground")}>
+              <Icon className="h-4 w-4" /><span>{label}</span>
+            </Link>
+          })}
+        </nav>
+        <form action="/api/auth/sign-out" method="post" className="mt-2 border-t border-border pt-2">
+          <Button type="submit" variant="ghost" className="w-full justify-start gap-3 text-muted-foreground"><LogOut className="h-4 w-4" /> Sign out</Button>
+        </form>
+      </div>}
+    </header>
     <aside
       className={cn(
-        "fs-app-sidebar flex h-full shrink-0 flex-col shadow-[8px_0_30px_rgba(74,65,60,0.035)] transition-[width] duration-200",
+        "fs-app-sidebar hidden h-full shrink-0 flex-col shadow-[8px_0_30px_rgba(74,65,60,0.035)] transition-[width] duration-200 md:flex",
         collapsed ? "w-[60px]" : "w-[232px]"
       )}
     >
@@ -115,5 +137,5 @@ export function AppSidebar({ user }: AppSidebarProps) {
         </div>
       </div>
     </aside>
-  )
+  </>
 }

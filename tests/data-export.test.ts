@@ -19,6 +19,7 @@ function findManyFor(table: string) {
 }
 
 const prismaMock = {
+  rateLimitBucket: { upsert: vi.fn(async () => ({ count: 1 })), deleteMany: vi.fn(async () => ({ count: 0 })) },
   userProfile: { findUnique: vi.fn(async () => ({ userId: "user-1" })) },
   account: { findMany: findManyFor("account") },
   transaction: { findMany: findManyFor("transaction") },

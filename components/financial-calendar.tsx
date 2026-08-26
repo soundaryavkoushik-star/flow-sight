@@ -1,8 +1,9 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { CalendarClock, ChevronLeft, ChevronRight, Landmark, ReceiptText } from "lucide-react"
+import { ChevronLeft, ChevronRight, Landmark, ReceiptText, Zap } from "lucide-react"
 import type { ForecastDay } from "@/lib/forecast/types"
+import { FinancialEventIcon } from "@/components/financial-event-visual"
 
 export interface CalendarEvent {
   id: string
@@ -115,8 +116,7 @@ export function FinancialCalendar({
           <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full text-xs font-medium ${isTight ? "bg-[oklch(var(--fs-red-bg))] text-[oklch(var(--fs-red))]" : isWatch ? "bg-[oklch(var(--fs-amber-bg))] text-[oklch(var(--fs-amber))]" : ""}`}>{date.getDate()}</span>
           {dayEvents.length > 0 && <div className="mt-2 space-y-1">
             {dayEvents.slice(0, 2).map((event) => {
-              const EventIcon = event.amountCents > 0 ? Landmark : event.confidence === "estimated" ? CalendarClock : ReceiptText
-              return <div key={event.id} className={`flex items-center gap-1.5 truncate rounded-lg border px-1.5 py-1 text-[10px] normal-case tracking-normal shadow-[0_1px_2px_rgba(74,65,60,0.04)] ${event.confidence === "estimated" ? "border-dashed border-[oklch(var(--fs-estimate))]/40 bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]" : event.amountCents > 0 ? "border-[oklch(var(--fs-green))]/28 bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]" : "border-[oklch(var(--primary))]/40 bg-[oklch(var(--primary)/.14)] text-[oklch(var(--primary))]"}`} title={`${event.name}: ${event.amountCents > 0 ? "+" : "−"}${money(event.amountCents)}`}><EventIcon className="h-3 w-3 shrink-0" strokeWidth={2.25} /><span className="truncate font-semibold">{event.name}</span></div>
+              return <div key={event.id} className={`flex items-center gap-1.5 truncate rounded-lg border px-1.5 py-1 text-[10px] normal-case tracking-normal shadow-[0_1px_2px_rgba(74,65,60,0.04)] ${event.confidence === "estimated" ? "border-dashed border-[oklch(var(--fs-estimate))]/40 bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]" : event.amountCents > 0 ? "border-[oklch(var(--fs-green))]/28 bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]" : "border-[oklch(var(--primary))]/40 bg-[oklch(var(--primary)/.14)] text-[oklch(var(--primary))]"}`} title={`${event.name}: ${event.amountCents > 0 ? "+" : "−"}${money(event.amountCents)}`}><FinancialEventIcon name={event.name} amountCents={event.amountCents} confidence={event.confidence} className="h-4 w-4 bg-transparent" iconClassName="h-3 w-3" /><span className="truncate font-semibold">{event.name}</span></div>
             })}
             {dayEvents.length > 2 && <p className="px-1 text-[9px] text-muted-foreground">+{dayEvents.length - 2} more</p>}
           </div>}
@@ -124,6 +124,6 @@ export function FinancialCalendar({
         </button>
       })}
     </div></div>
-    <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-muted-foreground"><span className="inline-flex items-center gap-1.5 rounded-full bg-[oklch(var(--fs-green-bg))] px-2.5 py-1 text-[oklch(var(--fs-green))]"><Landmark className="h-3 w-3" />Income</span><span className="inline-flex items-center gap-1.5 rounded-full bg-[oklch(var(--primary)/.14)] px-2.5 py-1 text-[oklch(var(--primary))]"><ReceiptText className="h-3 w-3" />Bill</span><span className="inline-flex items-center gap-1.5 rounded-full bg-[oklch(var(--fs-estimate-bg))] px-2.5 py-1 text-[oklch(var(--fs-estimate))]"><CalendarClock className="h-3 w-3" />Estimated</span></div>
+    <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-muted-foreground"><span className="inline-flex items-center gap-1.5 rounded-full bg-[oklch(var(--fs-green-bg))] px-2.5 py-1 text-[oklch(var(--fs-green))]"><Landmark className="h-3 w-3" />Income</span><span className="inline-flex items-center gap-1.5 rounded-full bg-[oklch(var(--primary)/.14)] px-2.5 py-1 text-[oklch(var(--primary))]"><ReceiptText className="h-3 w-3" />Bill</span><span className="inline-flex items-center gap-1.5 rounded-full bg-[oklch(var(--fs-estimate-bg))] px-2.5 py-1 text-[oklch(var(--fs-estimate))]"><Zap className="h-3 w-3" />Estimated</span></div>
   </div>
 }

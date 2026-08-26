@@ -3,9 +3,9 @@ import Image from "next/image"
 import { ArrowLeft, ArrowRight } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 
-export const SUPPORT_EMAIL = "support@cusp.app"
+export const SUPPORT_EMAIL = "support@cusp.sh"
 
-export async function LearnShell({ children }: { children: React.ReactNode }) {
+export async function LearnShell({ children, active = "learn" }: { children: React.ReactNode; active?: "learn" | null }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -15,7 +15,7 @@ export async function LearnShell({ children }: { children: React.ReactNode }) {
         <Link href="/" aria-label="Cusp home"><Image src="/cusp-logo.svg?v=2" alt="Cusp" width={125} height={29} loading="eager" className="h-7 w-auto" /></Link>
         <nav className="hidden items-center gap-7 text-sm md:flex">
           <Link href="/features" className="text-muted-foreground transition-colors hover:text-foreground">Features</Link>
-          <Link href="/learn" aria-current="page" className="border-b border-primary py-2 font-medium text-foreground">Learn</Link>
+          <Link href="/learn" aria-current={active === "learn" ? "page" : undefined} className={active === "learn" ? "border-b border-primary py-2 font-medium text-foreground" : "text-muted-foreground transition-colors hover:text-foreground"}>Learn</Link>
         </nav>
         <div className="flex items-center gap-2 sm:gap-3">
           {!user && <Link href="/sign-in" className="hidden px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">Sign in</Link>}
@@ -25,6 +25,23 @@ export async function LearnShell({ children }: { children: React.ReactNode }) {
     </header>
     {children}
   </main>
+}
+
+export function LegalArticleShell({ eyebrow, title, intro, updated, children }: { eyebrow: string; title: string; intro: string; updated: string; children: React.ReactNode }) {
+  return <LearnShell active={null}>
+    <article className="mx-auto max-w-3xl px-5 py-12 sm:py-16">
+      <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Back to Cusp</Link>
+      <p className="mt-10 font-mono text-[11px] uppercase tracking-[0.16em] text-primary">{eyebrow}</p>
+      <h1 className="mt-4 text-4xl font-medium leading-tight tracking-tight sm:text-5xl">{title}</h1>
+      <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{intro}</p>
+      <p className="mt-4 text-xs text-muted-foreground">Last updated {updated}</p>
+      <div className="mt-10 space-y-12 text-[15px] leading-7 text-muted-foreground">{children}</div>
+      <footer className="mt-16 border-t border-border pt-8 text-sm text-muted-foreground">
+        <p>Questions about this policy? Email <a href={`mailto:${SUPPORT_EMAIL}`} className="font-medium text-foreground underline underline-offset-4">{SUPPORT_EMAIL}</a>.</p>
+        <div className="mt-4 flex gap-5"><Link href="/terms" className="hover:text-foreground">Terms</Link><Link href="/privacy" className="hover:text-foreground">Privacy</Link></div>
+      </footer>
+    </article>
+  </LearnShell>
 }
 
 export function ArticleShell({ eyebrow, title, intro, children }: { eyebrow: string; title: string; intro: string; children: React.ReactNode }) {

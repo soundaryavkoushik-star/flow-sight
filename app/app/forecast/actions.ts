@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/data/prisma"
 import { createHash } from "node:crypto"
 import { isValidTimeZone } from "@/lib/forecast/timezone"
+import { checkRateLimit, RATE_LIMITS, rateLimitMessage } from "@/lib/security/rate-limit"
 
 export interface ForecastEventUpdate {
   eventId: string
@@ -35,6 +36,8 @@ export async function updateForecastEvent(input: ForecastEventUpdate): Promise<F
 
   try {
     if (input.eventId.startsWith("recurring:")) {
+      const rateLimit = await checkRateLimit(user.id, RATE_LIMITS.recurringMutation)
+      if (!rateLimit.allowed) return { ok: false, message: rateLimitMessage(rateLimit) }
       const [, recurringId, originalDateValue] = input.eventId.split(":")
       const originalDate = parseDate(originalDateValue)
       const existing = await prisma.recurringSeries.findFirst({ where: { id: recurringId, userId: user.id } })
@@ -78,6 +81,8 @@ export async function skipForecastOccurrence(eventId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, message: "Your session expired. Please sign in again." }
+  const rateLimit = await checkRateLimit(user.id, RATE_LIMITS.recurringMutation)
+  if (!rateLimit.allowed) return { ok: false as const, message: rateLimitMessage(rateLimit) }
   const [, recurringId, originalDateValue] = eventId.split(":")
   const originalDate = parseDate(originalDateValue)
   if (!eventId.startsWith("recurring:") || !recurringId || !originalDate) return { ok: false as const, message: "That occurrence can’t be skipped." }
@@ -96,6 +101,8 @@ export async function stopRecurringEvent(eventId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, message: "Your session expired. Please sign in again." }
+  const rateLimit = await checkRateLimit(user.id, RATE_LIMITS.recurringMutation)
+  if (!rateLimit.allowed) return { ok: false as const, message: rateLimitMessage(rateLimit) }
   const recurringId = eventId.split(":")[1]
   const series = await prisma.recurringSeries.findFirst({ where: { id: recurringId, userId: user.id } })
   if (!series) return { ok: false as const, message: "We couldn’t find that recurring event." }
@@ -120,6 +127,8 @@ export async function confirmForecastEstimate(eventId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, message: "Your session expired. Please sign in again." }
   if (!eventId.startsWith("recurring:")) return { ok: true as const }
+  const rateLimit = await checkRateLimit(user.id, RATE_LIMITS.recurringMutation)
+  if (!rateLimit.allowed) return { ok: false as const, message: rateLimitMessage(rateLimit) }
   const recurringId = eventId.split(":")[1]
   const result = await prisma.recurringSeries.updateMany({ where: { id: recurringId, userId: user.id }, data: { dateConfidence: "confirmed" } })
   if (result.count === 0) return { ok: false as const, message: "We couldn’t find that estimate." }

@@ -4,17 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   ArrowLeftRight,
-  BriefcaseBusiness,
-  Car,
   CircleHelp,
-  HeartPulse,
-  Home,
-  Landmark,
-  Lightbulb,
-  ReceiptText,
-  ShoppingBag,
-  ShoppingCart,
-  Utensils,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TransactionCategorySelect } from "@/components/transaction-category-select"
@@ -22,6 +12,7 @@ import { SPENDING_CATEGORIES, isForecastIncomeCategory, suggestTransactionCatego
 import { setTransactionsCategory } from "@/app/app/transactions/actions"
 import { amountColorClass } from "@/lib/financial/amount-style"
 import { merchantDisplayName } from "@/lib/financial/merchant-name"
+import { FinancialEventIcon } from "@/components/financial-event-visual"
 
 export interface TransactionRow {
   id: string
@@ -38,40 +29,10 @@ export interface TransactionRow {
 
 const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Math.abs(cents) / 100)
 
-function CategoryIcon({ category, transfer, review, estimated }: { category: string; transfer: boolean; review: boolean; estimated: boolean }) {
-  const Icon = transfer
-    ? ArrowLeftRight
-    : review
-      ? CircleHelp
-      : category === "Groceries"
-        ? ShoppingCart
-        : category === "Dining"
-          ? Utensils
-          : category === "Transport"
-            ? Car
-            : category === "Utilities"
-              ? Lightbulb
-              : category === "Housing"
-                ? Home
-                : category === "Health"
-                  ? HeartPulse
-                  : category === "Shopping"
-                    ? ShoppingBag
-                    : category === "Regular paycheck"
-                      ? Landmark
-                      : category === "Variable / side income" || category === "Business income"
-                        ? BriefcaseBusiness
-                        : ReceiptText
-  const tone = transfer
-    ? "bg-[oklch(var(--fs-transfer-bg))] text-[oklch(var(--fs-transfer))]"
-    : review
-      ? "bg-[oklch(var(--fs-amber-bg))] text-[oklch(var(--fs-amber))]"
-      : estimated
-        ? "bg-[oklch(var(--fs-estimate-bg))] text-[oklch(var(--fs-estimate))]"
-        : ["Regular paycheck", "Variable / side income", "Business income", "Investment income", "Benefits"].includes(category)
-          ? "bg-[oklch(var(--fs-green-bg))] text-[oklch(var(--fs-green))]"
-          : "bg-[oklch(var(--primary)/.14)] text-[oklch(var(--primary))]"
-  return <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon className="h-[18px] w-[18px]" strokeWidth={2} /></span>
+function ActivityIcon({ name, category, amountCents, transfer, cardPayment, review, estimated }: { name: string; category: string; amountCents: number; transfer: boolean; cardPayment: boolean; review: boolean; estimated: boolean }) {
+  if (transfer) return <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[oklch(var(--fs-transfer-bg))] text-[oklch(var(--fs-transfer))]"><ArrowLeftRight className="h-[18px] w-[18px]" strokeWidth={2} /></span>
+  if (review) return <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[oklch(var(--fs-amber-bg))] text-[oklch(var(--fs-amber))]"><CircleHelp className="h-[18px] w-[18px]" strokeWidth={2} /></span>
+  return <FinancialEventIcon name={`${name} ${category}${cardPayment ? " card payment" : ""}`} amountCents={amountCents} confidence={estimated ? "estimated" : "confirmed"} className="h-10 w-10 rounded-xl" iconClassName="h-[18px] w-[18px]" />
 }
 
 export function TransactionsTable({ transactions }: { transactions: TransactionRow[] }) {
@@ -156,7 +117,7 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
               <td className="px-4 py-4 text-center"><input type="checkbox" aria-label={`Select ${transaction.description}`} disabled={transaction.amountCents >= 0 || details.transfer} checked={details.selectedRow} onChange={(event) => toggle(transaction.id, event.target.checked)} /></td>
               <td className="px-3 py-4">
                 <div className="flex min-w-0 items-center gap-3">
-                  <CategoryIcon category={details.category} transfer={details.transfer || details.cardPayment} review={details.review} estimated={Boolean(transaction.estimated)} />
+                  <ActivityIcon name={details.displayName} category={details.category} amountCents={transaction.amountCents} transfer={details.transfer} cardPayment={details.cardPayment} review={details.review} estimated={Boolean(transaction.estimated)} />
                   <div className="min-w-0">
                     <p className="truncate font-medium text-foreground" title={transaction.description}>{details.displayName}</p>
                     <p className={`mt-0.5 text-xs ${details.review ? "font-medium text-[oklch(var(--fs-amber))]" : "text-muted-foreground"}`}>{details.date}{transaction.estimated ? " · estimated" : details.cardPayment ? " · card payment" : details.review ? " · needs review" : ""}</p>
@@ -178,7 +139,7 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
         return <div key={transaction.id} className={`p-4 transition-colors ${details.rowClass}`}>
           <div className="flex items-start gap-3">
             <input className="mt-3" type="checkbox" aria-label={`Select ${transaction.description}`} disabled={transaction.amountCents >= 0 || details.transfer} checked={details.selectedRow} onChange={(event) => toggle(transaction.id, event.target.checked)} />
-            <CategoryIcon category={details.category} transfer={details.transfer || details.cardPayment} review={details.review} estimated={Boolean(transaction.estimated)} />
+            <ActivityIcon name={details.displayName} category={details.category} amountCents={transaction.amountCents} transfer={details.transfer} cardPayment={details.cardPayment} review={details.review} estimated={Boolean(transaction.estimated)} />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0"><p className="truncate text-sm font-medium" title={transaction.description}>{details.displayName}</p><p className={`mt-0.5 text-xs ${details.review ? "text-[oklch(var(--fs-amber))]" : "text-muted-foreground"}`}>{details.date}{transaction.estimated ? " · estimated" : details.cardPayment ? " · card payment" : details.review ? " · needs review" : ""}</p></div>

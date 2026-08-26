@@ -71,13 +71,17 @@ export default function SignInPage() {
             </div>
           </div>
 
-          <blockquote className="text-muted-foreground text-sm leading-relaxed">
-            &ldquo;Finally a finance app that tells me what&apos;s <em className="text-foreground not-italic">coming</em>, not just what already happened.&rdquo;
-            <footer className="mt-3 text-xs text-muted-foreground/70">— Marcus T., beta user</footer>
-          </blockquote>
+          <div className="border-l-2 border-primary/35 pl-4">
+            <p className="text-sm font-medium text-foreground">Pick up with the same evidence in view.</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Your balances, upcoming events, and scenarios stay together. Confirmed items remain distinct from estimates, so the forecast never has to become a black box.</p>
+            <div className="mt-4 flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+              <span className="rounded-full border border-border bg-background/60 px-2.5 py-1">Confirmed stays labeled</span>
+              <span className="rounded-full border border-border bg-background/60 px-2.5 py-1">Estimates stay visible</span>
+            </div>
+          </div>
         </div>
 
-        <p className="relative text-xs text-muted-foreground/50">© {new Date().getFullYear()} Cusp, Inc.</p>
+        <p className="relative text-xs text-muted-foreground/50">© {new Date().getFullYear()} Cusp</p>
       </div>
 
       {/* Right panel — form */}
