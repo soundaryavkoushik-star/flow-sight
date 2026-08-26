@@ -62,7 +62,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   const transactions = query.category ? categoryMatches.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : categoryMatches
   const accountNameById = new Map(accounts.map((account) => [account.id, account.name]))
   const accountTypeById = new Map(accounts.map((account) => [account.id, account.type]))
-  const confirmedNames = new Set(confirmedRecurring.map((item) => item.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ")))
+  const confirmedNames = new Set(confirmedRecurring.map((item: { name: string }) => item.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ")))
   const dismissedRecurringKeys = new Set(recurringDecisions.map((decision) => `${decision.accountId}:${decision.normalizedKey}`))
   const accountIds = [...new Set(recurringHistory.map((item) => item.accountId).filter((value): value is string => Boolean(value)))]
   const recurringSuggestions = accountIds
