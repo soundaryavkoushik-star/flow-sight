@@ -989,27 +989,34 @@ export default function Landing({ isSignedIn = false }: { isSignedIn?: boolean }
         </div>
       </Reveal>
 
-      {/* 9. PRICING — compact */}
+      {/* 9. PRICING — Free and Pro */}
       <Reveal as="section" className="relative scroll-mt-16 px-5 py-12" id="pricing">
         <div className="mx-auto max-w-6xl">
           <div className="mx-auto mb-10 max-w-2xl text-center">
             <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary" style={mono}>Pricing</p>
-            <h2 className="text-[34px] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[42px]" style={display}>Free during the <span className="text-primary" style={editorialItalic}>private beta.</span></h2>
-            <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">Explore the forecast and help shape Cusp at no cost. Pricing is published before any paid plan begins.</p>
+            <h2 className="text-[34px] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[42px]" style={display}>Start with clarity. <span className="text-primary" style={editorialItalic}>Go deeper when you’re ready.</span></h2>
+            <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">The core forecast stays useful for free. Pro unlocks more room to plan ahead as your picture gets more detailed.</p>
           </div>
-          <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-3">
-            {[
-              { step: "Now", title: "Private beta", copy: "$0, use it free.", emphasis: true },
-              { step: "Before launch", title: "Plans published", copy: "In advance of any change." },
-              { step: "Your choice", title: "Opt in, or not", copy: "When pricing begins." },
-            ].map((item) => (
-              <div key={item.title} className={`rounded-2xl border p-5 ${item.emphasis ? "border-primary/25 bg-primary/[0.05]" : "border-border bg-card"}`}>
-                <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground" style={mono}>{item.step}</p>
-                <h3 className="mt-3 text-base font-medium">{item.title}</h3>
-                <p className="mt-1.5 text-sm text-muted-foreground">{item.copy}</p>
+          <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-[0_8px_28px_rgba(29,34,30,0.04)]">
+              <div className="flex items-start justify-between gap-4">
+                <div><p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground" style={mono}>Free</p><h3 className="mt-2 text-xl font-medium" style={display}>See what’s coming</h3></div>
+                <p className="font-mono text-sm text-foreground">$0</p>
               </div>
-            ))}
+              <ul className="mt-5 space-y-2.5 text-sm text-muted-foreground">
+                <li>Manual entry and CSV import</li><li>One active account</li><li>Up to 8 recurring items</li><li>30-day forecast and Safe to Spend</li><li>Confirmed versus estimated labels</li><li>Basic transfers, card timing, and alerts</li><li>One simple scenario test</li><li>Export and delete your data</li>
+              </ul>
+              <Link href="/sign-up" className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-foreground px-4 py-2.5 text-sm font-medium text-background transition hover:bg-foreground/90">Get started free</Link>
+            </div>
+            <div className="rounded-2xl border border-primary/30 bg-primary/[0.05] p-6 shadow-[0_10px_32px_rgba(212,117,74,0.08)]">
+              <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] uppercase tracking-[0.15em] text-primary" style={mono}>Pro · popular</p><h3 className="mt-2 text-xl font-medium" style={display}>See the full picture</h3></div><span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-medium text-primary">Beta included</span></div>
+              <ul className="mt-5 space-y-2.5 text-sm text-muted-foreground">
+                <li>Everything in Free</li><li>Unlimited accounts and recurring items</li><li>60- and 90-day forecasts</li><li>Full Scenario Planner comparisons</li><li>Complete credit-card timeline</li><li>Cross-account transfer matching</li><li>Forecast history and accuracy tracking</li><li>Custom alerts and detailed Show Your Work</li>
+              </ul>
+              <Link href="/sign-up" className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">Explore Pro</Link>
+            </div>
           </div>
+          <p className="mx-auto mt-5 max-w-xl text-center text-xs text-muted-foreground">Pro features are included during the private beta. We’ll publish pricing before billing begins—nothing changes without your choice.</p>
         </div>
       </Reveal>
 
